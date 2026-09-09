@@ -1,0 +1,36 @@
+services:
+  gp:
+    container_name: gp
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_PORT: 8069
+      FM_UPSTREAM: ${FM_UPSTREAM:-https://mgzh11.synology.me:8462}
+      HU_UPSTREAM: ${HU_UPSTREAM:-https://mgzh11.synology.me:8463}
+      SV_UPSTREAM: ${SV_UPSTREAM:-https://mgzh11.synology.me:8464}
+      GP_UPSTREAM_TIMEOUT_S: ${GP_UPSTREAM_TIMEOUT_S:-120}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_MODEL: ${OPENAI_API_MODEL:-gpt-4o-mini}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AN_MODEL: ${AN_MODEL:-claude-sonnet-4-5}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+      HEYGEN_API_BASE_URL: ${HEYGEN_API_BASE_URL:-https://api.heygen.com}
+      MEDIA_DIR: /media
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
+      WHATSAPP_GATEWAY_URL: ${WHATSAPP_GATEWAY_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-1}
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-0}
+      GP_VIDEO_JOBS: /app/data/video_jobs.sqlite
+    ports:
+      - "8069:8069"
+    volumes:
+      - ${MEDIA_HOST_DIR:-./media}:/media
+      - ./data:/app/data

@@ -1,0 +1,1056 @@
+[
+  {
+    "id": "H01",
+    "kind": "happy",
+    "title": "Canonical full sentence",
+    "text": "My name is Alex, 42, male Singapore citizen, married with two kids, working as a software engineer",
+    "regex": {
+      "expect": {
+        "name": "Alex",
+        "age": "42",
+        "gender": "Male",
+        "res": "Singapore Citizen",
+        "deps": "2",
+        "occ": "Software Engineer"
+      }
+    },
+    "llm": {
+      "raw": {
+        "name": "Alex",
+        "age": 42,
+        "gender": "Male",
+        "res": "Singapore Citizen",
+        "deps": "2",
+        "occ": "software engineer"
+      },
+      "expect": {
+        "name": "Alex",
+        "age": "42",
+        "gender": "Male",
+        "res": "Singapore Citizen",
+        "deps": "2",
+        "occ": "Software engineer"
+      }
+    }
+  },
+  {
+    "id": "H02",
+    "kind": "happy",
+    "title": "Named woman, PR, one child, lawyer",
+    "text": "My name is Priya, 29 years old, female, PR, one child, I work as a lawyer",
+    "regex": {
+      "expect": {
+        "name": "Priya",
+        "age": "29",
+        "gender": "Female",
+        "res": "Permanent Resident",
+        "deps": "1",
+        "occ": "Lawyer"
+      }
+    },
+    "llm": {
+      "raw": {
+        "name": "Priya",
+        "age": 29,
+        "gender": "Female",
+        "res": "PR",
+        "deps": "1",
+        "occ": "lawyer"
+      },
+      "expect": {
+        "name": "Priya",
+        "age": "29",
+        "gender": "Female",
+        "res": "Permanent Resident",
+        "deps": "1",
+        "occ": "Lawyer"
+      }
+    }
+  },
+  {
+    "id": "H03",
+    "kind": "happy",
+    "title": "Call-me name, Singaporean man, no kids, teacher",
+    "text": "Call me Wei, I am 38, a Singaporean man, no kids, I am a teacher",
+    "regex": {
+      "expect": {
+        "name": "Wei",
+        "age": "38",
+        "gender": "Male",
+        "res": "Singapore Citizen",
+        "deps": "0",
+        "occ": "Teacher"
+      }
+    },
+    "llm": {
+      "raw": {
+        "name": "Wei",
+        "age": 38,
+        "gender": "Male",
+        "res": "singaporean",
+        "deps": "0",
+        "occ": "teacher"
+      },
+      "expect": {
+        "name": "Wei",
+        "age": "38",
+        "gender": "Male",
+        "res": "Singapore Citizen",
+        "deps": "0",
+        "occ": "Teacher"
+      }
+    }
+  },
+  {
+    "id": "H04",
+    "kind": "happy",
+    "title": "This is, local lady, three children, nurse",
+    "text": "This is Fatimah, 45 year old lady, local, three children, nurse",
+    "regex": {
+      "expect": {
+        "name": "Fatimah",
+        "age": "45",
+        "gender": "Female",
+        "res": "Singapore Citizen",
+        "deps": "3",
+        "occ": "Nurse"
+      }
+    },
+    "llm": {
+      "raw": {
+        "name": "Fatimah",
+        "age": 45,
+        "gender": "Female",
+        "res": "local",
+        "deps": "3",
+        "occ": "nurse"
+      },
+      "expect": {
+        "name": "Fatimah",
+        "age": "45",
+        "gender": "Female",
+        "res": "Singapore Citizen",
+        "deps": "3",
+        "occ": "Nurse"
+      }
+    }
+  },
+  {
+    "id": "H05",
+    "kind": "happy",
+    "title": "Name's, yo age, foreigner accountant",
+    "text": "Name's Raj 51 yo male foreigner, I work as an accountant",
+    "regex": {
+      "expect": {
+        "name": "Raj",
+        "age": "51",
+        "gender": "Male",
+        "res": "Foreigner",
+        "occ": "Accountant"
+      }
+    },
+    "llm": {
+      "raw": {
+        "name": "Raj",
+        "age": 51,
+        "gender": "Male",
+        "res": "expat",
+        "deps": null,
+        "occ": "accountant"
+      },
+      "expect": {
+        "name": "Raj",
+        "age": "51",
+        "gender": "Male",
+        "res": "Foreigner",
+        "occ": "Accountant"
+      },
+      "absent": ["deps"]
+    }
+  },
+  {
+    "id": "H06",
+    "kind": "happy",
+    "title": "Age only, I am N years old",
+    "text": "I am 35 years old",
+    "regex": {
+      "expect": { "age": "35" },
+      "absent": ["name", "gender", "res", "deps", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 35, "gender": null, "res": null, "deps": null, "occ": null },
+      "expect": { "age": "35" },
+      "absent": ["name", "gender", "res", "deps", "occ"]
+    }
+  },
+  {
+    "id": "H07",
+    "kind": "happy",
+    "title": "Hyphenated year-old plus product manager",
+    "text": "I'm a 40-year-old product manager",
+    "regex": {
+      "expect": { "age": "40", "occ": "Product Manager" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 40, "gender": null, "res": null, "deps": null, "occ": "product manager" },
+      "expect": { "age": "40", "occ": "Product manager" }
+    }
+  },
+  {
+    "id": "H08",
+    "kind": "happy",
+    "title": "aged N plus living in Singapore",
+    "text": "aged 33, female, living in Singapore",
+    "regex": {
+      "expect": { "age": "33", "gender": "Female", "res": "Singapore Citizen" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 33, "gender": "Female", "res": "Singapore", "deps": null, "occ": null },
+      "expect": { "age": "33", "gender": "Female", "res": "Singapore Citizen" }
+    }
+  },
+  {
+    "id": "H09",
+    "kind": "happy",
+    "title": "y/o and SG citizen",
+    "text": "28 y/o software engineer, SG citizen",
+    "regex": {
+      "expect": { "age": "28", "occ": "Software Engineer", "res": "Singapore Citizen" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 28, "gender": null, "res": "sg citizen", "deps": null, "occ": "software engineer" },
+      "expect": { "age": "28", "res": "Singapore Citizen", "occ": "Software engineer" }
+    }
+  },
+  {
+    "id": "H10",
+    "kind": "happy",
+    "title": "Woman, two daughters",
+    "text": "I am a woman, 36, Singapore citizen, two daughters",
+    "regex": {
+      "expect": { "gender": "Female", "age": "36", "res": "Singapore Citizen", "deps": "2" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 36, "gender": "Female", "res": "Singapore Citizen", "deps": "2", "occ": null },
+      "expect": { "gender": "Female", "age": "36", "res": "Singapore Citizen", "deps": "2" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "H11",
+    "kind": "happy",
+    "title": "Mrs homemaker with two kids",
+    "text": "Mrs Tan, 48, two kids, I am a homemaker",
+    "regex": {
+      "expect": { "gender": "Female", "age": "48", "occ": "Homemaker", "deps": "2" },
+      "absent": ["name"]
+    },
+    "llm": {
+      "raw": { "name": "Tan", "age": 48, "gender": "Female", "res": null, "deps": "2", "occ": "homemaker" },
+      "expect": { "name": "Tan", "age": "48", "gender": "Female", "deps": "2", "occ": "Homemaker" }
+    }
+  },
+  {
+    "id": "H12",
+    "kind": "happy",
+    "title": "Mr, father of one, civil servant",
+    "text": "Mr Kumar, 44, father of one child, civil servant",
+    "regex": {
+      "expect": { "gender": "Male", "age": "44", "deps": "1", "occ": "Civil Servant" }
+    },
+    "llm": {
+      "raw": { "name": "Kumar", "age": 44, "gender": "Male", "res": null, "deps": "1", "occ": "civil servant" },
+      "expect": { "name": "Kumar", "age": "44", "gender": "Male", "deps": "1", "occ": "Civil servant" }
+    }
+  },
+  {
+    "id": "H13",
+    "kind": "happy",
+    "title": "Singapore citizen data scientist",
+    "text": "I am a Singapore citizen, 32, male, data scientist",
+    "regex": {
+      "expect": { "res": "Singapore Citizen", "age": "32", "gender": "Male", "occ": "Data Scientist" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 32, "gender": "Male", "res": "citizen", "deps": null, "occ": "data scientist" },
+      "expect": { "res": "Singapore Citizen", "age": "32", "gender": "Male", "occ": "Data scientist" }
+    }
+  },
+  {
+    "id": "H14",
+    "kind": "happy",
+    "title": "Resident of Singapore",
+    "text": "I'm a consultant, 41, male, resident of Singapore",
+    "regex": {
+      "expect": { "res": "Singapore Citizen", "age": "41", "gender": "Male", "occ": "Consultant" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 41, "gender": "Male", "res": "resident of Singapore", "deps": null, "occ": "consultant" },
+      "expect": { "res": "Singapore Citizen", "age": "41", "gender": "Male", "occ": "Consultant" }
+    }
+  },
+  {
+    "id": "H15",
+    "kind": "happy",
+    "title": "I live in Singapore, designer",
+    "text": "I live in Singapore, 37, female, designer",
+    "regex": {
+      "expect": { "res": "Singapore Citizen", "age": "37", "gender": "Female", "occ": "Designer" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 37, "gender": "Female", "res": "Singapore", "deps": null, "occ": "designer" },
+      "expect": { "res": "Singapore Citizen", "age": "37", "gender": "Female", "occ": "Designer" }
+    }
+  },
+  {
+    "id": "H16",
+    "kind": "happy",
+    "title": "PR engineer with two kids",
+    "text": "I am a PR, 34, male, two kids, engineer",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "age": "34", "gender": "Male", "deps": "2", "occ": "Engineer" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 34, "gender": "Male", "res": "PR", "deps": "2", "occ": "engineer" },
+      "expect": { "res": "Permanent Resident", "age": "34", "gender": "Male", "deps": "2", "occ": "Engineer" }
+    }
+  },
+  {
+    "id": "H17",
+    "kind": "happy",
+    "title": "Permanent resident pharmacist",
+    "text": "permanent resident, 46, female, pharmacist",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "age": "46", "gender": "Female", "occ": "Pharmacist" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 46, "gender": "Female", "res": "permanent resident", "deps": null, "occ": "pharmacist" },
+      "expect": { "res": "Permanent Resident", "age": "46", "gender": "Female", "occ": "Pharmacist" }
+    }
+  },
+  {
+    "id": "H18",
+    "kind": "happy",
+    "title": "SPR analyst",
+    "text": "I'm SPR, 39, male, analyst",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "age": "39", "gender": "Male", "occ": "Analyst" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 39, "gender": "Male", "res": "SPR", "deps": null, "occ": "analyst" },
+      "expect": { "res": "Permanent Resident", "age": "39", "gender": "Male", "occ": "Analyst" }
+    }
+  },
+  {
+    "id": "H19",
+    "kind": "happy",
+    "title": "Expat on employment pass",
+    "text": "I'm an expat, 31, female, on an employment pass, project manager",
+    "regex": {
+      "expect": { "res": "Foreigner", "age": "31", "gender": "Female", "occ": "Project Manager" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 31, "gender": "Female", "res": "expat", "deps": null, "occ": "project manager" },
+      "expect": { "res": "Foreigner", "age": "31", "gender": "Female", "occ": "Project manager" }
+    }
+  },
+  {
+    "id": "H20",
+    "kind": "happy",
+    "title": "Work permit driver",
+    "text": "work permit holder, 27, male, driver",
+    "regex": {
+      "expect": { "res": "Foreigner", "age": "27", "gender": "Male", "occ": "Driver" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 27, "gender": "Male", "res": "foreigner", "deps": null, "occ": "driver" },
+      "expect": { "res": "Foreigner", "age": "27", "gender": "Male", "occ": "Driver" }
+    }
+  },
+  {
+    "id": "H21",
+    "kind": "happy",
+    "title": "Two kids, Singaporean manager",
+    "text": "I have two kids, 43, male, Singaporean, manager",
+    "regex": {
+      "expect": { "deps": "2", "age": "43", "gender": "Male", "res": "Singapore Citizen", "occ": "Manager" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 43, "gender": "Male", "res": "singaporean", "deps": "2", "occ": "manager" },
+      "expect": { "deps": "2", "age": "43", "gender": "Male", "res": "Singapore Citizen", "occ": "Manager" }
+    }
+  },
+  {
+    "id": "H22",
+    "kind": "happy",
+    "title": "Three children, teacher",
+    "text": "three children, 40, woman, teacher",
+    "regex": {
+      "expect": { "deps": "3", "age": "40", "gender": "Female", "occ": "Teacher" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 40, "gender": "Female", "res": null, "deps": "3", "occ": "teacher" },
+      "expect": { "deps": "3", "age": "40", "gender": "Female", "occ": "Teacher" }
+    }
+  },
+  {
+    "id": "H23",
+    "kind": "happy",
+    "title": "Childless developer",
+    "text": "no kids, childless, 29, male, developer",
+    "regex": {
+      "expect": { "deps": "0", "age": "29", "gender": "Male", "occ": "Developer" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 29, "gender": "Male", "res": null, "deps": "0", "occ": "developer" },
+      "expect": { "deps": "0", "age": "29", "gender": "Male", "occ": "Developer" }
+    }
+  },
+  {
+    "id": "H24",
+    "kind": "happy",
+    "title": "Four kids maps to 4+",
+    "text": "I have four kids, 45, female, nurse",
+    "regex": {
+      "expect": { "deps": "4+", "age": "45", "gender": "Female", "occ": "Nurse" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 45, "gender": "Female", "res": null, "deps": "4+", "occ": "nurse" },
+      "expect": { "deps": "4+", "age": "45", "gender": "Female", "occ": "Nurse" }
+    }
+  },
+  {
+    "id": "H25",
+    "kind": "happy",
+    "title": "Five sons maps to 4+",
+    "text": "I have five sons, 50, male, banker",
+    "regex": {
+      "expect": { "deps": "4+", "age": "50", "gender": "Male", "occ": "Banker" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 50, "gender": "Male", "res": null, "deps": "4+", "occ": "banker" },
+      "expect": { "deps": "4+", "age": "50", "gender": "Male", "occ": "Banker" }
+    }
+  },
+  {
+    "id": "H26",
+    "kind": "happy",
+    "title": "Housewife spouse counts as a dependant",
+    "text": "I'm married, my wife is a housewife, 38, male, one child, banker",
+    "regex": {
+      "expect": { "deps": "2", "age": "38", "gender": "Male", "occ": "Banker" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 38, "gender": "Male", "res": null, "deps": "2", "occ": "banker" },
+      "expect": { "deps": "2", "age": "38", "gender": "Male", "occ": "Banker" }
+    }
+  },
+  {
+    "id": "H27",
+    "kind": "happy",
+    "title": "I work as a software engineer",
+    "text": "I work as a software engineer, 30, male, Singapore citizen",
+    "regex": {
+      "expect": { "occ": "Software Engineer", "age": "30", "gender": "Male", "res": "Singapore Citizen" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 30, "gender": "Male", "res": "Singapore Citizen", "deps": null, "occ": "software engineer" },
+      "expect": { "occ": "Software engineer", "age": "30", "gender": "Male", "res": "Singapore Citizen" }
+    }
+  },
+  {
+    "id": "H28",
+    "kind": "happy",
+    "title": "I'm a nurse, PR, two kids",
+    "text": "I'm a nurse, 34, female, two kids, PR",
+    "regex": {
+      "expect": { "occ": "Nurse", "age": "34", "gender": "Female", "deps": "2", "res": "Permanent Resident" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 34, "gender": "Female", "res": "PR", "deps": "2", "occ": "nurse" },
+      "expect": { "occ": "Nurse", "age": "34", "gender": "Female", "deps": "2", "res": "Permanent Resident" }
+    }
+  },
+  {
+    "id": "H29",
+    "kind": "happy",
+    "title": "My job is a CEO — regex keeps CEO, LLM expands it",
+    "text": "my job is a CEO, 47, male, living in Singapore, two dependants",
+    "regex": {
+      "expect": { "occ": "CEO", "age": "47", "gender": "Male", "res": "Singapore Citizen", "deps": "2" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 47, "gender": "Male", "res": "Singapore", "deps": "2", "occ": "CEO" },
+      "expect": { "occ": "Chief Executive Officer", "age": "47", "gender": "Male", "res": "Singapore Citizen", "deps": "2" }
+    }
+  },
+  {
+    "id": "H30",
+    "kind": "happy",
+    "title": "Single, nobody depends, student",
+    "text": "I'm single, nobody depends on me, 26, male, student",
+    "regex": {
+      "expect": { "deps": "0", "age": "26", "gender": "Male", "occ": "Student" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 26, "gender": "Male", "res": null, "deps": "0", "occ": "student" },
+      "expect": { "deps": "0", "age": "26", "gender": "Male", "occ": "Student" }
+    }
+  },
+  {
+    "id": "N01",
+    "kind": "negative",
+    "title": "Too short for extract",
+    "text": "hi",
+    "regex": { "expect": {}, "absent": ["name", "age", "gender", "res", "deps", "occ"] },
+    "llm": { "mode": "short", "expect": {}, "absent": ["name", "age", "gender", "res", "deps", "occ"] }
+  },
+  {
+    "id": "N02",
+    "kind": "negative",
+    "title": "Age 17 is below the 18–70 band",
+    "text": "I am 17 years old, male, student",
+    "regex": {
+      "expect": { "gender": "Male", "occ": "Student" },
+      "absent": ["age"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 17, "gender": "Male", "res": null, "deps": null, "occ": "student" },
+      "expect": { "gender": "Male", "occ": "Student" },
+      "absent": ["age"]
+    }
+  },
+  {
+    "id": "N03",
+    "kind": "negative",
+    "title": "Age 71 is above the 18–70 band",
+    "text": "I am 71 years old, female, retired",
+    "regex": {
+      "expect": { "gender": "Female", "occ": "Retired" },
+      "absent": ["age"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 71, "gender": "Female", "res": null, "deps": null, "occ": "retired" },
+      "expect": { "gender": "Female", "occ": "Retired" },
+      "absent": ["age"]
+    }
+  },
+  {
+    "id": "N04",
+    "kind": "negative",
+    "title": "Age 12 is not accepted",
+    "text": "I am 12, girl, Singapore",
+    "regex": {
+      "expect": { "gender": "Female" },
+      "absent": ["age", "res"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 12, "gender": "Female", "res": null, "deps": null, "occ": null },
+      "expect": { "gender": "Female" },
+      "absent": ["age", "res"]
+    }
+  },
+  {
+    "id": "N05",
+    "kind": "negative",
+    "title": "Place name in a weather sentence is not a profile",
+    "text": "The weather in Singapore is hot today and I like chilli crab",
+    "regex": { "expect": {}, "absent": ["name", "age", "gender", "res", "deps", "occ"] },
+    "llm": {
+      "raw": { "name": null, "age": null, "gender": null, "res": null, "deps": null, "occ": null },
+      "expect": {},
+      "absent": ["name", "age", "gender", "res", "deps", "occ"]
+    }
+  },
+  {
+    "id": "N06",
+    "kind": "negative",
+    "title": "Name without a name-phrase is missed by regex",
+    "text": "Michael here, CEO",
+    "regex": {
+      "expect": { "occ": "CEO" },
+      "absent": ["name", "age", "gender", "res", "deps"]
+    },
+    "llm": {
+      "raw": { "name": "Michael", "age": null, "gender": null, "res": null, "deps": null, "occ": "CEO" },
+      "expect": { "name": "Michael", "occ": "Chief Executive Officer" },
+      "absent": ["gender", "age"]
+    }
+  },
+  {
+    "id": "N07",
+    "kind": "negative",
+    "title": "Work in Singapore is not residency for regex",
+    "text": "I work in Singapore as a chef, 40",
+    "regex": {
+      "expect": { "age": "40", "occ": "Chef" },
+      "absent": ["res"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 40, "gender": null, "res": "Singapore Citizen", "deps": null, "occ": "chef" },
+      "expect": { "age": "40", "res": "Singapore Citizen", "occ": "Chef" }
+    }
+  },
+  {
+    "id": "N08",
+    "kind": "negative",
+    "title": "Name alone must not invent gender",
+    "text": "My name is Michael",
+    "regex": {
+      "expect": { "name": "Michael" },
+      "absent": ["gender", "age", "res", "deps", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Michael", "age": null, "gender": null, "res": null, "deps": null, "occ": null },
+      "expect": { "name": "Michael" },
+      "absent": ["gender", "age", "res", "deps", "occ"]
+    }
+  },
+  {
+    "id": "N09",
+    "kind": "negative",
+    "title": "Typo mail→male: regex misses gender, LLM should fix it",
+    "text": "I'm mail, 42, CEO in Singapore",
+    "regex": {
+      "expect": { "age": "42" },
+      "absent": ["gender"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 42, "gender": "Male", "res": "Singapore Citizen", "deps": null, "occ": "CEO" },
+      "expect": { "age": "42", "gender": "Male", "res": "Singapore Citizen", "occ": "Chief Executive Officer" }
+    }
+  },
+  {
+    "id": "N10",
+    "kind": "negative",
+    "title": "Messy CEO+kids sentence: regex swallows occupation, LLM does not",
+    "text": "hi my legs 42 years old living in Singapore and have Singapore citizenship I'm a CEO as occupation and I have two kids",
+    "regex": {
+      "expect": { "age": "42", "res": "Singapore Citizen", "deps": "2" },
+      "not_expect": { "occ": "Chief Executive Officer" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 42, "gender": null, "res": "Singapore Citizen", "deps": "2", "occ": "CEO" },
+      "expect": { "age": "42", "res": "Singapore Citizen", "deps": "2", "occ": "Chief Executive Officer" }
+    }
+  },
+  {
+    "id": "N11",
+    "kind": "negative",
+    "title": "Working wife is not a dependant",
+    "text": "I have two kids and one wife, 38, male, manager",
+    "regex": {
+      "expect": { "deps": "2", "age": "38", "gender": "Male", "occ": "Manager" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 38, "gender": "Male", "res": null, "deps": "2", "occ": "manager" },
+      "expect": { "deps": "2", "age": "38", "gender": "Male", "occ": "Manager" }
+    }
+  },
+  {
+    "id": "N12",
+    "kind": "negative",
+    "title": "Unit 42 is not an age for the LLM; regex may false-positive",
+    "text": "Please send it to unit 42, Orchard Road",
+    "regex": { "expect": { "age": "42" } },
+    "llm": {
+      "raw": { "name": null, "age": null, "gender": null, "res": null, "deps": null, "occ": null },
+      "expect": {},
+      "absent": ["age", "name", "occ"]
+    }
+  },
+  {
+    "id": "N13",
+    "kind": "negative",
+    "title": "Garbage / injection text still parses a real age if present",
+    "text": "'; DROP TABLE users; -- I am 30",
+    "regex": {
+      "expect": { "age": "30" },
+      "absent": ["name", "gender", "res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 30, "gender": null, "res": null, "deps": null, "occ": null },
+      "expect": { "age": "30" },
+      "absent": ["name", "gender", "res", "occ"]
+    }
+  },
+  {
+    "id": "N14",
+    "kind": "negative",
+    "title": "Age 80 is dropped; residency can still land",
+    "text": "I am 80 years old and a Singapore citizen",
+    "regex": {
+      "expect": { "res": "Singapore Citizen" },
+      "absent": ["age"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 80, "gender": null, "res": "Singapore Citizen", "deps": null, "occ": null },
+      "expect": { "res": "Singapore Citizen" },
+      "absent": ["age"]
+    }
+  },
+  {
+    "id": "N15",
+    "kind": "negative",
+    "title": "Child's age must not become the speaker's age",
+    "text": "My 16 year old daughter lives with me",
+    "regex": {
+      "absent": ["age"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": null, "gender": null, "res": null, "deps": "1", "occ": null },
+      "expect": { "deps": "1" },
+      "absent": ["age"]
+    }
+  },
+  {
+    "id": "N16",
+    "kind": "negative",
+    "title": "Occupation 'kids' is discarded",
+    "text": "occupation: kids",
+    "regex": { "absent": ["occ"] },
+    "llm": {
+      "raw": { "name": null, "age": null, "gender": null, "res": null, "deps": null, "occ": "kids" },
+      "expect": {},
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "N17",
+    "kind": "negative",
+    "title": "Citizen and PR together: PR wins",
+    "text": "I am a Singapore citizen and a PR, 35, male",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "age": "35", "gender": "Male" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 35, "gender": "Male", "res": "Permanent Resident", "deps": null, "occ": null },
+      "expect": { "res": "Permanent Resident", "age": "35", "gender": "Male" }
+    }
+  },
+  {
+    "id": "N18",
+    "kind": "negative",
+    "title": "Mentioning a husband does not add a dependant",
+    "text": "I have a husband, 42, female, lawyer",
+    "regex": {
+      "expect": { "deps": "0", "age": "42", "gender": "Female", "occ": "Lawyer" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 42, "gender": "Female", "res": null, "deps": "0", "occ": "lawyer" },
+      "expect": { "deps": "0", "age": "42", "gender": "Female", "occ": "Lawyer" }
+    }
+  },
+  {
+    "id": "N19",
+    "kind": "negative",
+    "title": "Invalid model gender and baby age are dropped",
+    "text": "my baby is 9 months old",
+    "regex": { "absent": ["age", "gender"] },
+    "llm": {
+      "raw": { "name": null, "age": 9, "gender": "Other", "res": null, "deps": null, "occ": null },
+      "expect": {},
+      "absent": ["age", "gender"]
+    }
+  },
+  {
+    "id": "N20",
+    "kind": "negative",
+    "title": "Screenshot-style typos: regex gets age+job only; LLM recovers name and residency",
+    "text": "My name ic Michael, 43 old, ceo in Singapore",
+    "regex": {
+      "expect": { "age": "43", "occ": "Ceo" },
+      "absent": ["name", "gender", "res"]
+    },
+    "llm": {
+      "raw": { "name": "Michael", "age": 43, "gender": null, "res": "Singapore Citizen", "deps": null, "occ": "CEO" },
+      "expect": { "name": "Michael", "age": "43", "res": "Singapore Citizen", "occ": "Chief Executive Officer" },
+      "absent": ["gender"]
+    }
+  },
+  {
+    "id": "V01",
+    "kind": "voice",
+    "title": "Spoken fillers: I actually Michael, working as 0, two kids and a wife",
+    "text": "I actually Michael and I would like to be look for a solution in Singapore and I'm working as 0 and I'm a permanent resident in Singapore and I have two kids and one wife and yeah I may actually",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "deps": "2" },
+      "absent": ["name", "age", "gender", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Michael", "age": null, "gender": null, "res": "Permanent Resident", "deps": "2", "occ": null },
+      "expect": { "name": "Michael", "res": "Permanent Resident", "deps": "2" },
+      "absent": ["age", "gender", "occ"]
+    }
+  },
+  {
+    "id": "V02",
+    "kind": "voice",
+    "title": "mail heard instead of male",
+    "text": "I'm mail, 42 years old, working as a CEO in Singapore with two kids",
+    "regex": {
+      "expect": { "age": "42", "deps": "2", "occ": "CEO" },
+      "absent": ["gender"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 42, "gender": "Male", "res": "Singapore Citizen", "deps": "2", "occ": "CEO" },
+      "expect": { "age": "42", "gender": "Male", "res": "Singapore Citizen", "deps": "2", "occ": "Chief Executive Officer" }
+    }
+  },
+  {
+    "id": "V03",
+    "kind": "voice",
+    "title": "is Michael instead of I am Michael",
+    "text": "is Michael, 43 old, ceo in Singapore",
+    "regex": {
+      "expect": { "age": "43", "occ": "Ceo" },
+      "absent": ["name", "gender", "res"]
+    },
+    "llm": {
+      "raw": { "name": "Michael", "age": 43, "gender": null, "res": "Singapore Citizen", "deps": null, "occ": "CEO" },
+      "expect": { "name": "Michael", "age": "43", "res": "Singapore Citizen", "occ": "Chief Executive Officer" },
+      "absent": ["gender"]
+    }
+  },
+  {
+    "id": "V04",
+    "kind": "voice",
+    "title": "Micheal spelling and fe mail instead of female",
+    "text": "I am called Micheal, 38, fe mail, Singapore citizen, teacher",
+    "regex": {
+      "expect": { "name": "Micheal", "age": "38", "res": "Singapore Citizen", "occ": "Teacher" },
+      "absent": ["gender"]
+    },
+    "llm": {
+      "raw": { "name": "Micheal", "age": 38, "gender": "Female", "res": "Singapore Citizen", "deps": null, "occ": "teacher" },
+      "expect": { "name": "Micheal", "age": "38", "gender": "Female", "res": "Singapore Citizen", "occ": "Teacher" }
+    }
+  },
+  {
+    "id": "V05",
+    "kind": "voice",
+    "title": "for two years old instead of 42 years old",
+    "text": "my name is Michal and I am for two years old male PR engineer",
+    "regex": {
+      "expect": { "name": "Michal", "gender": "Male", "res": "Permanent Resident", "occ": "Engineer" },
+      "absent": ["age"]
+    },
+    "llm": {
+      "raw": { "name": "Michal", "age": 42, "gender": "Male", "res": "PR", "deps": null, "occ": "engineer" },
+      "expect": { "name": "Michal", "age": "42", "gender": "Male", "res": "Permanent Resident", "occ": "Engineer" }
+    }
+  },
+  {
+    "id": "V06",
+    "kind": "voice",
+    "title": "city zen, mail, two kits",
+    "text": "I'm a city zen of Singapore, 41, mail, two kits",
+    "regex": {
+      "expect": { "age": "41" },
+      "absent": ["gender", "res", "deps", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 41, "gender": "Male", "res": "Singapore Citizen", "deps": "2", "occ": null },
+      "expect": { "age": "41", "gender": "Male", "res": "Singapore Citizen", "deps": "2" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "V07",
+    "kind": "voice",
+    "title": "worse instead of nurse, pea are instead of PR",
+    "text": "I work as a worse, 34, female, pea are",
+    "regex": {
+      "expect": { "age": "34", "gender": "Female" },
+      "absent": ["res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 34, "gender": "Female", "res": "PR", "deps": null, "occ": "nurse" },
+      "expect": { "age": "34", "gender": "Female", "res": "Permanent Resident", "occ": "Nurse" }
+    }
+  },
+  {
+    "id": "V08",
+    "kind": "voice",
+    "title": "year sold and sing a pore",
+    "text": "yeah so I'm actually 40 year sold living in sing a pore, two kids",
+    "regex": {
+      "expect": { "age": "40", "deps": "2" },
+      "absent": ["res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 40, "gender": null, "res": "Singapore Citizen", "deps": "2", "occ": null },
+      "expect": { "age": "40", "res": "Singapore Citizen", "deps": "2" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "V09",
+    "kind": "voice",
+    "title": "working as oh and Singapore sitting",
+    "text": "I'm working as oh, 45, male, Singapore sitting",
+    "regex": {
+      "expect": { "age": "45", "gender": "Male" },
+      "absent": ["res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 45, "gender": "Male", "res": "Singapore Citizen", "deps": null, "occ": null },
+      "expect": { "age": "45", "gender": "Male", "res": "Singapore Citizen" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "V10",
+    "kind": "voice",
+    "title": "pre instead of PR, job is see eo",
+    "text": "this is Ali, I'm a pre in Singapore, three kids, job is see eo",
+    "regex": {
+      "expect": { "name": "Ali", "deps": "3" },
+      "absent": ["res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Ali", "age": null, "gender": null, "res": "PR", "deps": "3", "occ": "CEO" },
+      "expect": { "name": "Ali", "res": "Permanent Resident", "deps": "3", "occ": "Chief Executive Officer" }
+    }
+  },
+  {
+    "id": "V11",
+    "kind": "voice",
+    "title": "I may instead of I'm male; residents plural; wife not a dependant",
+    "text": "I may, 36, permanent residents, one wife and two kids",
+    "regex": {
+      "expect": { "age": "36", "deps": "2" },
+      "absent": ["gender", "res", "occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 36, "gender": "Male", "res": "permanent resident", "deps": "2", "occ": null },
+      "expect": { "age": "36", "gender": "Male", "res": "Permanent Resident", "deps": "2" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "V12",
+    "kind": "voice",
+    "title": "mail and no kits",
+    "text": "call me Wei, I'm 29 y o, mail, local, no kits",
+    "regex": {
+      "expect": { "name": "Wei", "age": "29", "res": "Singapore Citizen" },
+      "absent": ["gender", "deps", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Wei", "age": 29, "gender": "Male", "res": "local", "deps": "0", "occ": null },
+      "expect": { "name": "Wei", "age": "29", "gender": "Male", "res": "Singapore Citizen", "deps": "0" },
+      "absent": ["occ"]
+    }
+  },
+  {
+    "id": "V13",
+    "kind": "voice",
+    "title": "years hold and I teach maths",
+    "text": "I am female 31 years hold SG citizen I teach maths",
+    "regex": {
+      "expect": { "age": "31", "gender": "Female", "res": "Singapore Citizen" },
+      "absent": ["occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 31, "gender": "Female", "res": "sg citizen", "deps": null, "occ": "teacher" },
+      "expect": { "age": "31", "gender": "Female", "res": "Singapore Citizen", "occ": "Teacher" }
+    }
+  },
+  {
+    "id": "V14",
+    "kind": "voice",
+    "title": "account tent instead of accountant",
+    "text": "working as an account tent, 44, woman, two daughter",
+    "regex": {
+      "expect": { "age": "44", "gender": "Female", "deps": "2" },
+      "absent": ["occ"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 44, "gender": "Female", "res": null, "deps": "2", "occ": "accountant" },
+      "expect": { "age": "44", "gender": "Female", "deps": "2", "occ": "Accountant" }
+    }
+  },
+  {
+    "id": "V15",
+    "kind": "voice",
+    "title": "I actually Priya, no name phrase",
+    "text": "I actually Priya looking for solution I have one child I'm PR nurse",
+    "regex": {
+      "expect": { "res": "Permanent Resident", "deps": "1", "occ": "Nurse" },
+      "absent": ["name"]
+    },
+    "llm": {
+      "raw": { "name": "Priya", "age": null, "gender": null, "res": "PR", "deps": "1", "occ": "nurse" },
+      "expect": { "name": "Priya", "res": "Permanent Resident", "deps": "1", "occ": "Nurse" }
+    }
+  },
+  {
+    "id": "V16",
+    "kind": "voice",
+    "title": "my name ic Alex and mail and truncated software",
+    "text": "my name ic Alex I'm 42 year old mail Singapore citizen software",
+    "regex": {
+      "expect": { "age": "42", "res": "Singapore Citizen" },
+      "absent": ["name", "gender", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Alex", "age": 42, "gender": "Male", "res": "Singapore Citizen", "deps": null, "occ": "software engineer" },
+      "expect": { "name": "Alex", "age": "42", "gender": "Male", "res": "Singapore Citizen", "occ": "Software engineer" }
+    }
+  },
+  {
+    "id": "V17",
+    "kind": "voice",
+    "title": "for kids instead of four kids",
+    "text": "I live in Singapore I'm 50 retired and I have for kids",
+    "regex": {
+      "expect": { "age": "50", "res": "Singapore Citizen", "occ": "Retired" },
+      "absent": ["deps"]
+    },
+    "llm": {
+      "raw": { "name": null, "age": 50, "gender": null, "res": "Singapore", "deps": "4+", "occ": "retired" },
+      "expect": { "age": "50", "res": "Singapore Citizen", "deps": "4+", "occ": "Retired" }
+    }
+  },
+  {
+    "id": "V18",
+    "kind": "voice",
+    "title": "um/yeah fillers stuck onto the job title",
+    "text": "um I'm a guy 27 foreigner on a visa working as a driver yeah",
+    "regex": {
+      "expect": { "age": "27", "gender": "Male", "res": "Foreigner", "occ": "Driver" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 27, "gender": "Male", "res": "foreigner", "deps": null, "occ": "driver" },
+      "expect": { "age": "27", "gender": "Male", "res": "Foreigner", "occ": "Driver" }
+    }
+  },
+  {
+    "id": "V19",
+    "kind": "voice",
+    "title": "home maker split and Mrs Tan with no name phrase",
+    "text": "I'm mrs Tan 48 home maker two kids in Singapore",
+    "regex": {
+      "expect": { "age": "48", "gender": "Female", "deps": "2" },
+      "absent": ["name", "occ"]
+    },
+    "llm": {
+      "raw": { "name": "Tan", "age": 48, "gender": "Female", "res": "Singapore Citizen", "deps": "2", "occ": "homemaker" },
+      "expect": { "name": "Tan", "age": "48", "gender": "Female", "res": "Singapore Citizen", "deps": "2", "occ": "Homemaker" }
+    }
+  },
+  {
+    "id": "V20",
+    "kind": "voice",
+    "title": "Spoken ums around SPR and a kid",
+    "text": "hi so like I'm 33 and I work in IT consultant and I'm SPR with a kid",
+    "regex": {
+      "expect": { "age": "33", "res": "Permanent Resident", "deps": "1", "occ": "IT Consultant" }
+    },
+    "llm": {
+      "raw": { "name": null, "age": 33, "gender": null, "res": "SPR", "deps": "1", "occ": "IT consultant" },
+      "expect": { "age": "33", "res": "Permanent Resident", "deps": "1", "occ": "IT consultant" }
+    }
+  }
+]

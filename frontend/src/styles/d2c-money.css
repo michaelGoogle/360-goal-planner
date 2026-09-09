@@ -1,0 +1,189 @@
+/* --- Step 2 · the derivation card, which is also the money card ---------
+   "Money in and out" held the same two figures this card was already
+   explaining, and the surplus then appeared in a third place. The chain now
+   runs all the way down: the bands and the curve, the two figures themselves,
+   and the budget they leave. Correcting a figure is a pencil on its row, not
+   a second card. */
+.x-why,.x-needs,.x-prod,.x-card.x-fade{background:linear-gradient(180deg,#F6F9FF 0%,#FFFFFF 58%);
+ border:1px solid #D7E0F5}
+.x-card.x-fade,.x-prod{box-shadow:none}
+.x-why{margin-bottom:16px;border-radius:var(--r2);padding:20px 22px 18px}
+.x-whyh{display:flex;align-items:center;justify-content:space-between;gap:13px;margin-bottom:16px}
+.x-whyh .ic{width:36px;height:36px;border-radius:11px;background:var(--acc-t);color:var(--acc);
+ display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.x-whyh .t{flex:1;min-width:0}
+.x-whyh .t b{display:block;font-size:16.5px;letter-spacing:-.3px;margin-bottom:3px}
+.x-whyh .t span{display:block;font-size:14px;line-height:1.55;color:var(--ink1);max-width:64ch}
+.x-whyh .x-btn{flex:0 0 auto;background:#fff}
+.x-whyg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.x-drv{position:relative;display:flex;flex-direction:column;gap:5px;background:#fff;
+ border:1px solid var(--ln);border-radius:14px;padding:12px 9px 13px 15px;transition:.15s}
+.x-drv:hover{border-color:var(--acc2);box-shadow:0 6px 18px -12px rgba(12,20,36,.35)}
+.x-drv .top{display:flex;align-items:center;gap:0}
+.x-drv .v{flex:1;min-width:0;display:flex;align-items:center;gap:7px;text-align:left;
+ border:0;background:none;padding:0;font-family:inherit;font-size:15px;font-weight:700;
+ letter-spacing:-.2px;color:var(--ink0);cursor:pointer}
+.x-drv .v i{display:flex;color:var(--ink2);opacity:0;transition:.15s}
+.x-drv:hover .v i{opacity:1}
+.x-drv .v:hover{color:var(--acc)}
+.x-drv .e{font-size:13px;font-weight:650;color:var(--ink1);padding-right:6px}
+/* A driver tip is anchored to its CARD, not to the small circle at the card's
+   edge — anchored to the circle it hangs off the side of the grid. */
+.x-drv .x-tipw{position:static}
+.x-drv .x-tip{left:0;right:auto;top:calc(100% - 5px);width:330px}
+.x-drv .x-tip.r{left:auto;right:0}
+.x-drv .x-tip:before{left:auto;right:22px}
+.x-drv.on{border-color:#C9D8FA;background:#FCFDFF}
+.x-drv.on .e{color:var(--acc)}
+.x-drv:not(.on){border-style:dashed;background:#FAFBFD}
+.x-drv:not(.on) .e{color:var(--ink2);font-weight:600}
+
+.x-perm{text-align:right;font-size:12px;font-weight:700;letter-spacing:.6px;
+ text-transform:uppercase;color:var(--ink2);margin:0 4px 6px 0}
+/* the explanation, shown only when it is asked for */
+.x-expl{margin-bottom:18px;padding-bottom:4px;border-bottom:1px solid #D7E0F5;
+ animation:xreveal .22s ease-out}
+@keyframes xreveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.x-explh{display:flex;align-items:center;gap:12px;margin:2px 0 10px}
+.x-explh b{font-size:12.5px;font-weight:750;letter-spacing:.7px;text-transform:uppercase;
+ color:var(--ink1)}
+.x-explx{margin-left:auto;border:1px solid var(--ln);background:#fff;border-radius:99px;
+ padding:6px 14px;font-family:inherit;font-size:13px;font-weight:650;color:var(--ink1);cursor:pointer}
+.x-explx:hover{border-color:#CDD4DC;color:var(--ink0)}
+.x-whyg+.x-explh{margin-top:16px}
+.x-drv.fig .v{cursor:default;flex-direction:column;align-items:flex-start;gap:1px}
+.x-drv.fig .v em{font-style:normal;font-size:17px;font-weight:750;letter-spacing:-.4px;
+ color:var(--ink0);font-variant-numeric:tabular-nums}
+.x-drv.fig{border-style:solid;background:#fff}
+.x-drv .src{font-size:10.5px;font-weight:750;letter-spacing:.6px;text-transform:uppercase;
+ color:var(--acc);background:var(--acc-t);border-radius:99px;padding:3px 9px;align-self:flex-start}
+.x-drv.doc .src{background:var(--acc-t);color:var(--acc)}
+.x-drv.doc{border-color:#C9D8FA}
+.x-drv.you .src{background:#EEF1F5;color:var(--ink1)}
+.x-drv.you{border-color:var(--ln)}
+.x-drv.fig .e{color:var(--ink2);font-weight:500;line-height:1.45}
+.x-chain{background:#fff;border:1px solid var(--ln);border-radius:14px;padding:6px 16px}
+.x-chain+.x-chain{margin-top:14px}
+/* each card now ends on its total, so the total ends on the card: pull the
+   tinted row into the 6px of bottom padding it used to sit above */
+.x-chain>div:last-child.b,.x-chain>div:last-child.tot{margin-bottom:-6px}
+.x-chain>div{display:flex;align-items:center;justify-content:space-between;gap:14px;
+ padding:11px 0;border-bottom:1px solid #F1F4F8;font-size:14.5px;color:var(--ink1)}
+.x-chain>div:last-child{border-bottom:0}
+.x-chain>div>span:first-child{display:flex;align-items:center;gap:1px;flex-wrap:wrap;min-width:0}
+.x-chain>div b{font-weight:700;color:var(--ink0);font-variant-numeric:tabular-nums;
+ white-space:nowrap;margin-left:auto;text-align:right;min-width:7.5ch}
+.x-chain>div.t{border-top:1px solid var(--ln);border-bottom:0;margin-top:2px}
+.x-chain>div.t+div.t{border-top:1px solid #F1F4F8;margin-top:0}
+.x-chain>div.t>span:first-child{font-weight:650;color:var(--ink0)}
+.x-chain>div.t b{font-size:16.5px;color:var(--ink0)}
+.x-chain>div.b{border-top:1px solid var(--ln);border-bottom:0;background:var(--lime-t);
+ margin:2px -16px 0;padding:13px 16px;border-radius:0 0 13px 13px}
+.x-chain>div.b>span:first-child{font-weight:750;color:#0B7A3B}
+.x-chain>div.b b{font-size:19px;color:#0B7A3B;letter-spacing:-.4px}
+.x-chain>div.b.no{background:var(--no-t)}
+.x-chain>div.b.no>span:first-child,.x-chain>div.b.no b{color:#B4242A}
+.x-chain .rsub{font-style:normal;font-weight:inherit;color:inherit}
+/* group separators inside the one list */
+.x-chain>div.sep{border-bottom:0;border-top:1px solid var(--ln);margin-top:6px;
+ padding:15px 0 7px;gap:9px;cursor:pointer}
+.x-chain>div.sep:first-child{border-top:0;margin-top:0;padding-top:12px}
+.x-chain>div.sep>span:first-child{font-size:12px;font-weight:750;letter-spacing:.7px;
+ text-transform:uppercase;color:var(--ink1);flex:0 0 auto}
+.x-chain>div.sep>.x-coach-hit{padding:4px;margin:-4px}
+.x-chain>div.sep>.cv,.x-chain>div.sep>.x-coach-hit>.cv{display:flex;color:var(--ink2);flex:0 0 auto;transition:transform .2s}
+.x-chain>div.sep:focus-visible{outline:2px solid var(--acc2);outline-offset:2px;border-radius:8px}
+.x-chain.open>div.sep>.cv,.x-chain.open>div.sep>.x-coach-hit>.cv{transform:rotate(180deg)}
+.x-chain.fold:not(.open)>.t,
+.x-chain.fold:not(.open)>.none,
+.x-chain.fold:not(.open)>.pol,
+.x-chain.fold:not(.open)>.add,
+.x-chain.fold:not(.open)>.b,
+.x-chain.fold:not(.open)>.tot{display:none}
+.x-chain.fold:not(.open)>.chart{border-bottom:0}
+/* Blue means the AI produced this figure — whether by estimating it from a
+   population or by reading it off a document. Grey means the customer did.
+   One rule for every tag on the journey, so the colour is worth reading. */
+.x-gtag{display:inline-flex;align-items:center;gap:6px;font-style:normal;font-size:12px;
+ font-weight:650;letter-spacing:0;text-transform:none;color:var(--acc);background:var(--acc-t);
+ border-radius:99px;padding:4px 12px 4px 9px;white-space:nowrap}
+.x-gtag svg{width:14px;height:14px;flex:0 0 auto;fill:var(--acc);stroke:none}
+.x-gtag.doc{background:var(--acc-t);color:var(--acc)}
+.x-gtag.doc svg{stroke:var(--acc);fill:none}
+.x-gtag.you{background:#EEF1F5;color:var(--ink1)}
+.x-gtag.you svg{stroke:var(--ink2);fill:none}
+.x-chain>div.sep>em.u{font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.6px;
+ text-transform:uppercase;color:var(--ink2);margin-left:auto}
+.x-chain>div.sep .x-prov{margin-left:2px}
+.x-chain>div.tot{border-bottom:0;border-top:1px solid var(--ln);background:#F7F9FC;
+ margin:2px -16px 0;padding:12px 16px;border-radius:0}
+.x-chain>div.tot+.sep{border-top:0;margin-top:0}
+.x-chain>div.tot>span:first-child{font-weight:750;color:var(--ink0)}
+.x-chain>div.tot b{font-size:18px;letter-spacing:-.4px}
+/* rows without a trailing button still line their digits up with rows that
+   have one: 28px of button plus the 14px row gap */
+ /* a row with no trailing button still lines its digits up with rows that
+    have one: 23px of button plus the 14px row gap */
+.x-chain>div.tot b,.x-chain>div.none b,.x-chain>div.noedit b{padding-right:35px}
+.x-chain>div.none:has(.x-tipw) b{padding-right:0}
+.x-chain>div:last-child.tot{border-radius:0 0 13px 13px}
+/* the group chart: a donut of the same parts the old bar carried */
+.x-chain>div.chart{display:block;border-bottom:1px solid #F1F4F8;padding:12px 0 14px}
+.x-chain>div.chart+.t{border-top:0;margin-top:0}
+.x-pie{display:flex;align-items:center;gap:18px 24px;flex-wrap:wrap}
+.x-pied{position:relative;width:148px;height:148px;flex:0 0 auto}
+.x-pied svg{width:100%;height:100%}
+.x-pie .x-gkey{margin:0;flex:1;min-width:160px;flex-direction:column;align-items:flex-start;gap:8px}
+.x-pie .x-gk{font-size:14.5px;color:var(--ink0);gap:8px}
+.x-pie .x-gk .l{font-weight:650;color:var(--ink0)}
+.x-pie .x-gk b{font-size:inherit;font-weight:650;color:var(--ink1);letter-spacing:0;margin-left:0}
+/* .x-bar, .in and .out are all already used by the adviser build — hence the
+   prefixed element name and the pos/neg modifiers. */
+.x-gline{display:flex;height:16px;border-radius:99px;overflow:hidden;background:#F1F4F8;
+ margin-right:42px;gap:2px}
+.x-gline i{display:block;height:100%;min-width:3px;transition:width .35s ease}
+.x-gline i.pos{background:linear-gradient(90deg,#2563EB,#5B8DEF)}
+.x-gline i.pos2{background:linear-gradient(90deg,#6E93F2,#9FB8F8)}
+.x-gline i.neg{background:linear-gradient(90deg,#E5484D,#F2777B)}
+/* a wider gap before the last segment: that seam is the equals sign, and what
+   sits either side of it is the same length */
+.x-gline i.tot,.x-gline i:last-child{margin-left:5px}
+.x-gline i.tot{background:linear-gradient(90deg,#12A150,#3ECF7E)}
+.x-gkey{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:11px 42px 0 0}
+.x-gi{display:inline-flex;align-items:center;gap:9px}
+.x-gk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink1)}
+.x-gk>i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.x-gk.pos>i{background:#2563EB}
+.x-gk.pos2>i{background:#6E93F2}
+.x-gk.neg>i{background:#E5484D}
+.x-gk.tot>i{background:#12A150}
+.x-gk .l{font-weight:650}
+.x-gk b{font-weight:750;color:var(--ink0);letter-spacing:-.2px}
+.x-gk.tot .l,.x-gk.tot b{color:#0E8A45}
+.x-pie .x-gk.tot .l,.x-pie .x-gk.tot b{color:inherit}
+.x-gop{font-style:normal;font-size:15px;font-weight:750;color:var(--ink2)}
+.x-chain>div.pol .pd{width:10px;height:10px;border-radius:3px;flex:0 0 auto;margin-right:7px}
+.x-chain>div.none>span:first-child{font-weight:400;color:var(--ink2);font-size:13.5px}
+.x-chain>div.none b{color:var(--ink2)}
+.x-rmv{display:flex;align-items:center;justify-content:center;width:23px;height:23px;border:0;
+ border-radius:50%;background:none;color:var(--ink2);cursor:pointer;padding:0;flex:0 0 auto;
+ transition:.15s;margin-left:-2px}   /* the same -2px the tip button carries, so
+   a policy row lands its digits on the column every other row uses */
+.x-rmv:hover{background:var(--no-t);color:#B4242A}
+.x-chain>div.add{border-bottom:0;border-top:1px solid #F1F4F8;padding:11px 0}
+.x-chain>div.add>span:first-child{font-weight:650;color:var(--acc)}
+.x-tip .gsl-h{margin-bottom:8px}
+.x-tip .gsl-h b{font-size:22px;font-weight:750;letter-spacing:-.3px;color:var(--ink0)}
+.x-tip .gsl-ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink2);margin-top:4px}
+.x-tip .x-covf{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.x-tip .x-covf label{display:block;font-size:12.5px;font-weight:650;color:var(--ink2)}
+.x-tip .x-covf .x-in{height:42px;font-size:15px;margin-top:5px}
+.x-tip .x-covf .gsl{margin-top:8px}
+.x-tip .x-covf .gsl-h{margin-bottom:4px}
+.x-tip .x-covf .gsl-h b{font-size:16px;font-weight:750;margin-left:0;min-width:0;color:var(--ink0)}
+.x-tip .x-covf .x-btn{align-self:flex-end;margin-top:2px}
+.x-rtag{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+ border-radius:99px;padding:3px 9px;white-space:nowrap}
+.x-rtag.you{background:#EEF1F5;color:var(--ink1)}
+.x-rtag.doc{background:var(--acc-t);color:var(--acc)}
+

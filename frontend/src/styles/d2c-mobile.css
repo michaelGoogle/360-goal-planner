@@ -1,0 +1,163 @@
+
+/* =========================================================
+   The phone. Nothing above this line changes on a desktop.
+   ========================================================= */
+@media(max-width:860px){
+ .x-wrap,.x-wrap.w,.x-wrap.l,.x-wrap.m{max-width:100%;padding:20px 15px 200px}
+ .x-2,.x-3,.x-steps,.x-doc3{grid-template-columns:1fr}
+ .x-hero{grid-template-columns:1fr;gap:24px;padding:26px 20px 30px}
+ .x-hero-visual{align-items:center}
+ .x-hero-cta{width:100%;max-width:none}
+ .x-band{padding:18px 20px 22px;border-radius:18px 18px 0 0}
+ .x-hero,.x-card{border-radius:18px}
+ .x-doc{min-height:0}
+ .x .objwrap{grid-template-columns:1fr!important;gap:16px!important}
+ .x .objright{min-width:0}
+ .x .card-b,.x .card-h{padding-left:16px!important;padding-right:16px!important}
+}
+.x-qta{min-height:132px}
+.x-doc b{line-height:1.3}
+
+@media(max-width:700px){
+ .x-qta{min-height:170px}
+ .x-scoreh{margin-bottom:12px}
+ /* chart view chips and the four panel tabs scroll rather than clip */
+ .x .card-h>.row{flex:1 1 100%!important;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  flex-wrap:nowrap!important;scrollbar-width:none;padding-bottom:2px}
+ .x .card-h>.row::-webkit-scrollbar{display:none}
+ .x .card-h>.row>.chip{flex:0 0 auto}
+ /* Three tabs fit on a phone where four did not, so they divide the rail
+    evenly here too rather than sitting in a scroller at their natural widths. */
+ .x .lptabs{overflow-x:visible}
+ .x .lptabs button{flex:1 1 0;white-space:normal}
+ .x-top{height:56px;padding:0 12px;gap:8px}
+ .x-logo i{width:27px;height:27px;border-radius:8px}
+ .x-logo span{display:none}
+ .x-nav{gap:3px}
+ .x-nav button{padding:6px}
+ .x-nav button>span{display:none}
+ .x-h1,.x-h1s{font-size:28px;letter-spacing:-.7px}
+ .x-hero .x-h1{font-size:30px}
+ .x-lead{font-size:16px}
+ .x-band .t{font-size:25px}
+ .x-pad{padding:19px 17px}
+ .x-fabs{right:12px;bottom:12px;left:12px;align-items:stretch;gap:8px}
+ .x-fab{padding:12px 16px;font-size:13.5px;justify-content:center;text-align:left}
+ .x-mic{min-width:66px}
+ .x-qta{font-size:16px}
+ .x-qex button{max-width:100%}
+ .x-why{padding:17px 16px 16px}
+ .x-whyg{grid-template-columns:1fr}
+ .x-whyh{flex-wrap:nowrap;align-items:center}
+ .x-whyh .x-btn,.x-whyh .x-play{width:auto;margin-left:auto;justify-content:center}
+ .x-drv .v i{opacity:1}
+ .x-drv{padding:12px 8px 13px 14px}
+ .x-drv{padding:12px 8px 13px 14px}
+ .x-chain{padding:4px 13px}
+ .x-chain>div{font-size:13.2px;flex-wrap:nowrap;gap:8px}
+ /* the derivation suffix is in the tip; on a phone it only makes the row wrap */
+ .x-chain .rsub{display:none}
+ /* On a narrow row a trailing ⓘ orphans onto a line of its own whenever the
+    label wraps. Leading it instead keeps every row two lines at worst and the
+    button always beside its label. */
+ .x-chain>div:not(.sep)>span:first-child{flex:1 1 auto;align-items:flex-start}
+ .x-chain>div:not(.sep)>span:first-child>.x-tipw{order:-1;margin-left:-6px}
+ .x-chain>div:not(.sep)>span:first-child>.x-rtag{order:1}
+ .x-chain>div b{font-size:14.5px}
+ .x-chain>div.t b{font-size:15px}
+ .x-chain>div.b b{font-size:17px}
+ .x-chain>div.b{margin:2px -13px 0;padding:12px 13px}
+ .x-chain>div.tot{margin:2px -13px 0;padding:11px 13px}
+ .x-chain>div.tot b,.x-chain>div.none b,.x-chain>div.noedit b{padding-right:33px}
+ .x-gline{margin-right:33px;height:14px}
+ .x-gkey{margin:10px 33px 0 0;gap:5px 7px}
+ .x-gk{font-size:12px;gap:5px}
+ .x-gop{font-size:13px}
+ .x-chain>div.sep{flex-wrap:wrap;gap:7px}
+ .x-chain>div.sep>em{margin-left:0}
+ .x-pie{justify-content:flex-start}
+ .x-pied{width:128px;height:128px}
+ .x-pie .x-gk{font-size:13.2px}
+ .x-pie .x-gk b{font-size:inherit}
+ .x-prov{font-size:10.5px;padding:3px 8px}
+ /* a tip on a phone is a sheet, not a bubble */
+ .x-tip,.x-tip.w{position:fixed;left:12px;right:12px;top:auto;bottom:12px;width:auto;
+  max-height:70vh;overflow:auto;border-radius:18px;z-index:95}
+ .x-tip:before{display:none}
+ .x-sech{padding:16px 16px;gap:11px;align-items:flex-start;flex-wrap:wrap}
+ .x-sech>.x-coach-hit{width:100%;order:3}
+ .x-tog{width:100%;justify-content:space-between;order:3;padding:9px 9px 9px 15px}
+ .x-coach-tip,.x-coach-tip.below,.x-coach-tip.above{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-width:none}
+ .x-coach-tip:before{display:none}
+ .x-sech>.n{margin-top:1px}
+ .x-sech>.t span{white-space:normal}
+ .x-sech>.cv{margin-top:4px}
+ .x-sech>.t b{font-size:15.5px}
+ .x-quick>.x-secb,.x-sec.open>.x-secb{margin:0 16px;padding:17px 0 19px}
+ .x-foot{gap:10px}
+ .x-foot .x-btn{flex:1 1 auto;justify-content:center;text-align:center}
+ .x-foot .sp{flex:0 0 100%;height:0}
+}
+@media(max-width:430px){
+ .x-pills button{padding:11px 16px}
+ .x-pills.col{max-width:100%}
+ .x-docin{width:98px}
+ .x-qchips span{font-size:13.5px;padding:5px 12px}
+}
+
+/* =========================================================
+   One type ladder, with a floor
+   ---------------------------------------------------------
+   The customer build had grown thirty-six distinct sizes and
+   a tail of 8-to-12px text: badges, units, group headings,
+   chart chips, the read-out rows inside every goal card. Some
+   of it was inherited from the adviser build, where a 12px
+   label is read across a desk by someone who already knows
+   what it says; a customer reading alone on their own screen
+   gets no such help.
+
+   Everything a customer has to READ now starts at 13px, and
+   the sizes underneath collapse onto three steps:
+
+     13px    labels, units, badges, meta, chart furniture
+     13.5px  secondary copy and sub-headings
+     14.5px  body
+
+   Nothing above 14.5 is touched — the headings were already
+   a deliberate ladder. The only text left under 13px is
+   inside drawings: the dial's own captions, which are sized
+   as a fraction of its radius, and the phone in the hero,
+   which is a picture of the product rather than the product.
+   ========================================================= */
+.x .x-drv.fig>span.src{font-size:13px;letter-spacing:.4px}
+.x .x-sech>em.bd,.x-modal em.bd{font-size:13px}
+.x .x-qchips span>em,.x .x-qchips button>em{font-size:13px}
+.x .x-qchips button>i{font-size:13px}
+.x .x-chain>div.sep>em.u{font-size:13px}
+.x .x-chain>div.sep>span:first-child{font-size:13px}
+.x .x-gtag{font-size:13px}
+.x .x-mic>span{font-size:13px}
+.x .x-explh>b{font-size:13.5px}
+.x .x-logo span{font-size:13px}
+.x .x-nav button>i{font-size:13px}
+/* the goal and product cards: their read-out rows carried the smallest
+   figures on the screen, which is the wrong place to save space */
+.x .lp-on{font-size:13px}
+.x .lp-more>em{font-size:13px}
+.x .gc-l>span,.x .gc-l>b{font-size:13px}
+.x .gc-row>span,.x .gc-row>b{font-size:13.5px}
+.x .gc-by{font-size:13.5px}
+/* the chart's own furniture. The view chips carry a style attribute from the
+   adviser build, so this is one of the two places a floor has to shout. */
+.x .card-h .chip{font-size:13px!important;padding:7px 14px!important}
+.x .card-b>div.lg span,.x .card-b .lg>span{font-size:13px}
+.x .x-agel span{font-size:13px}
+.x .x-prodh b{font-size:15.5px}
+.x .x-prodh span{font-size:13px}
+/* the phone in the hero is a picture of the product, not the product — its
+   captions stay proportional to the device, but not microscopic */
+.x .x-phone-b{font-size:10.5px}
+.x .x-phone-p{font-size:11.5px}
+.x .x-phone-cta{font-size:12.5px}
+
+

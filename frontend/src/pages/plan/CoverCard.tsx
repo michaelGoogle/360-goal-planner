@@ -1,0 +1,431 @@
+import { useEffect } from 'react';
+import { Switch } from '../../components/ui';
+import { Ico, NeedIcon } from '../../lib/icons';
+import { needCardGap, needCardHave } from '../../lib/needEdit';
+import {
+  PLAN_FOR_NEED,
+  clampAllWealthToCaps,
+  clampCoverToCaps,
+  clampPlanToCaps,
+  coverSliderCaps,
+  planCoverPrem,
+  planCoverSum,
+  planIncluded,
+  planLump,
+  planMonthly,
+  planNeedFunding,
+  planSliderCaps,
+  planTargetYear,
+  setPlanCoverPatch,
+  setPlanLumpPatch,
+  setPlanMthPatch,
+  sizedCover,
+  togglePlanPatch,
+} from '../../lib/planProducts';
+import { money, NEED_META, type GpSession, type NeedType } from '../../lib/types';
+
+export { sizedCover } from '../../lib/planProducts';
+
+export function coverOn(session: GpSession, type: NeedType) {
+  return planIncluded(session, type);
+}
+
+export function AmountSlider({
+  label,
+  display,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string;
+  display: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const hi = Math.max(min, max);
+  const clamped = Math.min(hi, Math.max(min, value));
+  return (
+    <div className="gsl">
+      <div className="gsl-h">
+        <label>{label}</label>
+        <b>{display}</b>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={hi}
+        step={step}
+        value={clamped}
+        aria-label={label}
+        onChange={e => onChange(Number(e.target.value))}
+      />
+    </div>
+  );
+}
+
+export function NeedShortfallBar({
+  have,
+  extra,
+  req,
+  lo = 'Projected savings',
+  hi = 'Amount needed',
+  planLabel = 'Retirement plan contribution',
+}: {
+  have: number;
+  extra: number;
+  req: number;
+  lo?: string;
+  hi?: string;
+  planLabel?: string;
+}) {
+  const havePct = req ? Math.max(0, Math.min(100, (have / req) * 100)) : 100;
+  const planPct = req ? Math.max(0, Math.min(100 - havePct, (extra / req) * 100)) : 0;
+  const covered = have + extra;
+  const remain = req - covered;
+  const over = remain < 0;
+  const short = remain > 0;
+  return (
+    <div className="gc-b">
+      <div className="gc-l">
+        <span>{lo}</span>
+        <b>{hi}</b>
+      </div>
+      <div className="gc-bar">
+        {havePct > 0 ? <i style={{ width: `${havePct}%` }} /> : null}
+        {planPct > 0 ? <i className="plan" style={{ width: `${planPct}%` }} /> : null}
+      </div>
+      <div className="gc-v">
+        <span>{money(have)}</span>
+        <b>{money(req)}</b>
+      </div>
+      <div className="gc-row gc-sf gc-plan">
+        <span>{planLabel}</span>
+        <b>{money(extra)}</b>
+      </div>
+      <div className={`gc-row gc-rem ${short || over ? 'no' : 'ok'}`}>
+        <span>{short ? 'Shortfall' : 'Status'}</span>
+        <b>{short ? money(remain) : over ? `Overfunded ${money(-remain)}` : 'Fully funded'}</b>
+      </div>
+    </div>
+  );
+}
+
+export function CoverCard({
+  type,
+  title,
+  on,
+  sum,
+  prem,
+  onToggle,
+  onEdit,
+}: {
+  type: NeedType;
+  title: string;
+  on: boolean;
+  sum: number;
+  prem: number;
+  onToggle: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <div className={`gc ${on ? 'on' : ''}`}>
+      <div className="gc-h">
+        <span className="gc-ic" style={{ borderColor: on ? NEED_META[type].color : '#CDD2D8' }}>
+          <NeedIcon type={type} />
+        </span>
+        <b>{title}</b>
+        <button className="gc-x" type="button" aria-label={`Adjust ${title}`} onClick={onEdit}>
+          {Ico.pencil}
+        </button>
+        <Switch on={on} label={title} onClick={onToggle} />
+      </div>
+      {on ? (
+        <div className="gc-b">
+          <div className="gc-row">
+            <span>Sum assured</span>
+            <b>{money(sum)}</b>
+          </div>
+          <div className="gc-row gc-sf">
+            <span>Annual premium</span>
+            <b>{money(prem)}</b>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ProtectPlanCard({
+  session,
+  type,
+  open,
+  onToggleOpen,
+  onChange,
+}: {
+  session: GpSession;
+  type: NeedType;
+  open: boolean;
+  onToggleOpen: () => void;
+  onChange: (p: Partial<GpSession>) => void;
+}) {
+  const title = PLAN_FOR_NEED[type];
+  const meta = NEED_META[type];
+  const on = planIncluded(session, type);
+  const n = session.needs.find(x => x.type === type);
+  if (!n) return null;
+  const caps = coverSliderCaps(session, type);
+  const rawSum = planCoverSum(session, type);
+  const rawPrem = planCoverPrem(session, type);
+  const sum = Math.min(rawSum, caps.sum);
+  const prem = Math.min(rawPrem, caps.prem);
+  const have = needCardHave(session, n);
+  const req = n.needAmount || 0;
+  const extra = on ? sum : 0;
+
+  useEffect(() => {
+    if (rawSum > caps.sum || rawPrem > caps.prem) onChange(clampCoverToCaps(session, type));
+  }, [rawSum, rawPrem, caps.sum, caps.prem, onChange, session, type]);
+
+  return (
+    <div className={`gc ${on ? 'on' : ''}${open ? ' open' : ''}`}>
+      <div className="gc-h">
+        <button
+          className="gc-exp"
+          type="button"
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          onClick={onToggleOpen}
+        >
+          <span className="gc-ic" style={{ borderColor: on ? meta.color : '#CDD2D8' }}>
+            <NeedIcon type={type} />
+          </span>
+          <b>{title}</b>
+        </button>
+        <button
+          className="gc-x"
+          type="button"
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          aria-expanded={open}
+          onClick={onToggleOpen}
+        >
+          {Ico.chev}
+        </button>
+        <Switch on={on} label={title} onClick={() => onChange(togglePlanPatch(session, type))} />
+      </div>
+      {open ? (
+        <div className="gc-e">
+          <AmountSlider
+            label="Sum assured"
+            display={money(sum)}
+            min={0}
+            max={caps.sum}
+            step={1000}
+            value={sum}
+            onChange={v => onChange(setPlanCoverPatch(session, type, { sum: v }))}
+          />
+          <AmountSlider
+            label="Annual premium"
+            display={money(prem)}
+            min={0}
+            max={caps.prem}
+            step={10}
+            value={prem}
+            onChange={v => onChange(setPlanCoverPatch(session, type, { prem: v }))}
+          />
+        </div>
+      ) : null}
+      <NeedShortfallBar
+        have={have}
+        extra={extra}
+        req={req}
+        lo={meta.lo}
+        hi={meta.hi}
+        planLabel={`${title} contribution`}
+      />
+    </div>
+  );
+}
+
+export function GrowthPlanCard({
+  session,
+  type,
+  open,
+  onToggleOpen,
+  onChange,
+}: {
+  session: GpSession;
+  type: NeedType;
+  open: boolean;
+  onToggleOpen: () => void;
+  onChange: (p: Partial<GpSession>) => void;
+}) {
+  const title = PLAN_FOR_NEED[type];
+  const on = planIncluded(session, type);
+  const n = session.needs.find(x => x.type === type);
+  if (!n) return null;
+  const caps = planSliderCaps(session, type);
+  const rawLump = planLump(session, type);
+  const rawMth = planMonthly(session, type);
+  const lump = Math.min(rawLump, caps.lump);
+  const mth = Math.min(rawMth, caps.monthly);
+  const { have, extra, req } = planNeedFunding(session, type, lump, mth);
+  const byYear = planTargetYear(session, type);
+
+  useEffect(() => {
+    if (rawLump > caps.lump || rawMth > caps.monthly) onChange(clampPlanToCaps(session, type));
+  }, [rawLump, rawMth, caps.lump, caps.monthly, onChange, session, type]);
+  return (
+    <div className={`gc ${on ? 'on' : ''}${open ? ' open' : ''}`}>
+      <div className="gc-h">
+        <button
+          className="gc-exp"
+          type="button"
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          onClick={onToggleOpen}
+        >
+          <span className="gc-ic" style={{ borderColor: on ? NEED_META[type].color : '#CDD2D8' }}>
+            <NeedIcon type={type} />
+          </span>
+          <b>{title}</b>
+        </button>
+        <span className="gc-by">by {byYear}</span>
+        <button
+          className="gc-x"
+          type="button"
+          aria-label={open ? `Collapse ${title}` : `Expand ${title}`}
+          aria-expanded={open}
+          onClick={onToggleOpen}
+        >
+          {Ico.chev}
+        </button>
+        <Switch on={on} label={title} onClick={() => onChange(togglePlanPatch(session, type))} />
+      </div>
+      {open ? (
+        <div className="gc-e">
+          <AmountSlider
+            label="Lump sum to invest"
+            display={money(lump)}
+            min={0}
+            max={caps.lump}
+            step={1000}
+            value={lump}
+            onChange={v => onChange(setPlanLumpPatch(session, type, v))}
+          />
+          <AmountSlider
+            label="Monthly contribution"
+            display={money(mth)}
+            min={0}
+            max={caps.monthly}
+            step={50}
+            value={mth}
+            onChange={v => onChange(setPlanMthPatch(session, type, v))}
+          />
+          <AmountSlider
+            label="Expected returns"
+            display={`${session.investRet.toFixed(1)}% p.a.`}
+            min={0}
+            max={15}
+            step={0.1}
+            value={session.investRet}
+            onChange={v => {
+              const investRet = Math.round(v * 10) / 10;
+              onChange({ investRet, ...clampAllWealthToCaps({ ...session, investRet }) });
+            }}
+          />
+        </div>
+      ) : null}
+      <NeedShortfallBar
+        have={have}
+        extra={extra}
+        req={req}
+        planLabel={`${title} contribution`}
+      />
+    </div>
+  );
+}
+
+export function AddPlanPanel({
+  session,
+  type,
+  on,
+  onToggle,
+}: {
+  session: GpSession;
+  type: NeedType;
+  on: boolean;
+  onToggle: () => void;
+}) {
+  const meta = NEED_META[type];
+  const n = session.needs.find(x => x.type === type);
+  if (!n) return <p className="x-sm">No matching shortfall to close.</p>;
+  const have = needCardHave(session, n);
+  const req = n.needAmount || 0;
+  const gap = needCardGap(session, n);
+  const pct = req ? Math.max(have > 0 ? 2 : 0, Math.min(100, (have / req) * 100)) : 100;
+  const { sum, prem } = sizedCover(session, type);
+  const wealth = meta.group === 'w';
+  const title = PLAN_FOR_NEED[type];
+  return (
+    <div className={`gc on${on ? ' open' : ''}`}>
+      <div className="gc-h">
+        <span className="gc-ic" style={{ borderColor: meta.color }}>
+          <NeedIcon type={type} />
+        </span>
+        <b>{title}</b>
+        <Switch on={on} label={title} onClick={onToggle} />
+      </div>
+      <div className="gc-b">
+        <div className="gc-l">
+          <span>{meta.lo}</span>
+          <b>{meta.hi}</b>
+        </div>
+        <div className="gc-bar">
+          <i style={{ width: `${pct}%` }} />
+        </div>
+        <div className="gc-v">
+          <span>{money(have)}</span>
+          <b>{money(req)}</b>
+        </div>
+        {wealth ? (
+          <>
+            <div className={`gc-row gc-sf ${gap > 0 ? 'no' : 'ok'}`}>
+              <span>{gap > 0 ? 'Shortfall' : 'Status'}</span>
+              <b>{gap > 0 ? money(gap) : 'Fully funded'}</b>
+            </div>
+            <div className="gc-row gc-sf ok">
+              <span>This plan · monthly contribution</span>
+              <b>{money(planMonthly(session, type))}</b>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="gc-row gc-sf gc-plan">
+              <span>{title} contribution</span>
+              <b>{money(on ? sum : 0)}</b>
+            </div>
+            <div className={`gc-row gc-rem ${gap - (on ? sum : 0) > 0 ? 'no' : 'ok'}`}>
+              <span>{gap - (on ? sum : 0) > 0 ? 'Shortfall' : 'Status'}</span>
+              <b>
+                {gap - (on ? sum : 0) > 0
+                  ? money(gap - (on ? sum : 0))
+                  : gap - (on ? sum : 0) < 0
+                    ? `Overfunded ${money((on ? sum : 0) - gap)}`
+                    : 'Fully funded'}
+              </b>
+            </div>
+            <div className="gc-row">
+              <span>Annual premium</span>
+              <b>{money(prem)}</b>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

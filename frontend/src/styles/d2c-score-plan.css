@@ -1,0 +1,391 @@
+/* --- the two guides, bottom right of every screen --- */
+.x-fabs{position:fixed;right:22px;bottom:22px;z-index:80;display:flex;flex-direction:column;
+ align-items:flex-end;gap:9px;max-width:calc(100vw - 32px)}
+.x-fabs .x-fab{position:static;right:auto;bottom:auto}
+.x-fab.mira{background:#0C1424}
+.x-fab.mira:hover{background:#1B2A4A}
+.x-fab.mira.on{background:#E5484D}
+.x-fab.mira svg{fill:#fff;stroke:none}
+.x-fab.human{background:#2554D6}
+.x-fab.human:hover{background:#1B44BC}
+.x-fab.human svg{fill:none;stroke:#fff}
+.x-fab .eq{display:flex;align-items:flex-end;gap:2.5px;height:15px;flex:0 0 auto}
+.x-fab .eq i{width:3px;border-radius:2px;background:#fff;animation:xeq .85s ease-in-out infinite}
+.x-fab .eq i:nth-child(1){height:6px;animation-delay:0s}
+.x-fab .eq i:nth-child(2){height:14px;animation-delay:.13s}
+.x-fab .eq i:nth-child(3){height:9px;animation-delay:.26s}
+.x-fab .eq i:nth-child(4){height:12px;animation-delay:.39s}
+
+/* the needs, their tag and the add-chips as one card ---------------------
+   Five cards floating on the page background read as five subjects. They are
+   one subject: what this plan is being asked to fund. */
+.x-needs{border-radius:var(--r2);padding:20px 22px 18px}
+.x-needsh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px;
+ width:100%;background:none;border:0;padding:0;font:inherit;text-align:left;cursor:pointer;color:inherit}
+.x-needsh:hover b{color:var(--acc)}
+.x-needsh:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:10px}
+.x-needsh b{font-size:16.5px;font-weight:750;letter-spacing:-.3px;flex:0 1 auto;min-width:0}
+.x-needsh .cv{display:flex;color:var(--ink2);flex:0 0 auto;margin-left:auto;transition:transform .2s}
+.x-needsh .x-chip{flex:0 1 auto;pointer-events:none}
+.x-needsh-t{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;align-items:center;
+ gap:12px;flex:1 1 auto;min-width:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.x-needsh-t:hover b{color:var(--acc)}
+.x-needsh-t:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:10px}
+.x-needsh.x-prod-head{cursor:default;flex-wrap:nowrap;gap:10px}
+.x-needsh.x-prod-head:hover b{color:inherit}
+.x-needsh.x-prod-head .x-needsh-t:hover b{color:var(--acc)}
+.x-needsh.x-prod-head .x-play{margin-left:auto;padding:8px 14px;font-size:13px}
+.x-needsh.x-prod-head .cv{appearance:none;background:none;border:0;padding:4px;margin-left:0;cursor:pointer;
+ color:var(--ink2)}
+.x-needsh.x-prod-head .cv:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:8px}
+.x-needs.open .x-needsh .cv{transform:rotate(180deg)}
+.x-needs:not(.open){padding-bottom:20px}
+.x-needs:not(.open) .x-needsh{margin-bottom:0}
+.x-needs .x-gaps{margin:0}
+.x-need-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;padding:0 0 4px;
+ align-items:start}
+@media(max-width:900px){
+  .x-need-cols{grid-template-columns:minmax(0,1fr)}
+  .x-prod-hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"gauge" "bud" "sav"}
+}
+.x-needs .x-add{margin-top:16px;border:0;border-top:1px solid var(--ln);border-radius:0;
+ padding:15px 0 0;background:none}
+/* every card the same shape, so every bar sits on the same line */
+.x-needs .x-gap{display:flex;flex-direction:column}
+.x-needs .x-gap>.t{min-height:46px;align-items:flex-start}
+.x-needs .x-gap>.x-trk{margin-top:auto}
+
+/* the whole-page explainer, at the top of the screen it explains */
+/* ---- V0-24: the panel as a dialog --------------------------------------
+   With the rail gone the projection takes the whole width; the panel arrives
+   over it when it is asked for. */
+.x .objwrap.solo{grid-template-columns:1fr}
+.x-planacts{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.x-assumb{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--ln);background:#fff;
+ color:var(--ink0);border-radius:99px;padding:11px 18px;font-family:inherit;font-size:14px;
+ font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
+.x-assumb:hover{border-color:#CDD4DC;background:#FBFCFD}
+.x-assumb svg{color:var(--ink2)}
+.x-assn{font-style:normal;display:inline-flex;align-items:center;justify-content:center;
+ min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:99px;
+ background:var(--acc);color:#fff;font-size:11px;font-weight:800}
+/* the key, on the header line and stacked — two short lines read as a pair,
+   where one long line reads as a sentence */
+/* Two rows, and as many columns as the series need: the pair the customer
+   came for stacks as one column, and the four-series diagnostic wraps into
+   two rather than making the header twice as tall as the chart's controls. */
+.x-leg{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);
+ gap:5px 18px;flex:0 0 auto;margin-left:2px}
+.x-leg>span{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:650;
+ color:var(--ink1);white-space:nowrap;line-height:1.2}
+.x-leg>span>i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+
+/* the chart card, tightened so the products under it are on the fold */
+.x .objright .card-b{padding:10px 20px 12px!important}
+/* how far the projection looks — the control sits under the axis it moves */
+.x-agein{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;
+ cursor:pointer;display:block}
+.x-agein::-webkit-slider-runnable-track{height:8px;border-radius:99px;
+ background:linear-gradient(90deg,var(--acc) 0%,var(--acc) var(--p,60%),#E4E9F0 var(--p,60%),#E4E9F0 100%)}
+.x-agein::-moz-range-track{height:8px;border-radius:99px;background:#E4E9F0}
+.x-agein::-moz-range-progress{height:8px;border-radius:99px;background:var(--acc)}
+.x-agein::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;
+ margin-top:-7px;border-radius:50%;background:var(--acc);border:3px solid #fff;
+ box-shadow:0 1px 5px rgba(12,20,36,.32);transition:transform .12s}
+.x-agein::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--acc);
+ border:3px solid #fff;box-shadow:0 1px 5px rgba(12,20,36,.32)}
+.x-agein:hover::-webkit-slider-thumb,.x-agein:active::-webkit-slider-thumb{transform:scale(1.1)}
+.x-agel{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+.x-agel span{font-size:12.5px;color:var(--ink2)}
+.x-agel b{font-size:13px;font-weight:750;color:var(--acc)}
+
+/* recommended products, under the projection they change */
+.x-prod{margin-top:16px;border-radius:var(--r2);overflow:hidden}
+.x-needs.x-prod{overflow:visible;padding:20px 22px 18px}
+.x-prod-sum{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:14px}
+.x-prod-sum .x-scard{flex:0 0 auto}
+.x-prod-tags{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.x-prod-tags .x-chip{gap:8px;flex-wrap:nowrap;white-space:nowrap;width:max-content;max-width:100%}
+.x-prod-tags .x-chip svg{flex:0 0 auto;opacity:.75}
+.x-prod-tags .x-chip-edit.x-coach-hit{padding:4px;margin:-4px}
+.x-chip-lab,.x-chip-edit{appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;
+ cursor:pointer;text-align:left;line-height:inherit}
+.x-chip-lab{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.x-chip-edit{display:grid;place-items:center;line-height:0;flex:0 0 auto}
+.x-chip-lab:focus-visible,.x-chip-edit:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+.x-prod-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 16px;
+ grid-template-areas:"gauge bud" "gauge sav";align-items:stretch;margin:0 0 16px}
+.x-prod-gauge{grid-area:gauge;display:flex;flex-direction:column;justify-content:center;
+ align-items:center;margin:0;min-height:0;height:100%;box-sizing:border-box;padding:16px 14px;gap:6px}
+.x-prod-gauge .x-scorecap{margin:0;max-width:32ch;font-size:15px}
+.x-prod-gauge .x-gauge{width:min(100%,280px);flex:0 0 auto}
+.x-prod-bud{grid-area:bud}
+.x-prod-sav{grid-area:sav}
+.x-prod-fitg{background:#F7F9FC;border:1px solid #EDF1F6;border-radius:12px;padding:12px 14px}
+.x-prod-fitg .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+ font-size:13.5px;color:var(--ink2)}
+.x-prod-fitg .row+.row{margin-top:7px}
+.x-prod-fitg .row b{font-variant-numeric:tabular-nums;font-weight:650;color:var(--ink0);text-align:right}
+.x-prod-fitg .row.hi span{font-weight:650;color:var(--ink0)}
+.x-prod-fitg .row.hi b{font-size:16.5px;letter-spacing:-.3px;color:var(--ink0)}
+.x-prod-fitg .row.ok,.x-prod-fitg .row.ok span,.x-prod-fitg .row.ok b{color:#0B7A3B;font-weight:600}
+.x-prod-fitg .row.no,.x-prod-fitg .row.no span,.x-prod-fitg .row.no b{color:var(--no);font-weight:600}
+.x-prod-fitg .row.ok,.x-prod-fitg .row.no{margin-top:10px;padding-top:10px;border-top:1px solid #E4E9F1}
+.x-needs.x-prod .x-prodacts{padding-left:0;padding-right:0}
+.x-needs.x-prod .x-prodgs{padding-left:0;padding-right:0;padding-bottom:4px}
+.x-prod-link{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.x-prod-linkh{font-size:11.5px;font-weight:800;letter-spacing:.65px;text-transform:uppercase;color:var(--ink2)}
+.x-prod-linkn{font-size:12.5px;line-height:1.5;color:var(--ink2);margin:2px 0 0}
+.x-glink{background:#fff;border:1px solid var(--ln);border-radius:12px;padding:10px 12px}
+.x-glink .h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.x-glink .h .gc-ic{width:22px;height:22px;flex:0 0 22px}
+.x-glink .h .need-ico{font-size:13px}
+.x-glink .h b{font-size:13.5px;font-weight:650;line-height:1.25;flex:1 1 auto;min-width:0}
+.x-glink .h .gc-x{margin-left:auto}
+.x-glink .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+ font-size:12.5px;color:var(--ink2)}
+.x-glink .row+.row{margin-top:4px}
+.x-glink .row b{font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+.x-glink .row.no,.x-glink .row.no b{color:#C0323C}
+.x-glink .row.ok,.x-glink .row.ok b{color:#0B7A3B}
+.x-glink .row.add{align-items:center;color:var(--ink2)}
+.x-glink .row.add .x-addb{padding:5px 12px;font-size:12.5px;flex:0 0 auto}
+.x-prodt{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 22px 16px}
+.x-prodt .t{flex:1;min-width:0}
+.x-prodt .t b{display:block;font-size:17px;letter-spacing:-.3px;margin-bottom:4px}
+.x-prodt .t span{display:block;font-size:13.5px;line-height:1.55;color:var(--ink2);max-width:66ch}
+/* minmax(0,…) rather than a bare fr: a bare fr floors the column at its
+   min-content width, and the goal cards inside are wider than a phone */
+.x-prodacts{padding:0 22px 12px}
+.x-prodgs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;
+ padding:0 18px 18px}
+@media(max-width:900px){.x-prodgs{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.x-prodgs{padding:0 12px 12px;gap:12px}
+ .x-prodg{padding:13px 11px 14px}
+ .x-prodt{padding:17px 16px 14px}
+ .x-prodacts{padding:0 16px 10px}
+ .x-prodf{padding:14px 16px}}
+.x-prodg{background:#F7F9FC;border:1px solid var(--ln);border-radius:16px;padding:15px 15px 16px}
+.x-prodh{margin-bottom:12px}
+.x-prodh b{display:block;font-size:15.5px;font-weight:750;letter-spacing:-.2px;color:var(--ink0)}
+.x-prodh span{display:block;font-size:12.5px;color:var(--ink2);margin-top:3px}
+.x-prodl{display:flex;flex-direction:column;gap:10px}
+.x-prodf{display:flex;align-items:center;justify-content:space-between;gap:14px;
+ padding:15px 22px;border-top:1px solid var(--ln);background:#FBFCFD}
+.x-prodf span{font-size:13.5px;color:var(--ink2)}
+.x-prodf b{font-size:18px;font-weight:750;letter-spacing:-.3px;color:var(--ink0)}
+
+/* the two ways in that belong to the chart */
+.x-addbs{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:wrap}
+.x-addb{border:1px dashed #C3CEDF;background:#fff;color:var(--acc);border-radius:99px;
+ padding:8px 15px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+ white-space:nowrap;transition:.15s}
+.x-addb:hover{border-style:solid;border-color:var(--acc2);background:var(--acc-t)}
+/* a marker on the chart is a control, and should say so under the pointer */
+.x .objpin,.x .svmk{cursor:pointer}
+
+.x-modal{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;
+ justify-content:center;padding:0}
+@media(min-width:701px){.x-modal{align-items:center;padding:28px}}
+.x-modal-bd{position:absolute;inset:0;background:rgba(12,20,36,.42);
+ backdrop-filter:blur(2px);animation:xfadein .18s ease-out}
+.x-modal-w{position:relative;display:flex;flex-direction:column;width:100%;max-width:620px;
+ max-height:92vh;background:#F7F9FC;border-radius:22px 22px 0 0;overflow:hidden;
+ box-shadow:0 24px 70px rgba(12,20,36,.28);animation:xrise .22s cubic-bezier(.2,.8,.3,1)}
+@media(min-width:701px){.x-modal-w{border-radius:22px;max-height:86vh}}
+.x-modal-h{display:flex;align-items:flex-start;gap:14px;padding:20px 22px 16px;background:#fff;
+ border-bottom:1px solid var(--ln)}
+.x-modal-h .t{flex:1;min-width:0}
+.x-modal-h .t b{display:block;font-size:18px;letter-spacing:-.3px}
+.x-modal-h .t span{display:block;font-size:13.5px;line-height:1.5;color:var(--ink2);margin-top:4px}
+.x-modal-x{flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:34px;
+ height:34px;border:0;border-radius:50%;background:#F1F4F8;color:var(--ink1);cursor:pointer;
+ transition:.15s}
+.x-modal-x:hover{background:#E6EBF2;color:var(--ink0)}
+.x-modal-b{flex:1;min-height:0;overflow-y:auto;padding:16px}
+.x-modal-b .lp{max-width:none;border:0;box-shadow:none;background:transparent}
+.x-modal-b .lptabs{margin-top:0}
+.x-modal-f{padding:14px 18px;background:#fff;border-top:1px solid var(--ln);
+ display:flex;justify-content:flex-end}
+@keyframes xfadein{from{opacity:0}to{opacity:1}}
+@keyframes xrise{from{transform:translateY(22px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.x-modal-w,.x-modal-bd{animation:none}}
+.x-modal-w.x-modal-gc{background:transparent;box-shadow:none;max-width:520px;overflow:visible;padding:0}
+.x-modal-gc .x-modal-x{position:absolute;top:-6px;right:-6px;z-index:2;
+ box-shadow:0 2px 10px rgba(12,20,36,.18)}
+.x-modal-gc .gc,.x-modal-gc .x-r{width:100%;background:#fff}
+.x-modal-w.x-modal-gauge{max-width:320px;padding:28px 20px 16px;align-items:center;background:#fff}
+.x-modal-gauge .x-modal-x{position:absolute;top:10px;right:10px}
+.x-modal-gauge .x-gauge{margin:0 auto}
+
+/* The tab strip was a four-column grid. Taking Assumptions out of it left the
+   three that remain squeezed into three quarters of the rail with an empty
+   quarter beside them. As a flex row with every button on flex:1 1 0 the tabs
+   divide whatever space there is evenly, whatever their number or the length
+   of their labels, and stretch to a common height so the two-line one no
+   longer sets a taller pill than its neighbours. */
+.x .lptabs{display:flex;align-items:stretch}
+.x .lptabs button{flex:1 1 0;min-width:0;align-items:center}
+/* the board under the projection restated, in three columns, the goal panel
+   running down the left of the same screen; the two tiles under it read two
+   points off a line the customer is already looking at, and the explainer
+   says both of them out loud */
+.x .svboard,.x .svsum{display:none}
+/* the goal cards are the plan screen's now, and they carry sliders and a
+   read-out box — two per row rather than three, and the one being adjusted
+   takes the full width */
+.x-gaps{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.x-gaps>.gc.open{grid-column:1/-1}
+.x-pexpl{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin:-4px 0 24px}
+.x-pexpl>span{font-size:13.5px;color:var(--ink2)}
+/* not uppercased: HappiU is a name, and small caps eat the shape of it */
+.x-scoret{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink2);margin-bottom:9px}
+.x-score-viz{display:flex;flex-direction:column;align-items:center}
+.x-score-ghit{display:block;width:100%;max-width:258px}
+.x-score-tags>.x-chip .x-coach-hit{display:inline-flex;line-height:0;flex:0 0 auto}
+.x-score-narr{margin-top:14px}
+.x-scoreh{margin-bottom:10px}
+.x-scoreh .x-h2{margin-bottom:0}
+.x-scorecap{text-align:center;font-size:15px;font-weight:650;line-height:1.4;
+ margin:6px auto 0;max-width:36ch}
+
+.x-narr-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+.x-narr-row .x-play{margin-left:auto;flex:0 0 auto}
+.x-svhead{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;
+ padding:14px 18px 10px;border-bottom:1px solid var(--ln)}
+.x-svhead .h2{margin:0}
+.x-svhead .x-play{margin-left:0;flex:0 0 auto;padding:8px 14px;font-size:13px}
+.x-svhead-sp{flex:1 1 auto;min-width:8px}
+.x-svdd{position:relative;flex:0 0 auto}
+.x-svdd-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;margin:0;padding:6px;
+ list-style:none;min-width:11.5rem;background:#fff;border:1px solid var(--ln);border-radius:12px;
+ box-shadow:0 10px 28px -12px rgba(12,20,36,.35)}
+.x-svdd-menu button{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
+ font:inherit;font-size:13.5px;font-weight:650;color:var(--ink0);padding:8px 10px;border-radius:8px}
+.x-svdd-menu button:hover{background:var(--acc-t);color:var(--acc)}
+.x-svplot-wrap{position:relative;overflow:hidden;border-radius:0 0 var(--r2) var(--r2)}
+.x-svplot-busy{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;
+ background:rgba(255,255,255,.58);backdrop-filter:blur(1.5px);pointer-events:none}
+.x-svbusy{display:inline-flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;border-radius:999px;
+ background:#fff;border:1px solid var(--ln);box-shadow:0 10px 28px -14px rgba(12,20,36,.35)}
+.x-svbusy.compact{padding:0;border:0;background:none;box-shadow:none}
+.x-svbusy-mark{display:block;width:36px;height:36px;flex:0 0 auto;animation:x-svpulse 1.35s ease-in-out infinite}
+.x-svbusy.compact .x-svbusy-mark{width:22px;height:22px}
+.x-svbusy-mark svg{display:block;width:100%;height:100%}
+.x-svbusy-path{stroke-dasharray:72;animation:x-svdraw 1.15s ease-in-out infinite}
+.x-svbusy-label{font-size:14px;font-weight:700;letter-spacing:-.2px;color:var(--ink0)}
+@keyframes x-svdraw{
+  0%{stroke-dashoffset:72}
+  55%{stroke-dashoffset:0}
+  100%{stroke-dashoffset:-72}
+}
+@keyframes x-svpulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.07)}
+}
+@media (prefers-reduced-motion:reduce){
+  .x-svbusy-mark,.x-svbusy-path{animation:none}
+}
+.x-svtools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.x-svbody{padding:4px 18px 14px}
+.x-ager{margin:0;padding:2px var(--plot-mr,40px) 0 var(--plot-ml,48px)}
+
+/* --- the audio explainer --- */
+.x-play{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;border:1px solid var(--acc-t2);
+ background:#fff;color:var(--acc);border-radius:99px;padding:11px 19px;font-family:inherit;
+ font-size:14.5px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+.x-play .x-play-l{display:block;white-space:normal;line-height:1.2;text-align:left}
+.x-play:hover{border-color:var(--acc2);background:var(--acc-t)}
+.x-play svg{fill:var(--acc)}
+.x-play.on{background:var(--acc);border-color:var(--acc);color:#fff}
+/* A quiet outline that keeps expanding away from the button. Nothing in the
+   button itself moves — a control that jumps is a control the pointer misses —
+   and it stops the moment the customer either plays it or reaches for it, so
+   it is an invitation rather than a thing to be endured. */
+.x-play{position:relative}
+.x-play:not(.on)::before,.x-play:not(.on)::after{content:"";position:absolute;inset:-1px;
+ border-radius:99px;border:2px solid var(--acc);pointer-events:none;opacity:0;
+ animation:xping 2.2s cubic-bezier(.22,.61,.36,1) infinite}
+.x-play:not(.on)::after{animation-delay:1.1s}   /* two rings, so one is always on its way out */
+.x-play:not(.on){animation:xplaytint 2.2s ease-in-out infinite}
+.x-play:hover,.x-play:focus-visible{animation:none}
+.x-play:hover::before,.x-play:hover::after,
+.x-play:focus-visible::before,.x-play:focus-visible::after{animation:none;opacity:0}
+/* it starts invisible and sitting on the button's own border, where a ring
+   would be indistinguishable from it, and is only turned up once it has moved
+   clear */
+@keyframes xping{
+ 0%{transform:scale(1);opacity:0}
+ 12%{transform:scale(1.04);opacity:.8}
+ 62%{transform:scale(1.22);opacity:0}
+ 100%{transform:scale(1.22);opacity:0}}
+@keyframes xplaytint{0%,100%{background:#fff}50%{background:var(--acc-t)}}
+/* and a matching one on Mira, the other way into the same voice */
+.x-fab.mira:not(.on){animation:xfabglow 2.4s ease-in-out infinite}
+.x-fab.mira:hover{animation:none}
+@keyframes xfabglow{
+ 0%,100%{box-shadow:0 10px 26px rgba(12,20,36,.24)}
+ 50%{box-shadow:0 10px 26px rgba(12,20,36,.24),0 0 0 7px rgba(55,114,255,.16)}}
+/* motion is a nudge, not a requirement */
+@media(prefers-reduced-motion:reduce){
+ .x-play:not(.on),.x-fab.mira:not(.on){animation:none}
+ .x-play:not(.on)::before{animation:none;opacity:.45}
+ .x-play:not(.on)::after{animation:none;opacity:0}}
+.x-play .eq{display:flex;align-items:flex-end;gap:2.5px;height:15px}
+.x-play .eq i{width:3px;border-radius:2px;background:#fff;animation:xeq .85s ease-in-out infinite}
+.x-play .eq i:nth-child(1){height:6px;animation-delay:0s}
+.x-play .eq i:nth-child(2){height:14px;animation-delay:.13s}
+.x-play .eq i:nth-child(3){height:9px;animation-delay:.26s}
+.x-play .eq i:nth-child(4){height:12px;animation-delay:.39s}
+@keyframes xeq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+/* the row the voice is on */
+.x-chain>div.nar{background:var(--acc-t);border-radius:9px;
+ box-shadow:0 0 0 4px var(--acc-t);transition:background .2s}
+.x-chain>div.b.nar{background:#CFEFDD;box-shadow:0 0 0 4px #CFEFDD}
+.x-whyg.nar .x-drv.on{border-color:var(--acc2);background:var(--acc-t)}
+.x-card.nar{box-shadow:0 0 0 3px var(--acc-t2),var(--sh)}
+.x-gaps.nar .x-gap{border-color:var(--acc2)}
+
+.x-whyf{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.x-whyf>span{font-size:13px;color:var(--ink2)}
+.x-whyf .x-btn{background:#fff}
+
+/* --- the tip itself ---------------------------------------------------- */
+.x-tipw{position:relative;display:inline-flex;vertical-align:middle;flex:0 0 auto;margin-left:-2px}
+/* the ratio cards use the adviser build's own ⓘ button */
+.x-r-h{gap:4px}
+.x-r-h b{flex:0 1 auto}
+.x-r-h .q{margin-left:-2px}
+.x-r-h .x-face{margin-left:auto}
+/* The ⓘ belongs to the words beside it, so it is pulled in against them —
+   a gap reads as a separate control. */
+.x-tipb{display:flex;align-items:center;justify-content:center;width:23px;height:23px;border:0;
+ border-radius:50%;background:none;color:var(--ink2);cursor:pointer;padding:0;transition:.15s}
+.x-tipb:hover{background:#EEF1F5;color:var(--ink0)}
+.x-tipb.ed{background:#F1F4F8;color:var(--acc)}
+.x-tipb.ed:hover{background:var(--acc-t)}
+.x-tipb.on{background:var(--acc);color:#fff}
+.x-tip{position:absolute;top:calc(100% + 9px);left:-14px;z-index:90;width:330px;
+ background:#fff;border:1px solid var(--ln);border-radius:16px;padding:16px 18px 15px;
+ box-shadow:0 26px 54px -22px rgba(12,20,36,.42),0 2px 6px rgba(12,20,36,.06);
+ font-weight:400;text-align:left;cursor:default}
+.x-tip.w{width:390px}
+.x-tip.r{left:auto;right:-14px}
+.x-tip:before{content:"";position:absolute;top:-7px;left:20px;width:12px;height:12px;
+ background:#fff;border-left:1px solid var(--ln);border-top:1px solid var(--ln);transform:rotate(45deg)}
+.x-tip.r:before{left:auto;right:20px}
+.x-tip>b{display:block;font-size:14.5px;letter-spacing:-.2px;margin-bottom:2px;padding-right:20px;
+ color:var(--ink0)}
+.x-tip p{font-size:13.5px;line-height:1.6;color:var(--ink1);margin-top:10px}
+.x-tip p.m{color:var(--ink2);font-size:13px}
+.x-tip .cl{position:absolute;right:9px;top:9px;border:0;background:none;cursor:pointer;
+ color:var(--ink2);padding:5px;border-radius:7px;line-height:0}
+.x-tip .cl:hover{background:#EEF1F5}
+.x-tip .x-amt input{height:56px}
+
+/* --- whose number is it ------------------------------------------------ */
+.x-prov{flex:0 0 auto;font-size:11.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+ border-radius:99px;padding:4px 11px;white-space:nowrap}
+.x-prov.est{background:#EEF1F5;color:#7B8694}
+.x-prov.you{background:var(--acc-t);color:var(--acc)}
+.x-prov.doc{background:var(--lime-t);color:#0B7A3B}
