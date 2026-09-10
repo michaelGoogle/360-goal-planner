@@ -117,7 +117,7 @@ export default function App() {
   const [predictError, setPredictError] = useState<string | null>(null);
   const [toast, setToast] = useState('');
   const [miraOn, setMiraOn] = useState(false);
-  const [narrKind, setNarrKind] = useState<string | null>(null);
+  const [narrKind, setNarrKind] = useState<ExplainKind | null>(null);
   const [gtTtOn, setGtTtOn] = useState(readGtTt);
   const [tourSeen, setTourSeen] = useState<Partial<Record<'about' | 'money' | 'score' | 'plan', boolean>>>({});
   const [reportOpen, setReportOpen] = useState(false);

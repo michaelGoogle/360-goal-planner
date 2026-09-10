@@ -40,18 +40,16 @@ See [docs/API.md](docs/API.md). How People Like You / Need Profiler / Need Calcu
 
 ## Env
 
-Copy [`.env.example`](.env.example). Never commit a real key.
-
 | Variable | Default | Meaning |
 |----------|---------|---------|
+| `FM_UPSTREAM` | `http://127.0.0.1:8062` | Optional FM (HeyGen plan-report snapshot; not Estimate) |
 | `HU_UPSTREAM` | `http://127.0.0.1:8002` | HappiU |
 | `SV_UPSTREAM` | `http://127.0.0.1:8001` | Scenario Visualizer |
-| `FM_UPSTREAM` | `http://127.0.0.1:8062` | Optional FM (HeyGen plan-report snapshot; not Estimate) |
-| `GP_UPSTREAM_TIMEOUT_S` | `90` | Upstream HTTP timeout (use `120` on WAN) |
 | `APP_PORT` | `8009` | Listen port |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | — | Sentence extract + explainers |
+| `OPENAI_API_KEY` | — | Sentence extract + explainers |
+| `OPENAI_API_MODEL` | `gpt-4o-mini` | Chat model |
 
-Audio prompts: [`src/prompts/`](src/prompts/).
+Audio prompts: [`src/prompts/`](src/prompts/). Never commit a real key.
 
 ## Tests
 

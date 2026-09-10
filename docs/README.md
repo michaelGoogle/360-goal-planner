@@ -26,7 +26,6 @@ Root quickstart also lives in [`../README.md`](../README.md).
 ## Quickstart
 
 ```powershell
-copy .env.example .env
 pip install -e ".[dev]"
 python run_server.py          # http://127.0.0.1:8009
 
@@ -35,11 +34,11 @@ npm install
 npm run dev                   # http://127.0.0.1:5179  (proxies /v1 → :8009)
 ```
 
-Compose: `docker compose up -d --build` on host **8069**. Set `HU_UPSTREAM` /
-`SV_UPSTREAM` in `.env`. See [Standalone-third-party.md](Standalone-third-party.md).
+Compose: service `gp` on host **8069** (WAN **8469**). Depends on `fm`, `hu`,
+`sv`. Portal card: suite landing page.
 
 ## Status
 
-Standalone D2C app (not a 360F engine migration). HTTP BFF + React journey are
-in this repo; engines stay in HU / SV. Spoken explainers use Claude/OpenAI when
-a key is set, otherwise local scripts.
+Workspace D2C app (not a 360F engine migration). HTTP BFF + React journey are
+live; engines stay in FM / HU / SV. Spoken explainers use OpenAI when
+`OPENAI_API_KEY` is set, otherwise local scripts.

@@ -188,7 +188,6 @@ HeyGen key in git.
 ## Tests
 
 ```powershell
-cd GP
 python -m pytest tests/test_video_notify.py -q
 
 cd ..\FM

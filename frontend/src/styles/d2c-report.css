@@ -90,6 +90,11 @@ body.x-report-open .x-sticky {
   font-size: 28px;
   letter-spacing: -0.6px;
 }
+.x-rpt-score-side .x-rpt-lift {
+  font-size: 34px;
+  letter-spacing: -0.8px;
+  font-weight: 800;
+}
 .x-rpt-scores .x-scorecap {
   margin: 0;
   font-size: 14.5px;
@@ -99,6 +104,27 @@ body.x-report-open .x-sticky {
 .x-rpt-stage {
   margin: 22px 0 8px;
 }
+.x-rpt-frame {
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--ln);
+  border-radius: var(--r2);
+  box-shadow: var(--sh);
+}
+.x-rpt-frame-in {
+  overflow: hidden;
+  border-radius: 14px;
+  background: #0c1424;
+  line-height: 0;
+}
+.x-rpt-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: cover;
+  background: #0c1424;
+}
 .x-rpt-wait {
   display: flex;
   flex-direction: column;
@@ -107,7 +133,7 @@ body.x-report-open .x-sticky {
   gap: 8px;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 16px;
+  border-radius: 0;
   padding: 28px 32px;
   text-align: center;
   background: radial-gradient(120% 80% at 10% 0%, #4b7bff 0%, #16307f 42%, #0c1424 100%);

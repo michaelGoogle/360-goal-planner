@@ -3,7 +3,6 @@
 ## Commands
 
 ```powershell
-cd GP
 pip install -e ".[dev]"
 python -m pytest tests/ -q
 python -m ruff check src tests

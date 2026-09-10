@@ -1,11 +1,9 @@
 # GP as a third-party app talking to your APIs
 
 This repository **is** that GP-only clone (`360-goal-planner`). Day-to-day
-edits still live in `happiU_SV_portfolio` (`GP/`); refresh this repo when you
-need to share source.
+edits still live in `happiU_SV_portfolio` (`GP/`); refresh this repo with
+`python deployment/push_gp_standalone.py` from the workspace.
 
-How to give a third party **GP source only** (their own GitHub repo) while their
-running app still talks to **your** FM / HU / SV over HTTP.
 
 How to give a third party **GP source only** (their own GitHub repo) while their
 running app still talks to **your** FM / HU / SV over HTTP.
@@ -41,12 +39,19 @@ flowchart LR
 | Approach | Third party sees only GP? | GP still works? |
 |----------|---------------------------|-----------------|
 | New branch on this repo | No | Yes, but they get the whole workspace |
-| New GitHub repo via `git subtree split -P GP` (or copy `GP/`) | Yes | Yes, after a small packaging fix |
+| `python deployment/push_gp_standalone.py` | Yes | Yes |
 
-Recommended: **new private GitHub repo** (e.g. `360-goal-planner`), not a
+Recommended: **new private GitHub repo** (`360-goal-planner`), not a
 branch of `michaelGoogle/happiU_SV_portfolio`. Keep this workspace on
-`working`; optionally keep a `gp` branch here for your own work — that is
-unrelated to third-party access.
+`working`. Refresh the standalone repo only when you run:
+
+```powershell
+python deployment/push_gp_standalone.py
+```
+
+That copies `GP/` into `D:\360-goal-planner` (or `GP_STANDALONE_DIR`), applies
+standalone packaging, and pushes `main` to `michaelGoogle/360-goal-planner`.
+Ordinary commits in this workspace stay on `happiU_SV_portfolio` / `working`.
 
 **Packaging so their clone builds:**
 

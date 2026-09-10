@@ -53,7 +53,15 @@ export function PlanReport({
   const today = reportPrintedOn();
   const score = post ?? pre ?? 0;
   const band = happiBand(score);
-  const showToday = pre != null && post != null && Math.round(pre) !== Math.round(post);
+  const lift = pre != null && post != null ? Math.round(post) - Math.round(pre) : null;
+  const liftCopy =
+    lift != null && lift > 0
+      ? band === 'GOOD'
+        ? 'Through a smart selection of these plans you are much better off and in good shape.'
+        : band === 'FAIR'
+          ? 'Through a smart selection of these plans you are better off — a solid start. Close the largest gaps to lift this further.'
+          : 'These plans lift your HappiU. Start with the biggest shortfall to get on firmer ground.'
+      : happiCaption(score);
   const goals = goalRows(session);
   const ratios = ratioSummary(session);
   const afford = planAfford(session);
@@ -168,14 +176,16 @@ export function PlanReport({
               <HappiUGauge value={score} size={200} showBand={false} />
             </div>
             <div className="x-rpt-score-side">
-              {showToday ? (
+              {lift != null && lift !== 0 ? (
                 <div>
-                  <span>HappiU today</span>
-                  <b style={{ color: HAPPI_COL[happiBand(pre)] }}>{Math.round(pre)}</b>
+                  <span>HappiU uplift</span>
+                  <b className="x-rpt-lift" style={{ color: lift > 0 ? HAPPI_COL.GOOD : HAPPI_COL.POOR }}>
+                    {lift > 0 ? `+${lift}` : lift}
+                  </b>
                 </div>
               ) : null}
               <p className="x-scorecap" style={{ color: HAPPI_COL[band] }}>
-                {happiCaption(score)}
+                {liftCopy}
               </p>
             </div>
           </div>

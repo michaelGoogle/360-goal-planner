@@ -33,24 +33,28 @@ export function ReportWalkthrough({
 
   return (
     <div className="x-rpt-stage">
-      {src ? (
-        <video
-          ref={videoRef}
-          className="x-rpt-video"
-          controls
-          playsInline
-          preload="metadata"
-          src={src}
-        >
-          <track kind="captions" />
-        </video>
-      ) : (
-        <div className="x-rpt-wait" role="status">
-          <span className="x-rpt-play">{Ico.play}</span>
-          <b>Plan report video</b>
-          <span>A walkthrough of this report will play here.</span>
+      <div className="x-rpt-frame">
+        <div className="x-rpt-frame-in">
+          {src ? (
+            <video
+              ref={videoRef}
+              className="x-rpt-video"
+              controls
+              playsInline
+              preload="metadata"
+              src={src}
+            >
+              <track kind="captions" />
+            </video>
+          ) : (
+            <div className="x-rpt-wait" role="status">
+              <span className="x-rpt-play">{Ico.play}</span>
+              <b>Plan report video</b>
+              <span>A walkthrough of this report will play here.</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {status === 'pending' && !customReady ? (
         <p className="x-rpt-note">
           We are making your customised video. A WhatsApp link will follow in a few minutes.

@@ -19,9 +19,9 @@ For HTTP contracts see [API.md](API.md). For internals see
 
 OpenAPI: http://127.0.0.1:8009/docs (bare) · http://127.0.0.1:8069/docs (Docker)
 
-GP needs **HU** and **SV** for a full journey. About You and Estimate run in this
-repo (Estimate needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`). Your score / Your
-plan fail until HappiU and Scenario Visualizer are reachable.
+GP needs **FM**, **HU**, and **SV** for a full journey. Without FM, About You
+still works but Estimate returns **503**. Your score / Your plan fail until
+HappiU and Scenario Visualizer are up.
 
 ---
 
@@ -39,7 +39,7 @@ plan fail until HappiU and Scenario Visualizer are reachable.
 From two terminals:
 
 ```powershell
-copy .env.example .env
+# from this repo root
 pip install -e ".[dev]"
 python run_server.py          # uvicorn @ 127.0.0.1:8009
 ```
@@ -76,10 +76,12 @@ From this repo root:
 docker compose up -d --build
 ```
 
-UI + API: http://127.0.0.1:8069 · OpenAPI: http://127.0.0.1:8069/docs
+Compose starts `fm`, `hu`, and `sv` as dependencies. UI + API:
+http://127.0.0.1:8069 · OpenAPI: http://127.0.0.1:8069/docs
 
-Point `HU_UPSTREAM` / `SV_UPSTREAM` at the engines you were given (see
-`.env.example`). Compose does not start HU or SV.
+Image: `deployment/docker/GP.Dockerfile` (Node build of `frontend/dist`, then
+Python runtime). Env inside the container: `FM_UPSTREAM=http://fm:8062`,
+`HU_UPSTREAM=http://hu:8063`, `SV_UPSTREAM=http://sv:8064`.
 
 ---
 
@@ -107,6 +109,7 @@ through to `gp`.
 ## Tests (smoke)
 
 ```powershell
+# from this repo root
 python -m pytest tests/ -q
 python -m ruff check src tests
 ```
