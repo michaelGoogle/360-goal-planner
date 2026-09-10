@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { DocKind } from './types';
+import { spendSharePct, type DocKind, type GpSession } from './types';
 
 export const D2C_GEN = ['Male', 'Female'] as const;
 export const D2C_RES = ['Singapore Citizen', 'Permanent Resident', 'Foreigner'] as const;
@@ -42,7 +42,13 @@ export const D2C_DOCF: Record<DocKind, [string, string, 'n' | 't'][]> = {
   ],
 };
 
-export const TIPS: Record<string, { title: string; body: ReactNode }> = {
+function depsPhrase(n: number): string {
+  if (n <= 0) return 'no dependants';
+  if (n === 1) return '1 dependant';
+  return `${n} dependants`;
+}
+
+export const TIPS: Record<string, { title: string; body: ReactNode | ((s: GpSession) => ReactNode) }> = {
   income: {
     title: 'Money coming in · per month',
     body: (
@@ -65,19 +71,19 @@ export const TIPS: Record<string, { title: string; body: ReactNode }> = {
   },
   expense: {
     title: 'Money going out · per month',
-    body: (
+    body: (s: GpSession) => (
       <>
         <p>
-          <b>After your own CPF, not from gross.</b> Typical spend is 67.5% of take-home with no dependants, plus 5
-          percentage points for each dependant, up to 90%. Tax is not deducted.
+          After your own CPF, not from gross. With {depsPhrase(s.dependents)}, this is {spendSharePct(s.dependents)}% of
+          take-home.
         </p>
         <p>
           Everything you actually spend from take-home: housing and loan repayments, food, transport, childcare,
-          parents, and <b>insurance premiums</b>. Leave out your own CPF — that is the line above. Leave out what you
+          parents, and insurance premiums. Leave out your own CPF — that is the line above. Leave out what you
           save or invest; that is what the budget below measures.
         </p>
         <p className="m">
-          The chart folds your CPF into money going out so the picture stays simple. This row is spend only.
+          The chart folds your CPF into money going out so the picture stays simple. This row does the same.
         </p>
         <p className="m">Spending is the figure people are most often wrong about. Three months of statements beats a guess.</p>
       </>
@@ -97,7 +103,6 @@ export const TIPS: Record<string, { title: string; body: ReactNode }> = {
     body: (
       <>
         <p>What your home, and any other property you own, would sell for today. Not what you paid for it, and not the amount left on the mortgage.</p>
-        <p className="m">Estimates: under S$10,000 a month → S$350,000; S$10,000–20,000 → S$650,000; above S$20,000 → S$850,000. Mortgage is 55% of that.</p>
       </>
     ),
   },
@@ -155,7 +160,7 @@ export const TIPS: Record<string, { title: string; body: ReactNode }> = {
 
 export const EDIT_HINT: Record<string, string> = {
   income: 'Gross, before your own CPF, including a twelfth of any bonus.',
-  expense: 'Share of take-home after CPF: 67.5%, plus 5% per dependant, up to 90%. Not tax, not what you save.',
+  expense: 'Spend including your CPF contribution.',
   savings: 'Cash, deposits, shares and funds. Not CPF, not property.',
   property: 'What it would sell for today, not what you paid.',
   loans: 'Everything still outstanding, mortgage included.',

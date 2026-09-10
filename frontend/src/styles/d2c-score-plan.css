@@ -34,7 +34,10 @@
 .x-needsh.x-prod-head{cursor:default;flex-wrap:nowrap;gap:10px}
 .x-needsh.x-prod-head:hover b{color:inherit}
 .x-needsh.x-prod-head .x-needsh-t:hover b{color:var(--acc)}
-.x-needsh.x-prod-head .x-play{margin-left:auto;padding:8px 14px;font-size:13px}
+.x-needsh.x-prod-head .x-play{margin-left:0;padding:8px 14px;font-size:13px}
+.x-needsh.x-prod-head .x-prod-apply{display:flex;align-items:center;gap:8px;margin-left:auto;
+ flex:0 0 auto;font-size:13px;font-weight:650;color:var(--ink2);white-space:nowrap;letter-spacing:-.1px}
+.x-needsh.x-prod-head .tgl{flex:0 0 auto;margin-left:0}
 .x-needsh.x-prod-head .cv{appearance:none;background:none;border:0;padding:4px;margin-left:0;cursor:pointer;
  color:var(--ink2)}
 .x-needsh.x-prod-head .cv:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:8px}
@@ -102,9 +105,10 @@
 /* recommended products, under the projection they change */
 .x-prod{margin-top:16px;border-radius:var(--r2);overflow:hidden}
 .x-needs.x-prod{overflow:visible;padding:20px 22px 18px}
-.x-prod-sum{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:14px}
+.x-prod-sum{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;margin-top:14px}
 .x-prod-sum .x-scard{flex:0 0 auto}
-.x-prod-tags{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.x-prod-sum .x-play{flex:0 0 auto;margin-left:auto;padding:8px 14px;font-size:13px;white-space:nowrap}
+.x-prod-tags{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 auto;min-width:0}
 .x-prod-tags .x-chip{gap:8px;flex-wrap:nowrap;white-space:nowrap;width:max-content;max-width:100%}
 .x-prod-tags .x-chip svg{flex:0 0 auto;opacity:.75}
 .x-prod-tags .x-chip-edit.x-coach-hit{padding:4px;margin:-4px}
@@ -184,7 +188,7 @@
 /* a marker on the chart is a control, and should say so under the pointer */
 .x .objpin,.x .svmk{cursor:pointer}
 
-.x-modal{position:fixed;inset:0;z-index:120;display:flex;align-items:flex-end;
+.x-modal{position:fixed;inset:0;z-index:250;display:flex;align-items:flex-end;
  justify-content:center;padding:0}
 @media(min-width:701px){.x-modal{align-items:center;padding:28px}}
 .x-modal-bd{position:absolute;inset:0;background:rgba(12,20,36,.42);
@@ -243,7 +247,11 @@
 .x-score-viz{display:flex;flex-direction:column;align-items:center}
 .x-score-ghit{display:block;width:100%;max-width:258px}
 .x-score-tags>.x-chip .x-coach-hit{display:inline-flex;line-height:0;flex:0 0 auto}
-.x-score-narr{margin-top:14px}
+.x-score-narr{grid-column:1/-1;width:100%;display:flex;flex-direction:row;align-items:center;
+ gap:12px;flex-wrap:wrap;margin-top:18px}
+@media(max-width:960px){
+ .x-score-narr{justify-content:center}
+}
 .x-scoreh{margin-bottom:10px}
 .x-scoreh .x-h2{margin-bottom:0}
 .x-scorecap{text-align:center;font-size:15px;font-weight:650;line-height:1.4;
@@ -256,6 +264,14 @@
 .x-svhead .h2{margin:0}
 .x-svhead .x-play{margin-left:0;flex:0 0 auto;padding:8px 14px;font-size:13px}
 .x-svhead-sp{flex:1 1 auto;min-width:8px}
+.x-svhead-end{display:flex;flex-direction:row;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto}
+.x-svdbg{flex:0 0 auto;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:10px;
+ background:#F6F9FF;color:transparent;box-shadow:none;cursor:pointer}
+.x-svdbg:hover,.x-svdbg:focus-visible{background:#F6F9FF;outline:none;box-shadow:none}
+.x-modal-w.x-modal-sv{max-width:880px}
+.x-svpayload{margin:0;padding:14px 16px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ background:#0F1724;color:#E8EEF7;border-radius:12px;overflow:auto;max-height:62vh;
+ white-space:pre-wrap;word-break:break-word}
 .x-svdd{position:relative;flex:0 0 auto}
 .x-svdd-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;margin:0;padding:6px;
  list-style:none;min-width:11.5rem;background:#fff;border:1px solid var(--ln);border-radius:12px;
@@ -376,7 +392,8 @@
 .x-tip.r:before{left:auto;right:20px}
 .x-tip>b{display:block;font-size:14.5px;letter-spacing:-.2px;margin-bottom:2px;padding-right:20px;
  color:var(--ink0)}
-.x-tip p{font-size:13.5px;line-height:1.6;color:var(--ink1);margin-top:10px}
+.x-tip p{font-size:13.5px;line-height:1.6;color:var(--ink1);margin-top:10px;font-weight:400}
+.x-tip p b,.x-tip p strong{font-weight:400}
 .x-tip p.m{color:var(--ink2);font-size:13px}
 .x-tip .cl{position:absolute;right:9px;top:9px;border:0;background:none;cursor:pointer;
  color:var(--ink2);padding:5px;border-radius:7px;line-height:0}

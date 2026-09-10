@@ -36,10 +36,13 @@ def test_prompt_uses_session_figures():
     text = build_video_prompt(session, 38, 61, "+6591234567")
     assert "Alex" in text
     assert "Singapore" in text
-    assert "S$9,000" in text
-    assert "S$5,500" in text
-    assert "S$1,900" in text
-    assert "S$950" in text
+    assert "Singapore dollars" in text
+    assert "9,000" in text
+    assert "5,500" in text
+    assert "1,900" in text
+    assert "950" in text
+    assert "S$" not in text
+    assert "SGD" not in text
     assert "38" in text
     assert "61" in text
     assert "retirement" in text
@@ -51,7 +54,9 @@ def test_prompt_uses_session_figures():
 
     spoken = build_spoken_script(session, 38, 61)
     assert spoken.startswith("Hello Alex.")
-    assert "S$9,000" in spoken
+    assert "Singapore dollars" in spoken
+    assert "S$" not in spoken
+    assert "SGD" not in spoken
     assert "red lipstick" not in spoken
 
 
@@ -63,11 +68,40 @@ def test_prompt_spokesperson_follows_mobile_country():
     assert "Switzerland" in ch
     assert "Malaysia" in my
     assert "United Kingdom" in uk
-    assert "Singapore" not in ch
+    assert "from Singapore" not in ch
     us = build_video_prompt(session, 40, 50, "+12025550123")
     assert us.startswith(
         "The spokesperson should be: A professional woman from the United States in her 30s, having red lipstick, wearing professional attire, standing in a modern office."
     )
+
+
+def test_dummy_script_has_no_persona_or_figures():
+    from src.heygen.prompt import build_dummy_spoken_script
+
+    spoken = build_dummy_spoken_script()
+    assert "plan report" in spoken.lower()
+    assert "what you have" in spoken.lower()
+    assert "what you get" in spoken.lower()
+    assert "Share report" in spoken
+    assert "WhatsApp" in spoken
+    assert "mobile number" in spoken
+    assert "not a quote" in spoken
+    assert "not advice to buy" in spoken
+    assert "S$" not in spoken
+    assert "SGD" not in spoken
+    assert "HappiU" not in spoken
+    assert "Alex" not in spoken
+    assert "Hello" not in spoken
+
+
+def test_report_walkthrough_returns_dummy_url(monkeypatch):
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "https://mgzh11.synology.me:8442/videos")
+    from fastapi.testclient import TestClient
+
+    with TestClient(api_client()) as client:
+        r = client.get("/v1/report-walkthrough")
+    assert r.status_code == 200
+    assert r.json()["dummyUrl"] == "https://mgzh11.synology.me:8442/videos/gp/generic-walkthrough.mp4"
 
 
 def test_normalize_mobile_assumes_singapore():

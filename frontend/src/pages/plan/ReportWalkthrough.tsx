@@ -3,15 +3,19 @@ import { Ico } from '../../lib/icons';
 
 export function ReportWalkthrough({
   who,
+  dummyUrl,
   mediaUrl,
   status,
 }: {
   who: string;
+  dummyUrl: string;
   mediaUrl: string;
-  status: 'pending' | 'completed' | 'failed';
+  status: 'idle' | 'pending' | 'completed' | 'failed';
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const ready = status === 'completed' && Boolean(mediaUrl);
+  const customReady = status === 'completed' && Boolean(mediaUrl);
+  const src = customReady ? mediaUrl : dummyUrl;
+  const whose = who === 'you' ? 'your' : `${who}’s`;
 
   useEffect(() => {
     const pause = () => {
@@ -21,37 +25,41 @@ export function ReportWalkthrough({
     return () => window.removeEventListener('beforeprint', pause);
   }, []);
 
-  const whose = who === 'you' ? 'your' : `${who}’s`;
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !src) return;
+    el.load();
+  }, [src]);
 
   return (
     <div className="x-rpt-stage">
-      {ready ? (
+      {src ? (
         <video
           ref={videoRef}
           className="x-rpt-video"
           controls
           playsInline
           preload="metadata"
-          src={mediaUrl}
+          src={src}
         >
           <track kind="captions" />
         </video>
-      ) : status === 'failed' ? (
-        <div className="x-rpt-wait" role="status">
-          <b>Video unavailable</b>
-          <span>We could not make the clip. Share the report again to retry.</span>
-        </div>
       ) : (
         <div className="x-rpt-wait" role="status">
           <span className="x-rpt-play">{Ico.play}</span>
-          <b>Preparing {whose} plan video</b>
-          <span>This usually takes a few minutes. A link will also go by WhatsApp.</span>
+          <b>Plan report video</b>
+          <span>A walkthrough of this report will play here.</span>
         </div>
       )}
+      {status === 'pending' && !customReady ? (
+        <p className="x-rpt-note">
+          We are making your customised video. A WhatsApp link will follow in a few minutes.
+        </p>
+      ) : null}
       <p className="x-rpt-cap">
-        {ready
+        {customReady
           ? `A walkthrough of ${whose} plan. This clip is not in the PDF.`
-          : `The plan video appears here once it is ready. It is not in the printed PDF.`}
+          : 'A walkthrough of this report. Click Share report to get a customised video and this report on WhatsApp. It is not in the printed PDF.'}
       </p>
     </div>
   );

@@ -1,4 +1,5 @@
 import { moneyRatios } from './ratios';
+import { anyPlanOn } from './planProducts';
 import { pickAvailable, type ChartView, type SvData } from './sv';
 import {
   availableBudget,
@@ -16,7 +17,7 @@ import {
   type Route,
 } from './types';
 
-export type ExplainKind = 'mira' | 'intro' | 'money' | 'score' | 'chart' | 'prod';
+export type ExplainKind = 'mira' | 'intro' | 'money' | 'score' | 'needs' | 'chart' | 'prod';
 
 export interface ExplainResponse {
   success: boolean;
@@ -137,6 +138,7 @@ export function buildExplainContext(opts: {
       startAge: age,
       endAge: s.endAge || 85,
       ready: !!svData && withPlan.length > 0,
+      plansOn: anyPlanOn(s),
       withPlanEnd: withStats?.last ?? null,
       withoutEnd: withoutStats?.last ?? null,
       lowest: withStats?.min ?? null,

@@ -49,10 +49,20 @@ export function pickEarmarked(data: SvData, side: 'pre' | 'post'): number[] | nu
   return hasSignal(raw) ? floor(raw) : null;
 }
 
-export function pickFunding(data: SvData): ExpenseFunding | null {
-  const raw = data.preExpenseFunding?.active?.length ? data.preExpenseFunding : data.postExpenseFunding;
-  if (!raw?.active?.length) return null;
-  return raw;
+export function pickCashflow(data: SvData, side: 'pre' | 'post'): { inflow: number[]; outflow: number[] } {
+  const inflow = side === 'post' ? data.postPositiveCashFlow : data.prePositiveCashFlow;
+  const outflow = side === 'post' ? data.postNegativeCashFlow : data.preNegativeCashFlow;
+  if (side === 'post' && !inflow?.length && !outflow?.length) {
+    return { inflow: data.prePositiveCashFlow || [], outflow: data.preNegativeCashFlow || [] };
+  }
+  return { inflow: inflow || [], outflow: outflow || [] };
+}
+
+export function pickFunding(data: SvData, side: 'pre' | 'post' = 'pre'): ExpenseFunding | null {
+  const raw = side === 'post' ? data.postExpenseFunding : data.preExpenseFunding;
+  if (raw?.active?.length) return raw;
+  const fallback = side === 'post' ? data.preExpenseFunding : data.postExpenseFunding;
+  return fallback?.active?.length ? fallback : null;
 }
 
 export function seriesLength(data: SvData): number {
@@ -68,6 +78,7 @@ export function seriesLength(data: SvData): number {
 export const SV_COLORS = {
   wealth: '#5B8DEF',
   wealthFill: 'rgba(91, 141, 239, 0.28)',
+  wealthWithout: '#C45C26',
   earmarked: '#26A69A',
   earmarkedFill: 'rgba(38, 166, 154, 0.22)',
   inflow: '#81C784',
@@ -78,28 +89,36 @@ export const SV_COLORS = {
   shortfall: '#EF5350',
 } as const;
 
-/** Chart title + (i) copy — same wording as Scenario Visualizer. */
-export function chartCopy(view: ChartView, earmarked: boolean): { title: string; info: string } {
+/** Chart title + (i) copy. `plansOn` is Apply this plan. */
+export function chartCopy(view: ChartView, earmarked: boolean, plansOn = false): { title: string; info: string } {
   if (view === 'cash') {
     return {
       title: 'Cash inflow & outflow',
-      info: 'Year-by-year money in (income, payouts, maturities) versus money out (living costs, premiums, goal spends). Policy pots: contribution is cash out, pot earns 3%, maturity is cash in. Fund from own assets: set-asides stay inside wealth (not shown as cash out) and earn 3%; savings spends and property purchases still appear when money is used.',
+      info: plansOn
+        ? 'With this plan: money in (income, payouts, maturities) versus money out (living costs, premiums, goal spends). Turn off Apply this plan to see cashflow without it.'
+        : 'Without this plan: money in versus money out, with none of the recommended premiums or payouts. Turn on Apply this plan to include them.',
     };
   }
   if (view === 'exp') {
     return {
       title: 'How expenses are funded',
-      info: 'For each year, how expenses are covered: active income, passive income, draws from available savings, or unmet shortfall. Pots set aside under “fund from my assets” are reserved for goals and do not count as available savings here.',
+      info: plansOn
+        ? 'With this plan: how each year\'s spending is covered — active income, passive income, draws from savings, or unmet shortfall. Turn off Apply this plan to see funding without it.'
+        : 'Without this plan: how each year\'s spending is covered. Turn on Apply this plan to see whether the mix reduces the shortfall.',
     };
   }
   if (earmarked) {
     return {
       title: 'Available & earmarked assets',
-      info: 'Available assets exclude pots set aside under “fund from my assets”. The earmarked line is those goal pots while they accumulate (at ~3%); at the goal year the pot liquidates into available cash (savings spend, property purchase, or retirement funding) and earmarked drops. Gross of liabilities.',
+      info: plansOn
+        ? 'The solid line is this plan; the dotted line is without it. Available assets exclude pots set aside under “fund from my assets”. The earmarked line is those goal pots while they accumulate (at ~3%); at the goal year the pot liquidates into available cash and earmarked drops. Gross of liabilities.'
+        : 'Available and earmarked assets without the recommended plan. Turn on Apply this plan to compare with versus without. Gross of liabilities.',
     };
   }
   return {
     title: 'Projected assets',
-    info: 'Stock of assets over time: investments, property, cash/savings buffer, CPF, and accumulation pots. Gross assets — liabilities are not subtracted.',
+    info: plansOn
+      ? 'The solid line is this plan; the dotted line is without it. Stock of assets over time: investments, property, cash/savings buffer, CPF, and accumulation pots. Gross assets — liabilities are not subtracted.'
+      : 'Available assets without the recommended plan. Turn on Apply this plan to compare with versus without. Gross assets — liabilities are not subtracted.',
   };
 }

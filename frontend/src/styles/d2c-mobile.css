@@ -36,6 +36,7 @@
  .x-nav{gap:3px}
  .x-nav button{padding:6px}
  .x-nav button>span{display:none}
+ .x-top-assume>span{display:none}
  .x-h1,.x-h1s{font-size:28px;letter-spacing:-.7px}
  .x-hero .x-h1{font-size:30px}
  .x-lead{font-size:16px}

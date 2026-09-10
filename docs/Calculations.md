@@ -4,9 +4,8 @@ This document is the **data and formula trail** for FinPlan360. The product
 story stays in [Business-overview.md](Business-overview.md). HTTP and modules
 stay in [Architecture.md](Architecture.md) and [API.md](API.md).
 
-GP does **not** re-implement People Like You, Need Profiler, or Need Calculator.
-Those engines live in **FM**. How they are called, what is LLM vs closed-form,
-profiler scoring, and the first `needAmount` fill are in
+GP **runs** People Like You, Need Profiler, and Need Calculator in-process
+(`src/pipeline/`). How they work is in
 [People-like-you-and-needs.md](People-like-you-and-needs.md). This file keeps
 the short formula trail, then sizes a **suggested plan** and a **budget check**
 in the UI. HappiU and the chart consume that session.
@@ -23,11 +22,11 @@ About you  (name, age, occupation, residency, dependants, optional docs)
     │
     ▼
 POST /v1/predict
-    ├── FM People Like You     → income, spend, liquid assets, lifestyle flags
+    ├── People Like You        → income, spend, liquid assets, lifestyle flags
     ├── GP mapping             → cash/investments split, property/mortgage, assumed life
-    ├── FM Need Profiler       → which UNIFIED needs are on (top 5)
+    ├── Need Profiler          → which UNIFIED needs are on (top 5)
     ├── GP existing            → cover/savings already allocated to each need
-    └── FM Need Calculator     → needAmount and gap (onlyEmpty=true)
+    └── Need Calculator        → needAmount and gap (onlyEmpty=true)
     │
     ▼
 Your money  (customer may overwrite figures; edits stick)
@@ -49,9 +48,9 @@ Your plan   seedProducts + planProducts.ts
 
 | Step | Owner | GP files |
 |------|--------|----------|
-| People Like You | FM | `src/predict.py` `_apply_plu` |
-| Need Profiler | FM | `src/predict.py` `_needs_from_profiler` |
-| Need Calculator | FM `goal_math.py` | `src/predict.py` `_apply_calculator` |
+| People Like You | GP `src/pipeline/` | `src/predict.py` `_apply_plu` |
+| Need Profiler | GP `src/pipeline/` | `src/predict.py` `_needs_from_profiler` |
+| Need Calculator | GP `src/pipeline/goal_math.py` | `src/predict.py` `_apply_calculator` |
 | Goal edit on Score/Plan | **GP UI** | `frontend/src/lib/needEdit.ts` |
 | Suggested plan + budget | **GP UI** | `frontend/src/lib/planProducts.ts`, `local.ts` `seedProducts` |
 | HappiU budget envelope | GP → HU | `src/hu_payload.py` `_budget_line`, `annualBudget` |
@@ -64,13 +63,13 @@ UNIFIED types: `N_INC`, `N_CRI`, `N_TPD`, `N_RET`, `N_EDU`, `N_SAV`, `N_PRP`.
 
 ---
 
-## 2. People Like You (FM)
+## 2. People Like You
 
 Full write-up: [People-like-you-and-needs.md](People-like-you-and-needs.md) §3.
 
-**Code:** `FM/src/services/people_like_you_service.py`  
-**GP call:** `POST /v1/public/people-like-you` (or `/v1/me/onboarding/...` with a Bearer token).  
-**GP body:** DOB (from age if missing), occupation, gender, dependants, country/city = Singapore.
+**Code:** `src/pipeline/people_like_you.py`  
+**GP call:** in-process `run_people_like_you`.  
+**Inputs:** DOB (from age if missing), occupation, gender, dependants, country/city = Singapore.
 
 ### What the model does vs what is closed-form
 
@@ -126,7 +125,7 @@ Prefer `onboarding.data.finance`, else `result`:
 | `monthlyExpense` / `result.expenses` | `expenseMonthly` |
 | `liquidAssetValue` / `result.assets` | split `cash = round(assets × 0.45)`, `investments = round(assets × 0.55)` |
 
-If FM says they own property, seed a home **on every estimate** (not only the first) from monthly gross income. The loan is **55%** of that property, not FM’s liquid-asset liabilities:
+If People Like You says they own property, seed a home **on every estimate** (not only the first) from monthly gross income. The loan is **55%** of that property, not the liquid-asset liabilities formula:
 
 ```
 property = 350_000 if income < 10_000
@@ -135,7 +134,7 @@ property = 350_000 if income < 10_000
 mortgage = round(property × 0.55)
 ```
 
-If FM says they do not own property, clear both `property` and `mortgage`. The UI still keeps values the customer has edited (`moneyTouched`).
+If People Like You says they do not own property, clear both `property` and `mortgage`. The UI still keeps values the customer has edited (`moneyTouched`).
 
 **Assumed life cover** (GP, not FM), if the result is `> 0`:
 
@@ -152,11 +151,11 @@ If People Like You is down or `success: false`, predict returns **503**. There i
 
 ---
 
-## 3. Need Profiler (FM)
+## 3. Need Profiler
 
 Full write-up: [People-like-you-and-needs.md](People-like-you-and-needs.md) §4.
 
-**Code:** `FM/src/services/need_profiler_service.py`, weights in `Need_profiler.json`.  
+**Code:** `src/pipeline/need_profiler.py`, weights in `src/pipeline/prompts/Need_profiler.json`.  
 **No LLM.** Weighted scores, scaled 0–10, then the top mapped UNIFIED types are enabled.
 
 GP sends `topN: 5`, policy owner + finance (income, expense, liquid assets).
@@ -181,12 +180,12 @@ GP `priority` = **5** if `weightageScore > 7`, else **3**. If the profiler is do
 
 ---
 
-## 4. Need Calculator (FM) — first fill of `needAmount`
+## 4. Need Calculator — first fill of `needAmount`
 
 Full write-up: [People-like-you-and-needs.md](People-like-you-and-needs.md) §5.
 
-**Code:** `FM/src/services/goal_math.py` (`compute_need_amounts`), same idea as `shared/input_model/src/goalMath.ts`.  
-GP sets `existing` first (`need_existing`: policy sum for protection, cash+investments for accumulation), then calls FM with `onlyEmpty: true`.
+**Code:** `src/pipeline/goal_math.py` (`compute_need_amounts`), same idea as `shared/input_model/src/goalMath.ts`.  
+GP sets `existing` first (`need_existing`: policy sum for protection, cash+investments for accumulation), then fills amounts with `onlyEmpty: true`.
 
 Let  
 `income = monthlyIncome × 12`,  
@@ -201,7 +200,7 @@ Present-value annuity:
 PV = PMT × (1 − (1+r)^(−n)) / r     (if r ≈ 0: PMT × n)
 ```
 
-| Type | FM `needAmount` |
+| Type | `needAmount` |
 |------|-----------------|
 | **N_INC** | `PV(0.5 × expense, r, min(30, max(0, 85 − age)))` |
 | **N_CRI** | `5 × income` |
@@ -364,7 +363,7 @@ Retirement living expense sent to HU: `retIncomeMonthly × 12` if set, else `exp
 ## 8. Score and projection (no extra need math)
 
 - **Score:** session → `build_happiu_payload` → HU `POST /v1/happi-u`. Monte Carlo and utility are inside HU.  
-- **Chart:** session → `build_sv_payload` → SV. Recurring contribution on liquid assets is `max(0, income − expense)` (monthly surplus as an annual-style contribution in the SV body). Stress events and assumption rates pass through as given.
+- **Chart:** session → `build_sv_payload` → SV. Recurring contribution on liquid assets is `max(0, income − expense)` (monthly surplus as an annual-style contribution in the SV body). Every Goal Planner stress row maps to an SV `manualEvents` type the engine applies (GP offset `0` → SV year `1`, slider value in `config` or `impact`). Death zeros salary; crash haircuts invested assets; currency shock haircuts liquid assets; hospitalisation is a hospital bill; long-term care is an expense span. Assumption rates pass through as given.
 
 HappiU and the path are **simulation means**; they can move slightly run to run.
 
@@ -374,10 +373,10 @@ HappiU and the path are **simulation means**; they can move slightly run to run.
 
 | When | Formula set |
 |------|-------------|
-| First Estimate (`/v1/predict`) | FM `goal_math.py` (§4), `r = 3%` |
+| First Estimate (`/v1/predict`) | `src/pipeline/goal_math.py` (§4), `r = 3%` |
 | Customer edits a goal card | GP `needEdit.ts` (§5), session inflation (default 2.3%), lifestyle / region / years |
 
-The Score page can therefore show a different retirement lump after a pencil edit than Need Calculator originally wrote. That is intended: the card is an interactive plan, not a replay of FM.
+The Score page can therefore show a different retirement lump after a pencil edit than Need Calculator originally wrote. That is intended: the card is an interactive plan, not a replay of the first fill.
 
 ---
 
@@ -385,13 +384,14 @@ The Score page can therefore show a different retirement lump after a pencil edi
 
 | Concern | Path |
 |---------|------|
-| Predict orchestration | `GP/src/app.py` `predict` |
-| PLU / profiler / calculator mapping | `GP/src/predict.py` |
-| FM People Like You | `FM/src/services/people_like_you_service.py` |
-| FM Need Profiler | `FM/src/services/need_profiler_service.py` |
-| FM Need Calculator math | `FM/src/services/goal_math.py` |
-| Shared TS twin of FM amounts | `shared/input_model/src/goalMath.ts` |
-| Goal-card recalc | `GP/frontend/src/lib/needEdit.ts` |
+| Predict orchestration | `src/app.py` `predict` |
+| Local engines | `src/pipeline/run.py` |
+| PLU / profiler / calculator mapping | `src/predict.py` |
+| People Like You | `src/pipeline/people_like_you.py` |
+| Need Profiler | `src/pipeline/need_profiler.py` |
+| Need Calculator math | `src/pipeline/goal_math.py` |
+| Shared TS twin of amounts | `shared/input_model/src/goalMath.ts` |
+| Goal-card recalc | `frontend/src/lib/needEdit.ts` |
 | Suggested plan + `planAfford` | `GP/frontend/src/lib/planProducts.ts` |
 | First product seed | `GP/frontend/src/lib/local.ts` `seedProducts` |
 | HU payload / budget lines | `GP/src/hu_payload.py` |

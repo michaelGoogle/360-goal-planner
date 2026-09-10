@@ -77,6 +77,9 @@
 .x-chain>div.t+div.t{border-top:1px solid #F1F4F8;margin-top:0}
 .x-chain>div.t>span:first-child{font-weight:650;color:var(--ink0)}
 .x-chain>div.t b{font-size:16.5px;color:var(--ink0)}
+.x-chain>div.mute>span:first-child{font-weight:500;color:var(--ink2)}
+.x-chain>div.mute b{color:var(--ink2);font-weight:600}
+.x-chain>div.mute .x-tipb{color:#B0B8C4}
 .x-chain>div.b{border-top:1px solid var(--ln);border-bottom:0;background:var(--lime-t);
  margin:2px -16px 0;padding:13px 16px;border-radius:0 0 13px 13px}
 .x-chain>div.b>span:first-child{font-weight:750;color:#0B7A3B}

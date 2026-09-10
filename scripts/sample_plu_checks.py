@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT))
 
-from simulate_people_like_you import _fm_plu, load_workspace_env, money, simulate  # noqa: E402
+from simulate_people_like_you import load_workspace_env, money, simulate  # noqa: E402
+from src.pipeline import people_like_you as plu  # noqa: E402
 
 CASES = [
     {"age": 28, "gender": "Male", "occupation": "CEO", "dependents": 0, "name": "Young"},
@@ -24,7 +25,6 @@ CASES = [
 
 def band_label(occupation: str) -> str:
     load_workspace_env()
-    plu = _fm_plu()
     b = plu.get_income_bounds(occupation, "Singapore", "Singapore")
     if not b:
         return "unmatched (near nurse/teacher)"
@@ -33,7 +33,6 @@ def band_label(occupation: str) -> str:
 
 def in_band(occupation: str, income: float) -> str:
     load_workspace_env()
-    plu = _fm_plu()
     b = plu.get_income_bounds(occupation, "Singapore", "Singapore")
     if not b:
         # Unmatched: expect interpolation near nurse/teacher, not CEO.

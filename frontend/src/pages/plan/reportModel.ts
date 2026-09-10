@@ -93,7 +93,7 @@ export function changedAssumptions(session: GpSession) {
 
 const ASSUME_LABEL: Record<AssumeKey, string> = {
   inflationRate: 'Inflation',
-  interestRate: 'Cash interest',
+  interestRate: 'Cash / savings interest',
   incomeGrowthRate: 'Income growth',
   investmentReturn: 'Investment return',
   assetReturn: 'Asset return',

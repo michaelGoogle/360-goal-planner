@@ -16,6 +16,7 @@ import {
 } from '../lib/chartMarkers';
 import {
   pickAvailable,
+  pickCashflow,
   pickEarmarked,
   pickFunding,
   seriesLength,
@@ -23,8 +24,8 @@ import {
   type ChartView,
   type SvData,
 } from '../lib/sv';
-import type { GpSession } from '../lib/types';
-import { sessionAge } from '../lib/types';
+import { anyPlanOn } from '../lib/planProducts';
+import { sessionAge, type GpSession } from '../lib/types';
 
 export function SvChart({
   data,
@@ -87,15 +88,19 @@ export function SvChart({
     setDragOverrides({});
   }, [session.needs, session.events, session.ageOfRetirement]);
 
-  const earmarked = data ? pickEarmarked(data, 'pre') : null;
-  const funding = data ? pickFunding(data) : null;
+  const plansOn = anyPlanOn(session);
+  const side = plansOn ? 'post' : 'pre';
+  const earmarked = data ? pickEarmarked(data, 'post') || pickEarmarked(data, 'pre') : null;
+  const cashflow = data ? pickCashflow(data, side) : null;
+  const funding = data ? pickFunding(data, side) : null;
 
   const traces = useMemo((): Trace[] => {
     if (!data || !x.length) return [];
     if (view === 'cash') {
+      if (!cashflow) return [];
       return [
-        { x, y: data.prePositiveCashFlow, type: 'bar', name: 'Cash Inflow', marker: { color: SV_COLORS.inflow } },
-        { x, y: data.preNegativeCashFlow, type: 'bar', name: 'Cash Outflow', marker: { color: SV_COLORS.outflow } },
+        { x, y: cashflow.inflow, type: 'bar', name: 'Cash Inflow', marker: { color: SV_COLORS.inflow } },
+        { x, y: cashflow.outflow, type: 'bar', name: 'Cash Outflow', marker: { color: SV_COLORS.outflow } },
       ];
     }
     if (view === 'exp') {
@@ -107,33 +112,60 @@ export function SvChart({
         { x, y: funding.shortfall, type: 'bar', name: 'Shortfall', marker: { color: SV_COLORS.shortfall } },
       ];
     }
-    const available = floorWealth(pickAvailable(data, 'pre'));
-    const traces: Trace[] = [
-      {
+    const without = floorWealth(pickAvailable(data, 'pre'));
+    const withPlan = floorWealth(pickAvailable(data, 'post'));
+    const traces: Trace[] = [];
+    if (plansOn) {
+      const planSeries = withPlan.length ? withPlan : without;
+      if (planSeries.length) {
+        traces.push({
+          x,
+          y: planSeries,
+          type: 'scatter',
+          mode: 'lines',
+          name: 'This plan',
+          line: { color: SV_COLORS.wealth, width: 2 },
+          fill: 'tozeroy',
+          fillcolor: SV_COLORS.wealthFill,
+        });
+      }
+      if (earmarked) {
+        traces.push({
+          x,
+          y: floorWealth(earmarked),
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Earmarked for goals',
+          line: { color: SV_COLORS.earmarked, width: 2 },
+          fill: 'tozeroy',
+          fillcolor: SV_COLORS.earmarkedFill,
+        });
+      }
+      if (without.length && withPlan.length) {
+        traces.push({
+          x,
+          y: without,
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Without this plan',
+          line: { color: SV_COLORS.wealthWithout, width: 2.5, dash: 'dot' },
+          hoverinfo: 'name+y',
+        });
+      }
+    } else if (without.length) {
+      traces.push({
         x,
-        y: available,
+        y: without,
         type: 'scatter',
         mode: 'lines',
         name: 'Available assets',
         line: { color: SV_COLORS.wealth, width: 2 },
         fill: 'tozeroy',
         fillcolor: SV_COLORS.wealthFill,
-      },
-    ];
-    if (earmarked) {
-      traces.push({
-        x,
-        y: floorWealth(earmarked),
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Earmarked for goals',
-        line: { color: SV_COLORS.earmarked, width: 2 },
-        fill: 'tozeroy',
-        fillcolor: SV_COLORS.earmarkedFill,
       });
     }
     return traces;
-  }, [data, view, x, earmarked, funding]);
+  }, [data, view, x, cashflow, earmarked, funding, plansOn]);
 
   const [rangeLo, rangeHi] = range;
   const shapes = useMemo(() => markersToPlotlyShapes(markers), [markers]);

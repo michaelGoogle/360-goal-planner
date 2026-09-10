@@ -21,6 +21,14 @@ export function suggestedInGroup(session: GpSession, group: 'p' | 'w'): NeedRow[
   return suggestedNeeds(session).filter(n => NEED_META[n.type].group === group);
 }
 
+export function includedProtection(session: GpSession): NeedRow[] {
+  return suggestedInGroup(session, 'p').filter(n => planIncluded(session, n.type));
+}
+
+export function protectionPremAnnual(session: GpSession): number {
+  return includedProtection(session).reduce((sum, n) => sum + planCoverPrem(session, n.type), 0);
+}
+
 export function planIncluded(session: GpSession, type: NeedType): boolean {
   return !(session.plansOff || []).includes(type);
 }
@@ -53,6 +61,31 @@ export function investMthFromPlans(session: GpSession): number {
 
 export function investLumpFromPlans(session: GpSession): number {
   return includedWealth(session).reduce((sum, n) => sum + planLump(session, n.type), 0);
+}
+
+export function allPlansOn(session: GpSession): boolean {
+  const rows = suggestedNeeds(session);
+  return !!rows.length && rows.every(n => planIncluded(session, n.type));
+}
+
+export function anyPlanOn(session: GpSession): boolean {
+  return suggestedNeeds(session).some(n => planIncluded(session, n.type));
+}
+
+export function toggleAllPlansPatch(session: GpSession): Partial<GpSession> {
+  const rows = suggestedNeeds(session);
+  const turnOn = !allPlansOn(session);
+  const suggestedTypes = new Set(rows.map(n => n.type));
+  const plansOff = turnOn
+    ? (session.plansOff || []).filter(t => !suggestedTypes.has(t))
+    : [...new Set([...(session.plansOff || []), ...rows.map(n => n.type)])];
+  const next = { ...session, plansOff };
+  return {
+    plansOff,
+    ...productFlags(next),
+    investMth: investMthFromPlans(next),
+    investLump: investLumpFromPlans(next),
+  };
 }
 
 export function togglePlanPatch(session: GpSession, type: NeedType): Partial<GpSession> {
@@ -98,7 +131,7 @@ export function planTargetYear(session: GpSession, type: NeedType): number {
 }
 
 export function planRealRate(session: GpSession): number {
-  const nom = (session.investRet || 0) / 100;
+  const nom = session.investmentReturn || 0.042;
   const inf = session.inflationRate || 0.023;
   return Math.max(0, (1 + nom) / (1 + inf) - 1);
 }
@@ -245,11 +278,11 @@ export function sizedCover(session: GpSession, type: NeedType) {
   return { sum: planCoverSum(session, type), prem: planCoverPrem(session, type) };
 }
 
-export function defaultWealthMth(session: GpSession, prem: number): number {
+export function defaultWealthMth(session: GpSession, prem?: number): number {
   const wealth = suggestedInGroup(session, 'w');
   if (!wealth.length) return 0;
   const bud = Math.max(0, availableBudget(session) * 12);
-  const left = Math.max(0, bud - prem);
+  const left = Math.max(0, bud - (prem ?? protectionPremAnnual(session)));
   return Math.max(0, Math.round(left * 0.6 / 12 / wealth.length / 50) * 50);
 }
 
@@ -258,19 +291,17 @@ export const FREE_BUDGET_SHARE = 0.5;
 export function planAfford(session: GpSession) {
   const available = Math.max(0, availableBudget(session));
   const free = Math.round(available * FREE_BUDGET_SHARE);
-  const premYr = suggestedInGroup(session, 'p')
-    .filter(n => planIncluded(session, n.type))
-    .reduce((sum, n) => sum + planCoverPrem(session, n.type), 0);
-  const premMth = Math.round(premYr / 12);
+  const premYr = protectionPremAnnual(session);
+  const premMth = premYr / 12;
   const contribMth = investMthFromPlans(session);
-  const monthly = premMth + contribMth;
+  const monthly = Math.round(contribMth + premMth);
   const savings = liquid(session);
   const lumps = investLumpFromPlans(session);
   return {
     available,
     free,
     freePct: Math.round(FREE_BUDGET_SHARE * 100),
-    premMth,
+    premMth: Math.round(premMth),
     contribMth,
     monthly,
     monthlyOver: monthly - free,

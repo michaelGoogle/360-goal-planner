@@ -1,5 +1,6 @@
 import { depsFromChoice, type DepsChoice, type DocKind, type GpSession, type NeedType } from './types';
 import type { ParsedSentence } from './parse';
+import { investRetFromReturn } from './assumptions';
 import { coverSliderCaps, defaultWealthMth, investLumpFromPlans, investMthFromPlans, planSliderCaps, productFlags, suggestedInGroup } from './planProducts';
 
 const OCC_PATTERNS: [RegExp, number][] = [
@@ -194,9 +195,9 @@ export function seedProducts(session: GpSession): Partial<GpSession> {
         : {}),
     };
   }
-  const investRet = session.investRet || 7.2;
+  const investRet = investRetFromReturn(session.investmentReturn || 0.042);
   const { planSum, planPrem, lifePrem } = cover;
-  const share = defaultWealthMth(session, flags.lifeOn ? lifePrem : 0);
+  const share = defaultWealthMth({ ...session, ...flags, planSum, planPrem });
   const planMth: Partial<Record<NeedType, number>> = { ...session.planMth };
   const planLump: Partial<Record<NeedType, number>> = { ...session.planLump };
   const sized = { ...session, ...flags, investRet, planMth, planLump };

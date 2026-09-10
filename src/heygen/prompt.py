@@ -30,12 +30,13 @@ NEED_LABEL = {
 
 
 def _money(n: Any) -> str:
+    """Spoken amounts. 'Singapore dollars', not S$ (TTS says S-dollars) or SGD (spelled letter by letter)."""
     try:
         v = int(round(float(n or 0)))
     except (TypeError, ValueError):
-        return "S$0"
-    sign = "−" if v < 0 else ""
-    return f"{sign}S${abs(v):,}"
+        return "0 Singapore dollars"
+    sign = "minus " if v < 0 else ""
+    return f"{sign}{abs(v):,} Singapore dollars"
 
 
 def _first_name(session: dict[str, Any]) -> str:
@@ -54,6 +55,20 @@ def _biggest_gap(session: dict[str, Any]) -> tuple[str, float]:
         if gap > best[1]:
             best = (str(n.get("type") or ""), gap)
     return best
+
+
+def build_dummy_spoken_script() -> str:
+    """Generic report walkthrough. Same for every customer. No figures, no persona."""
+    return (
+        "This is your plan report. It has two parts. "
+        "First, what you have today: who you are, money coming in and going out, "
+        "what you own and owe, and the cover you already hold. "
+        "Then, what you get from the suggested plan: how it sizes protection and growth, "
+        "and how that changes your financial picture next to going without it. "
+        "These are estimates for this session, not a quote, and not advice to buy. "
+        "Click Share report, leave your mobile number with us, and within a few minutes "
+        "we will WhatsApp you a link to a customised video and this report."
+    )
 
 
 def build_spoken_script(

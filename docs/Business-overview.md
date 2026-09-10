@@ -14,7 +14,7 @@ only orchestrates them.
 
 | Service | Role |
 |---------|------|
-| **Fund registry (FM)** | People Like You, Need Profiler, Need Calculator; optional JWT persist |
+| **Fund registry (FM)** | Fund data; optional HeyGen plan-report snapshot. D2C Estimate no longer calls FM. |
 | **HappiU (HU)** | Stochastic well-being score (`preHappiU` / `postHappiU`) |
 | **Scenario Visualizer (SV)** | Pre / post wealth and cashflow paths |
 | **360-Goal Planner (GP)** | **D2C UI + BFF** that maps a session into those three |
@@ -28,7 +28,7 @@ Portal card: suite landing page → compose **8069** / WAN **8469**.
 |------|--------|------------------------|--------------|
 | Start | Intro | Hear what they get, then start | No engine call |
 | 1 | About you | One sentence (speak/type) or a classic form; optional statements | `POST /v1/parse-sentence` fills fields |
-| 2 | Your money | Correct estimated income, spend, balances, cover | `POST /v1/predict` (FM People Like You) |
+| 2 | Your money | Correct estimated income, spend, balances, cover | `POST /v1/predict` (People Like You in-process) |
 | 3 | Your score | See HappiU, gaps, money-health ratios; toggle needs | `POST /v1/score` → HU |
 | Plan | Your plan | Switch goals, products, stress events, assumptions | `POST /v1/project` → SV; score again |
 

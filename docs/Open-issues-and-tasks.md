@@ -1,11 +1,13 @@
 # 360-Goal Planner — open issues and tasks
 
+Workspace follow-ups: [`../../docs/known-issues.md`](../../docs/known-issues.md).
+
 ## Status
 
-GP is a **D2C BFF + UI** (not a Falcon→FastAPI engine migration). The
-five-step journey, FM/HU/SV mapping, and LLM explainers (with file prompts)
-are in this repo. Engines stay remote — see
-[Standalone-third-party.md](Standalone-third-party.md).
+GP is a **new D2C BFF + UI** (not a Falcon→FastAPI engine migration). The
+five-step journey, FM/HU/SV mapping, and LLM
+explainers (with file prompts) are in tree. No dedicated git remote — it lives
+in the workspace.
 
 ## Known gaps
 
@@ -17,10 +19,10 @@ are in this repo. Engines stay remote — see
 | 4 | Human adviser | Low | Callback panel is local-only (“Nothing is sent from this prototype”). No CRM / ticket backend. |
 | 5 | Prompt versioning | Low | Prompts are files in-repo; response `source` is `llm`/`fallback` with no prompt version header. |
 | 6 | Frontend tests | Med | Typecheck only. No Playwright walk of the five screens. |
-| 7 | Auth / persist | Med | Optional portal JWT hash handoff. `persist` on predict is wired but lightly used in the UI. |
+| 7 | Auth / persist | Med | Optional portal JWT hash handoff. `persist` on predict is wired but lightly used in the UI. Workspace: [`../../docs/auth-session-plan.md`](../../docs/auth-session-plan.md). |
 | 8 | No GP numeric golden | Low | HU/SV goldens stay in those repos. GP does not re-assert engine numbers. |
 | 9 | Document parse | Med | Statement upload is simulated / local in the UI; it is not FM’s holdings LLM pipeline. |
-| 10 | Own git remote | Done | This repository is the GP-only GitHub remote. Operator notes: [Standalone-third-party.md](Standalone-third-party.md). |
+| 10 | Own git remote | Low | Unlike HU/PA/PG/SV, GP is not a standalone GitHub repo yet. Plan: [Standalone-third-party.md](Standalone-third-party.md). |
 
 ## Deferred / nice-to-have
 

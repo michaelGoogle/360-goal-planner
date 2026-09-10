@@ -43,7 +43,6 @@ export function Money({
   if (!openEditKey || sliderCap.current?.key !== openEditKey) sliderCap.current = null;
   const age = typeof session.age === 'number' ? session.age : 35;
   const mInc = session.incomeMonthly;
-  const mExp = session.expenseMonthly;
   const cpf = employeeCpfMonthly(session);
   const takeHome = takeHomeMonthly(session);
   const sur = availableBudget(session);
@@ -64,7 +63,7 @@ export function Money({
     const patch: Partial<GpSession> = { moneyTouched, provenance };
     if (key === 'budget') patch.expenseMonthly = Math.max(0, takeHome - v);
     if (key === 'income') patch.incomeMonthly = v;
-    if (key === 'expense') patch.expenseMonthly = v;
+    if (key === 'expense') patch.expenseMonthly = Math.max(0, v - cpf);
     if (key === 'savings') {
       const cur = liq;
       const r = cur > 0 ? session.cash / cur : 0.45;
@@ -83,7 +82,8 @@ export function Money({
     const computed = moneyMax(val, spec.floor);
     if (openEditKey === key && !sliderCap.current) sliderCap.current = { key, max: computed };
     const hi = openEditKey === key && sliderCap.current ? sliderCap.current.max : computed;
-    const clamped = Math.min(hi, Math.max(0, val));
+    const lo = key === 'expense' ? cpf : 0;
+    const clamped = Math.min(hi, Math.max(lo, val));
     const shown = spec.perMonth ? `${money(clamped)}/mo` : money(clamped);
     const capLabel = spec.perMonth ? `${money(hi)}/mo` : money(hi);
     return (
@@ -95,7 +95,7 @@ export function Money({
           </div>
           <input
             type="range"
-            min={0}
+            min={lo}
             max={hi}
             step={spec.step}
             value={clamped}
@@ -103,7 +103,7 @@ export function Money({
             onChange={e => setMoney(key, Number(e.target.value))}
           />
           <div className="gsl-ends">
-            <span>{money(0)}</span>
+            <span>{money(lo)}</span>
             <span>{capLabel}</span>
           </div>
         </div>
@@ -115,10 +115,11 @@ export function Money({
   const tipBody = (key: string) => {
     const t = TIPS[key];
     if (!t) return null;
+    const body = typeof t.body === 'function' ? t.body(session) : t.body;
     return (
       <>
         <b>{t.title}</b>
-        {t.body}
+        {body}
       </>
     );
   };
@@ -191,7 +192,7 @@ export function Money({
               {editBody('income', 'Money coming in each month', mInc)}
             </Tip>
           </div>
-          <div className="t noedit">
+          <div className="t noedit mute">
             <span>
               Your CPF
               <Tip id="icpf" open={session.tip} onToggle={toggleTip} right>
@@ -208,9 +209,9 @@ export function Money({
               </Tip>
               {tag('expense')}
             </span>
-            <b>{money(mExp)}</b>
+            <b>{money(outInclCpf)}</b>
             <Tip id="eexp" open={session.tip} onToggle={toggleTip} edit right wide>
-              {editBody('expense', 'Money going out each month', mExp)}
+              {editBody('expense', 'Money going out each month', outInclCpf)}
             </Tip>
           </div>
           <div className={`b noedit ${sur < 0 ? 'no' : ''}`}>

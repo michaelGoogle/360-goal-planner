@@ -16,6 +16,10 @@ export function Shell({
   gtTtOn,
   onGtTtToggle,
   onShare,
+  nAssume,
+  assumeOn,
+  onAssume,
+  overlay,
 }: {
   route: Route;
   maxStep: number;
@@ -28,6 +32,10 @@ export function Shell({
   gtTtOn: boolean;
   onGtTtToggle: () => void;
   onShare?: () => void;
+  nAssume?: number;
+  assumeOn?: boolean;
+  onAssume?: () => void;
+  overlay?: ReactNode;
 }) {
   const cur = ROUTES.indexOf(route);
   const pct = Math.round((cur / (ROUTES.length - 1)) * 100);
@@ -67,6 +75,20 @@ export function Shell({
               Share
             </button>
           ) : null}
+          {onAssume ? (
+            <button
+              className={`x-top-assume ${assumeOn ? 'on' : ''}`}
+              type="button"
+              aria-pressed={!!assumeOn}
+              aria-label="Assumptions"
+              title="Assumptions"
+              onClick={onAssume}
+            >
+              {Ico.sliders}
+              <span>Assumptions</span>
+              {nAssume ? <em className="x-assn">{nAssume}</em> : null}
+            </button>
+          ) : null}
           <button
             className={`x-gttt ${gtTtOn ? 'on' : ''}`}
             type="button"
@@ -103,6 +125,7 @@ export function Shell({
       <main className="canvas x-scroll" id="main" tabIndex={-1}>
         <div className="x-wrap">{children}</div>
       </main>
+      {overlay}
       {adv ? (
         <div className="x-advp" role="dialog" aria-label="Talk to an adviser">
           <button className="cl" type="button" onClick={() => setAdv(false)} aria-label="Close">

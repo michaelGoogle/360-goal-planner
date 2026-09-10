@@ -1,0 +1,130 @@
+{
+    "source": "Calculation sheet",
+    "weight_options": {
+      "Age": [
+        { "option": "Below 21", "weight": 1.0},
+        { "option": "21 to 30 years", "weight": 2.0},
+        { "option": "31 to 40 years", "weight": 3.0},
+        { "option": "above 40 years", "weight": 4.0 }
+      ],
+      "Gender": [
+        { "option": "Male", "weight": 3.0 },
+        { "option": "Female", "weight": 2.0 }
+      ],
+      "Dependants": [
+        { "option": "No Dependant", "weight": 0.0 },
+        { "option": "1 Dependant", "weight": 2.0 },
+        { "option": "2 or More Dependants", "weight": 4.0 }
+      ],
+      "Occupation": [
+        { "option": "Salaried", "weight": 1.0 },
+        { "option": "Self-employed & Entrepreneur", "weight": 2.0 }
+      ],
+      "Sports": [
+        { "option": "Life style activities", "weight": 1.0 },
+        { "option": "Adventurous Sports", "weight": 4.0 },
+        { "option": "I dont do sports", "weight": 0.0 }
+      ],
+      "Lifestyle": [
+        { "option": "frugal", "weight": 1.0 },
+        { "option": "stress-free", "weight": 2.0 },
+        { "option": "only the best", "weight": 4.0 }
+      ],
+      "Income": [
+        { "option": "below 108 USD", "weight": 4.0 },
+        { "option": "between 108 and 243 USD", "weight": 3.0 },
+        { "option": "between 243 and 1,081 USD", "weight": 2.0 },
+        { "option": "between 1,081 and 2,703 USD", "weight": 1.0 },
+        { "option": "above 2,703 USD", "weight": 0.0 }
+      ],
+      "Expense": [
+        { "option": "below 68 USD", "weight": 4.0 },
+        { "option": "between 68 and 135 USD", "weight": 3.0 },
+        { "option": "between 135 and 541 USD", "weight": 2.0 },
+        { "option": "between 541 and 1,351 USD", "weight": 1.0 },
+        { "option": "between 1,351 and 5,405 USD", "weight": 0.0 },
+        { "option": "between 5,405 and 27,027 USD", "weight": 0.0 },
+        { "option": "above 27,027 USD", "weight": 0.0 }
+      ],
+      "Assets": [
+        { "option": "below 541 USD", "weight": 4.0 },
+        { "option": "between 541 and 1,351 USD", "weight": 3.0 },
+        { "option": "between 1,351 and 5,405 USD", "weight": 2.0 },
+        { "option": "between 5,405 and 27,027 USD", "weight": 1.0 },
+        { "option": "above 27,027 USD", "weight": 0.0 }
+      ],
+      "Liabilities": [
+        { "option": "below 270 USD", "weight": 4.0 },
+        { "option": "between 270 and 541 USD", "weight": 3.0 },
+        { "option": "between 541 and 1,351 USD", "weight": 2.0 },
+        { "option": "between 1,351 and 5,405 USD", "weight": 1.0 },
+        { "option": "above 5,405 USD", "weight": 0.0 }
+      ],
+      "Existing Life Insurance": [
+        { "option": "True", "weight": 1.0 },
+        { "option": "False", "weight": 2.0 }
+      ],
+      "Existing Hospitalization Insurance": [
+        { "option": "True", "weight": 2.0 },
+        { "option": "False", "weight": 1.0 }
+      ],
+      "Existing Disability Insurance": [
+        { "option": "True", "weight": 2.0 },
+        { "option": "False", "weight": 1.0 }
+      ],
+      "Hospital Type": [
+        { "option": "Private", "weight": 4.0 },
+        { "option": "Public", "weight": 2.0 }
+      ],
+      "Ward Type": [
+        { "option": "A", "weight": 3.0 },
+        { "option": "B", "weight": 2.0 }
+      ]
+    },
+    "needs_factor_weights": {
+      "Date of Birth": { "Retirement": 2, "Car Protection": 1, "Home Protection": 1, "Farewell": 2 },
+      "Gender": { "Retirement": 2, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 1, "Farewell": 1, "General Savings": 2 },
+      "Dependants": { "Life Protection": 4, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 2, "Farewell": 1, "General Savings": 3, "Critical Illness": 1 },
+      "Occupation": { "Life Protection": 1, "Retirement": 1, "Travel Protection": 2, "Car Protection": 1, "Home Protection": 2, "Farewell": 2, "General Savings": 1, "Critical Illness": 1 },
+      "Residency": { "Retirement": 1, "Travel Protection": 4, "Car Protection": 1, "Home Protection": 1, "Farewell": 1 },
+      "Nationality": { "Travel Protection": 2, "Car Protection": 2, "Home Protection": 1 },
+      "Currency": { "Travel Protection": 1, "Farewell": 1, "General Savings": 1 },
+      "Smoking": { "Life Protection": 4, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 2, "Farewell": 1, "Critical Illness": 4 },
+      "Sports": { "Life Protection": 1, "Hospitalization": 1, "Disability": 2, "Travel Protection": 2 },
+      "Lifestyle": { "Retirement": 1, "Travel Protection": 1, "Car Protection": 2, "Home Protection": 2, "General Savings": 2 },
+      "Income": { "Life Protection": 4, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 2, "Farewell": 2, "General Savings": 1, "Critical Illness": 1 },
+      "Expense": { "Life Protection": 4, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 1, "Car Protection": 2, "Home Protection": 1, "Farewell": 2, "General Savings": 3, "Critical Illness": 2 },
+      "Assets": { "Life Protection": 4, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 1, "Car Protection": 2, "Home Protection": 1, "Farewell": 1, "General Savings": 2, "Critical Illness": 1 },
+      "Liabilities": { "Life Protection": 3, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 1, "Car Protection": 1, "Home Protection": 2, "Farewell": 1, "General Savings": 2, "Critical Illness": 1 },
+      "Car Ownership": { "Life Protection": 2, "Hospitalization": 2, "Disability": 3, "Retirement": 1, "Travel Protection": 1, "Car Protection": 4, "Home Protection": 1, "Farewell": 1, "General Savings": 1, "Critical Illness": 1 },
+      "International Traveling": { "Life Protection": 2, "Hospitalization": 4, "Disability": 1, "Retirement": 1, "Travel Protection": 4, "Car Protection": 2, "Home Protection": 2, "Farewell": 1, "General Savings": 1, "Critical Illness": 1 },
+      "Home Ownership": { "Life Protection": 2, "Hospitalization": 2, "Disability": 2, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 4, "Farewell": 1, "General Savings": 1, "Critical Illness": 1 },
+      "Hospital Type": { "Life Protection": 2, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 1, "Farewell": 1, "General Savings": 2, "Critical Illness": 3 },
+      "Ward Type": { "Life Protection": 1, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 2, "Car Protection": 2, "Home Protection": 1, "Farewell": 1, "General Savings": 1, "Critical Illness": 4 },
+      "Education": { "Life Protection": 0, "Hospitalization": 0, "Disability": 0, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 4, "Critical Illness": 0 },
+      "General Savings": { "Life Protection": 0, "Hospitalization": 0, "Disability": 0, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 4, "Critical Illness": 0 },
+      "Critical Illness": { "Life Protection": 3, "Hospitalization": 3, "Disability": 0, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 4 },
+      "Hospitalization": { "Life Protection": 3, "Hospitalization": 4, "Disability": 0, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 3 },
+      "Disability": { "Life Protection": 3, "Hospitalization": 3, "Disability": 4, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 3 },
+      "Retirement": { "Life Protection": 3, "Hospitalization": 0, "Disability": 0, "Retirement": 4, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 2, "General Savings": 3, "Critical Illness": 0 },
+      "Travel Protection": { "Life Protection": 2, "Hospitalization": 1, "Disability": 0, "Retirement": 0, "Travel Protection": 4, "Car Protection": 2, "Home Protection": 1, "Farewell": 0, "General Savings": 0, "Critical Illness": 0 },
+      "Car Protection": { "Life Protection": 2, "Hospitalization": 2, "Disability": 2, "Retirement": 0, "Travel Protection": 2, "Car Protection": 4, "Home Protection": 2, "Farewell": 0, "General Savings": 0, "Critical Illness": 0 },
+      "Home Protection": { "Life Protection": 2, "Hospitalization": 2, "Disability": 2, "Retirement": 0, "Travel Protection": 1, "Car Protection": 2, "Home Protection": 4, "Farewell": 0, "General Savings": 0, "Critical Illness": 0 },
+      "Farewell": { "Life Protection": 2, "Hospitalization": 0, "Disability": 0, "Retirement": 2, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 4, "General Savings": 0, "Critical Illness": 0 },
+      "Mortality": { "Life Protection": 4, "Hospitalization": 0, "Disability": 0, "Retirement": 3, "Travel Protection": 2, "Car Protection": 0, "Home Protection": 0, "Farewell": 1, "General Savings": 0, "Critical Illness": 2 },
+      "Longevity": { "Life Protection": 0, "Hospitalization": 0, "Disability": 0, "Retirement": 4, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 3, "General Savings": 3, "Critical Illness": 0 },
+      "Disease": { "Life Protection": 3, "Hospitalization": 4, "Disability": 3, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 4 },
+      "Disability Risk": { "Life Protection": 3, "Hospitalization": 3, "Disability": 4, "Retirement": 0, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 3 },
+      "Accidental Risk": { "Life Protection": 3, "Hospitalization": 3, "Disability": 3, "Retirement": 0, "Travel Protection": 2, "Car Protection": 1, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 2 },
+      "Investment": { "Life Protection": 0, "Hospitalization": 0, "Disability": 0, "Retirement": 3, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 2, "General Savings": 4, "Critical Illness": 0 },
+      "Wants": { "Life Protection": 0, "Hospitalization": 0, "Disability": 0, "Retirement": 1, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 1, "General Savings": 3, "Critical Illness": 0 },
+      "Family": { "Life Protection": 3, "Hospitalization": 3, "Disability": 2, "Retirement": 1, "Travel Protection": 1, "Car Protection": 1, "Home Protection": 1, "Farewell": 3, "General Savings": 2, "Critical Illness": 3 },
+      "Retirement Goal": { "Life Protection": 2, "Hospitalization": 0, "Disability": 0, "Retirement": 4, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 3, "General Savings": 3, "Critical Illness": 0 },
+      "Income Protection": { "Life Protection": 3, "Hospitalization": 3, "Disability": 4, "Retirement": 1, "Travel Protection": 1, "Car Protection": 1, "Home Protection": 1, "Farewell": 2, "General Savings": 1, "Critical Illness": 3 },
+      "Medical & Hospitalization": { "Life Protection": 3, "Hospitalization": 4, "Disability": 3, "Retirement": 0, "Travel Protection": 1, "Car Protection": 0, "Home Protection": 0, "Farewell": 0, "General Savings": 0, "Critical Illness": 4 },
+      "Financial Risks": { "Life Protection": 3, "Hospitalization": 3, "Disability": 3, "Retirement": 1, "Travel Protection": 1, "Car Protection": 1, "Home Protection": 1, "Farewell": 2, "General Savings": 2, "Critical Illness": 3 },
+      "Wealth Build-up": { "Life Protection": 2, "Hospitalization": 1, "Disability": 1, "Retirement": 3, "Travel Protection": 0, "Car Protection": 0, "Home Protection": 0, "Farewell": 1, "General Savings": 4, "Critical Illness": 1 }
+    }
+  }
+  
+  

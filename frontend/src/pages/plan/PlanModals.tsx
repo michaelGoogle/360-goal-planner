@@ -1,6 +1,6 @@
-import { RateSlider, Switch } from '../../components/ui';
+import { Switch } from '../../components/ui';
 import { Ico } from '../../lib/icons';
-import { hydrateStressEvents, STRESS_BY_ID, type GpEvent } from '../../lib/stressEvents';
+import { clampEvent, hydrateStressEvents, STRESS_BY_ID, type GpEvent } from '../../lib/stressEvents';
 import {
   EXTRA_NEEDS,
   money,
@@ -15,75 +15,48 @@ import { AddPlanPanel } from './CoverCard';
 import { EventCard } from './EventCard';
 import { planIncluded, togglePlanPatch } from '../../lib/planProducts';
 
-type Panel = 'goals' | 'events' | 'assume' | 'plans';
+type Panel = 'goals' | 'events' | 'plans';
 
 export function PlanModals({
   panel,
   focusId,
   planNeed,
   session,
-  nAssume,
   onChange,
   onToggleNeed,
   onToggleExtra,
   onToggleEvent,
   onEvents,
-  onAssume,
-  onAssumeReset,
 }: {
   panel: Panel | null;
   focusId: string | null;
   planNeed: NeedType | null;
   session: GpSession;
-  nAssume: number;
   onChange: (p: Partial<GpSession>) => void;
   onToggleNeed: (t: NeedType) => void;
   onToggleExtra: (k: ExtraNeed) => void;
   onToggleEvent: (id: string) => void;
   onEvents: (events: GpEvent[]) => void;
-  onAssume: (p: Partial<GpSession>) => void;
-  onAssumeReset: () => void;
 }) {
   if (!panel) return null;
+  const title =
+    panel === 'goals' ? 'Your goals' : panel === 'plans' ? 'Add a plan' : 'Unforeseen events';
+  const blurb =
+    panel === 'goals'
+      ? 'Switch one off and watch the projection re-run — that is what the goal is costing you.'
+      : panel === 'plans'
+        ? planNeed
+          ? `Sized to the ${NEED_META[planNeed].label} shortfall on Your score. Switch it on and it joins Suggested plan.`
+          : 'Extra cover that can close a shortfall this plan does not yet answer.'
+        : 'Apply a what-if and see how the plan holds up. It predicts nothing; it asks what if.';
   return (
-    <div
-      className="x-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label={
-        panel === 'goals'
-          ? 'Your goals'
-          : panel === 'events'
-            ? 'Unforeseen events'
-            : panel === 'plans'
-              ? 'Add a plan'
-              : 'Assumptions'
-      }
-    >
+    <div className="x-modal" role="dialog" aria-modal="true" aria-label={title}>
       <div className="x-modal-bd" onClick={() => onChange({ tip: null })} />
       <div className="x-modal-w">
         <div className="x-modal-h">
           <span className="t">
-            <b>
-              {panel === 'goals'
-                ? 'Your goals'
-                : panel === 'events'
-                  ? 'Unforeseen events'
-                  : panel === 'plans'
-                    ? 'Add a plan'
-                    : 'Assumptions'}
-            </b>
-            <span>
-              {panel === 'goals'
-                ? 'Switch one off and watch the projection re-run — that is what the goal is costing you.'
-                : panel === 'events'
-                  ? 'Apply a what-if and see how the plan holds up. It predicts nothing; it asks what if.'
-                  : panel === 'plans'
-                    ? planNeed
-                      ? `Sized to the ${NEED_META[planNeed].label} shortfall on Your score. Switch it on and it joins Suggested plan.`
-                      : 'Extra cover that can close a shortfall this plan does not yet answer.'
-                    : 'The rates every figure on this page is worked out from. Move one and it all re-derives.'}
-            </span>
+            <b>{title}</b>
+            <span>{blurb}</span>
           </span>
           <button className="x-modal-x" type="button" aria-label="Close" onClick={() => onChange({ tip: null })}>
             {Ico.close}
@@ -148,84 +121,86 @@ export function PlanModals({
               onEvents={onEvents}
             />
           ) : null}
-          {panel === 'assume' ? (
-            <div className="card lp">
-              <div className="lpb">
-              <div className="asg">
-                <div className="asg-h">
-                  <b>Economic Assumptions</b>
-                </div>
-                <div className="gc-e">
-                  <RateSlider
-                    label="Price inflation"
-                    min={0}
-                    max={0.1}
-                    step={0.001}
-                    value={session.inflationRate}
-                    onChange={v => onAssume({ inflationRate: v })}
-                  />
-                  <RateSlider
-                    label="Interest rate"
-                    min={-0.03}
-                    max={0.1}
-                    step={0.001}
-                    value={session.interestRate}
-                    onChange={v => onAssume({ interestRate: v })}
-                  />
-                </div>
-              </div>
-              <div className="asg">
-                <div className="asg-h">
-                  <b>Growth and earnings</b>
-                </div>
-                <div className="gc-e">
-                  <RateSlider
-                    label="Income increment rate"
-                    min={0}
-                    max={0.1}
-                    step={0.001}
-                    value={session.incomeGrowthRate}
-                    onChange={v => onAssume({ incomeGrowthRate: v })}
-                  />
-                  <RateSlider
-                    label="Investment return"
-                    min={0.022}
-                    max={0.12}
-                    step={0.001}
-                    value={session.investmentReturn}
-                    onChange={v => onAssume({ investmentReturn: v })}
-                  />
-                  <RateSlider
-                    label="Return on other assets (e.g. Property)"
-                    min={0.003}
-                    max={0.08}
-                    step={0.001}
-                    value={session.assetReturn}
-                    onChange={v => onAssume({ assetReturn: v })}
-                  />
-                </div>
-              </div>
-              <div className="lpfoot">
-                <span>
-                  {nAssume
-                    ? `${nAssume} assumption${nAssume === 1 ? '' : 's'} changed`
-                    : 'All assumptions at default'}
-                </span>
-                {nAssume ? (
-                  <button className="x-btn g sm" type="button" onClick={onAssumeReset}>
-                    Reset all
-                  </button>
-                ) : null}
-              </div>
-              </div>
-            </div>
-          ) : null}
         </div>
         <div className="x-modal-f">
           <button className="x-btn p" type="button" onClick={() => onChange({ tip: null })}>
             Done
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function EventsList({
+  session,
+  focusId,
+  onToggleEvent,
+  onEvents,
+}: {
+  session: GpSession;
+  focusId: string | null;
+  onToggleEvent: (id: string) => void;
+  onEvents: (events: GpEvent[]) => void;
+}) {
+  const events = hydrateStressEvents(session.events);
+  const startAge = sessionAge(session) || 40;
+  const last = Math.max(1, (session.endAge || 85) - startAge);
+  const startYear = new Date().getFullYear();
+  const on = events.filter(e => e.on);
+  const off = events.filter(e => !e.on);
+  const patch = (id: string, p: Partial<GpEvent>) => {
+    onEvents(events.map(e => (e.id === id ? clampEvent({ ...e, ...p }, last) : e)));
+  };
+  const group = (g: 'w' | 'p', title: string) => {
+    const rows = off.filter(e => STRESS_BY_ID[e.id]?.group === g);
+    if (!rows.length) return null;
+    return (
+      <div key={g}>
+        <div className="lp-cat">
+          {title}
+          <span>{rows.length}</span>
+        </div>
+        {rows.map(ev => (
+          <EventCard
+            key={ev.id}
+            ev={ev}
+            startAge={startAge}
+            last={last}
+            startYear={startYear}
+            startOpen={focusId === ev.id}
+            onToggle={() => onToggleEvent(ev.id)}
+            onPatch={p => patch(ev.id, p)}
+          />
+        ))}
+      </div>
+    );
+  };
+  return (
+    <div className="card lp">
+      <div className="lpb">
+        {on.length ? (
+          <>
+            <div className="lp-on">
+              {on.length} in your plan
+            </div>
+            {on.map(ev => (
+              <EventCard
+                key={ev.id}
+                ev={ev}
+                startAge={startAge}
+                last={last}
+                startYear={startYear}
+                startOpen
+                onToggle={() => onToggleEvent(ev.id)}
+                onPatch={p => patch(ev.id, p)}
+              />
+            ))}
+            {off.length ? <div className="lp-div" /> : null}
+          </>
+        ) : null}
+        {group('w', 'Wealth accumulation')}
+        {group('p', 'Wealth protection')}
       </div>
     </div>
   );

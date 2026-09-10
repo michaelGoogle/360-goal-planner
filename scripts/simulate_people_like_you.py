@@ -1,7 +1,6 @@
 """Call People Like You via Claude (workspace .env) and print Your Money figures.
 
-Loads ``ANTHROPIC_API_KEY`` from the workspace ``.env`` through FM's env
-bootstrap and runs FM's predictor in-process.
+Runs GP's in-process predictor. Pass ``--fm URL`` to hit a remote FM instead.
 
   python scripts/simulate_people_like_you.py
   python scripts/simulate_people_like_you.py --json
@@ -10,7 +9,6 @@ bootstrap and runs FM's predictor in-process.
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import sys
@@ -22,36 +20,25 @@ import requests
 GP_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = GP_ROOT.parent
 ENV_PATH = WORKSPACE / ".env"
-FM_BOOTSTRAP = WORKSPACE / "FM" / "src" / "env_bootstrap.py"
-FM_SERVICE = WORKSPACE / "FM" / "src" / "services" / "people_like_you_service.py"
 
 if str(GP_ROOT) not in sys.path:
     sys.path.insert(0, str(GP_ROOT))
 
 from src.cpf import session_employee_cpf, session_take_home  # noqa: E402
-from src.predict import _apply_plu, _assumed_life_policy, _round_to_100k, plu_body  # noqa: E402
+from src.env_bootstrap import load_env_files  # noqa: E402
 from src.hu_payload import dob_from_age  # noqa: E402
+from src.pipeline.run import run_people_like_you  # noqa: E402
+from src.predict import _apply_plu, _assumed_life_policy, _round_to_100k, plu_body  # noqa: E402
 
 TIMEOUT = float(os.environ.get("GP_UPSTREAM_TIMEOUT_S", "90"))
 LOCAL_FM = "local"
 
 
-def _load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load {path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
 def load_workspace_env() -> Path:
-    """Load FM/.env then workspace .env (workspace wins) via FM bootstrap."""
-    boot = _load_module("fm_env_bootstrap", FM_BOOTSTRAP)
-    boot.load_env_files()
-    if not ENV_PATH.is_file():
-        raise FileNotFoundError(f"No .env at {ENV_PATH}")
-    return ENV_PATH
+    load_env_files()
+    if not ENV_PATH.is_file() and not (GP_ROOT / ".env").is_file():
+        raise FileNotFoundError(f"No .env at {ENV_PATH} or {GP_ROOT / '.env'}")
+    return ENV_PATH if ENV_PATH.is_file() else GP_ROOT / ".env"
 
 
 def llm_configured() -> bool:
@@ -64,46 +51,11 @@ def money(n: float) -> str:
     return f"S${n:,.0f}"
 
 
-def _fm_plu():
-    return _load_module("fm_people_like_you_service", FM_SERVICE)
-
-
 def fetch_people_like_you_local(body: dict[str, Any]) -> dict[str, Any]:
     load_workspace_env()
     if not llm_configured():
         raise RuntimeError(f"ANTHROPIC_API_KEY is empty in {ENV_PATH}")
-    plu = _fm_plu()
-    demographics = {
-        "dob": body.get("dob") or body.get("dateOfBirth"),
-        "dateOfBirth": body.get("dateOfBirth") or body.get("dob"),
-        "occupation": body.get("occupation"),
-        "country": body.get("country"),
-        "city": body.get("city"),
-        "dependents": int(body.get("dependents") or 0),
-        "maritalStatus": body.get("maritalStatus"),
-        "yearsEmployed": body.get("yearsEmployed"),
-        "gender": body.get("gender"),
-    }
-    predictions = plu.predict_people_like_you(
-        dob=demographics["dob"],
-        occupation=demographics["occupation"],
-        country=demographics["country"],
-        city=demographics["city"],
-        dependents=demographics["dependents"],
-        marital_status=demographics.get("maritalStatus"),
-        years_employed=demographics.get("yearsEmployed"),
-        gender=demographics.get("gender"),
-    )
-    mapped = plu.map_predictions_to_onboarding(predictions, demographics=demographics)
-    return {
-        "success": True,
-        "result": mapped["result"],
-        "onboarding": {
-            "data": {"finance": mapped["finance"]},
-            "home_currency": mapped.get("home_currency"),
-        },
-        "timing": mapped.get("timing") or predictions.get("_timing"),
-    }
+    return run_people_like_you(body)
 
 
 def fetch_people_like_you_remote(fm: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -150,7 +102,7 @@ def simulate(
     body = plu_body(session, persist=False)
     if not fm or fm == LOCAL_FM:
         plu = fetch_people_like_you_local(body)
-        fm_label = f"in-process FM ({ENV_PATH})"
+        fm_label = f"in-process GP ({ENV_PATH})"
     else:
         plu = fetch_people_like_you_remote(fm, body)
         fm_label = fm.rstrip("/")
@@ -267,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--fm",
         default=LOCAL_FM,
-        help="local (default: workspace .env + in-process FM) or an FM origin URL",
+        help="local (default: workspace .env + in-process GP) or a remote FM origin URL",
     )
     p.add_argument("--age", type=int, default=42)
     p.add_argument("--occupation", default="CEO")

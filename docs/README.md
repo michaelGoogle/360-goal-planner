@@ -1,9 +1,9 @@
 # 360-Goal Planner (GP) — documentation
 
-Direct-to-customer **Goal Planner**: a React UI plus a FastAPI BFF that maps
-customer answers into **FM** (People Like You / Need Profiler / Need Calculator),
-**HU** (HappiU score), and **SV** (wealth projection). GP does **not** run Monte
-Carlo itself.
+Direct-to-customer **Goal Planner**: a React UI plus a FastAPI BFF. **People
+Like You / Need Profiler / Need Calculator** run in-process. The BFF maps the
+session into **HU** (HappiU score) and **SV** (wealth projection). GP does
+**not** run Monte Carlo itself.
 
 Branded in the UI as **FinPlan360 · Powered by 360F**.
 
@@ -35,12 +35,11 @@ npm install
 npm run dev                   # http://127.0.0.1:5179  (proxies /v1 → :8009)
 ```
 
-Compose: `docker compose up -d --build` on host **8069**. Set `FM_UPSTREAM` /
-`HU_UPSTREAM` / `SV_UPSTREAM` in `.env`. See
-[Standalone-third-party.md](Standalone-third-party.md).
+Compose: `docker compose up -d --build` on host **8069**. Set `HU_UPSTREAM` /
+`SV_UPSTREAM` in `.env`. See [Standalone-third-party.md](Standalone-third-party.md).
 
 ## Status
 
 Standalone D2C app (not a 360F engine migration). HTTP BFF + React journey are
-in this repo; engines stay in FM / HU / SV. Spoken explainers use Claude/OpenAI
-when a key is set, otherwise local scripts.
+in this repo; engines stay in HU / SV. Spoken explainers use Claude/OpenAI when
+a key is set, otherwise local scripts.

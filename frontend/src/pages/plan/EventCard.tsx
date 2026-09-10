@@ -3,9 +3,9 @@ import { Switch } from '../../components/ui';
 import { Ico, ObjIcon } from '../../lib/icons';
 import {
   STRESS_BY_ID,
+  clampEvent,
   eventAge,
   formatEventValue,
-  isFracValue,
   type GpEvent,
 } from '../../lib/stressEvents';
 import { AmountSlider } from './CoverCard';
@@ -72,7 +72,7 @@ function YearRangeSlider({
 }
 
 export function EventCard({
-  ev,
+  ev: raw,
   startAge,
   last,
   startYear,
@@ -88,22 +88,23 @@ export function EventCard({
   onToggle: () => void;
   onPatch: (p: Partial<GpEvent>) => void;
 }) {
-  const spec = STRESS_BY_ID[ev.id];
-  const [open, setOpen] = useState(!!(ev.on && (startOpen || ev.on)));
+  const spec = STRESS_BY_ID[raw.id];
+  const [open, setOpen] = useState(!!startOpen || raw.on);
   useEffect(() => {
-    if (ev.on) setOpen(true);
+    if (raw.on) setOpen(true);
     else setOpen(false);
-  }, [ev.on]);
+  }, [raw.on]);
 
   if (!spec) return null;
+  const ev = clampEvent(raw, last);
   const rng = spec.kind !== 'one';
-  const frac = isFracValue(ev.v);
+  const frac = spec.frac;
   const ageOf = (offset: number) => eventAge(startAge, offset, last);
   const yearOf = (offset: number) => startYear + Math.max(0, Math.min(last, offset));
   const when = rng
     ? `Age ${ageOf(ev.from)}–${ageOf(ev.to)} · ${yearOf(ev.from)}`
     : `Age ${ageOf(ev.year)} · ${yearOf(ev.year)}`;
-  const val = formatEventValue(ev.v);
+  const val = formatEventValue(ev.v, spec);
   const meta = rng ? `Age ${ageOf(ev.from)}–${ageOf(ev.to)} · ${val}` : `Age ${ageOf(ev.year)} · ${val}`;
   const shown = ev.on && open;
   const color = ev.on ? spec.color : '#CDD2D8';
@@ -174,11 +175,11 @@ export function EventCard({
           <AmountSlider
             label={spec.valueLabel}
             display={val}
-            min={0}
-            max={frac ? 1 : Math.max(500000, Math.abs(ev.v) * 2)}
-            step={frac ? 0.01 : 5000}
+            min={spec.vMin}
+            max={spec.vMax}
+            step={spec.vStep}
             value={Math.abs(ev.v)}
-            onChange={raw => onPatch({ v: spec.defaultV < 0 ? -raw : raw })}
+            onChange={next => onPatch({ v: spec.defaultV < 0 ? -next : next })}
           />
         </div>
       ) : null}

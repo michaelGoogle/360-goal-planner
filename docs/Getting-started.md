@@ -19,9 +19,9 @@ For HTTP contracts see [API.md](API.md). For internals see
 
 OpenAPI: http://127.0.0.1:8009/docs (bare) · http://127.0.0.1:8069/docs (Docker)
 
-GP needs **FM**, **HU**, and **SV** for a full journey. Without FM, About You
-still works but Estimate returns **503**. Your score / Your plan fail until
-HappiU and Scenario Visualizer are up.
+GP needs **HU** and **SV** for a full journey. About You and Estimate run in this
+repo (Estimate needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`). Your score / Your
+plan fail until HappiU and Scenario Visualizer are reachable.
 
 ---
 
@@ -30,8 +30,7 @@ HappiU and Scenario Visualizer are up.
 - Python **3.13** (`requires-python = ">=3.13,<3.14"` in `pyproject.toml`).
 - **Node.js 20+** / **npm** for the Vite UI.
 - Optional: **Docker Desktop** with Compose v2.
-- Optional: `OPENAI_API_KEY` for sentence extract and spoken explainers (same
-  key as FM People Like You).
+- Optional: `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`) for People Like You, sentence extract, and spoken explainers.
 
 ---
 
@@ -56,32 +55,31 @@ Open **http://127.0.0.1:5179**. Vite proxies `/v1` and `/health` to `:8009`, and
 
 Health: http://127.0.0.1:8009/health · OpenAPI: http://127.0.0.1:8009/docs
 
-Point the BFF at the engines you were given (WAN examples in `.env.example`):
+Point the BFF at local engines if they are not on the defaults:
 
 ```powershell
-$env:FM_UPSTREAM = "https://mgzh11.synology.me:8462"
-$env:HU_UPSTREAM = "https://mgzh11.synology.me:8463"
-$env:SV_UPSTREAM = "https://mgzh11.synology.me:8464"
-$env:GP_UPSTREAM_TIMEOUT_S = "120"
+$env:FM_UPSTREAM = "http://127.0.0.1:8003"   # FM run_server.py default
+$env:HU_UPSTREAM = "http://127.0.0.1:8002"
+$env:SV_UPSTREAM = "http://127.0.0.1:8001"
 python run_server.py
 ```
 
-`src/upstream.py` defaults (if env is unset): FM **8062**, HU **8002**, SV **8001**.
+`src/upstream.py` defaults: FM **8062** (compose), HU **8002**, SV **8001**.
 
 ---
 
-## Docker
+## Docker stack
 
-From this repo root (BFF + baked UI). Engines stay remote:
+From this repo root:
 
 ```powershell
-copy .env.example .env
 docker compose up -d --build
 ```
 
 UI + API: http://127.0.0.1:8069 · OpenAPI: http://127.0.0.1:8069/docs
 
-Image: [`Dockerfile`](../Dockerfile) in this repo.
+Point `HU_UPSTREAM` / `SV_UPSTREAM` at the engines you were given (see
+`.env.example`). Compose does not start HU or SV.
 
 ---
 
@@ -91,16 +89,18 @@ Image: [`Dockerfile`](../Dockerfile) in this repo.
 |----------|---------|---------|
 | `APP_PORT` / `GP_PORT` | `8009` (bare) / `8069` (compose) | Listen port |
 | `GP_HOST` | `127.0.0.1` | Bind host (`run_server.py`) |
-| `FM_UPSTREAM` | `http://127.0.0.1:8062` | People Like You / Need Profiler / Need Calculator |
+| `FM_UPSTREAM` | `http://127.0.0.1:8062` | Optional FM (HeyGen plan-report; not Estimate) |
 | `HU_UPSTREAM` | `http://127.0.0.1:8002` | `POST /v1/happi-u` |
 | `SV_UPSTREAM` | `http://127.0.0.1:8001` | `POST /api/v2/scenario-visualizer` |
 | `GP_UPSTREAM_TIMEOUT_S` | `90` | Upstream HTTP timeout |
-| `OPENAI_API_KEY` | — | Sentence extract + spoken explainers |
+| `ANTHROPIC_API_KEY` | — | People Like You (preferred) and parse-sentence |
+| `OPENAI_API_KEY` | — | Fallback LLM; spoken explainers |
 | `OPENAI_API_MODEL` | `gpt-4o-mini` | Chat model id |
 | `GP_FRONTEND_DIST` | `frontend/dist` | Directory mounted at `/` when present |
 | `GP_RELOAD` | — | `1` / `true` enables uvicorn `--reload` |
 
-Never commit a real API key. Copy `.env.example` to `.env`.
+Never commit a real API key. Workspace `.env` / compose pass `OPENAI_API_KEY`
+through to `gp`.
 
 ---
 
@@ -119,8 +119,8 @@ Frontend: `cd frontend && npx tsc -b`. Full procedure: [Testing.md](Testing.md).
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Vite `/v1/...` proxy error `ECONNREFUSED :8009` | BFF not running | `python run_server.py` at repo root |
-| Your money / Estimate 503 | People Like You down | Check `FM_UPSTREAM` reaches FM `/v1/public/people-like-you` |
+| Vite `/v1/...` proxy error `ECONNREFUSED :8009` | BFF not running | `python run_server.py` in the repo root |
+| Your money / Estimate 503 | People Like You cannot run (no LLM key, or model error) | Set `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`) in workspace `.env` |
 | Your score / plan 503 | HU or SV down | Start those services; check `HU_UPSTREAM` / `SV_UPSTREAM` |
 | Explainers sound canned | No `OPENAI_API_KEY` on GP | Set the key; `source` on `/v1/explain` will be `llm` |
 | Empty UI on `:8069` | Image built without `frontend/dist` | Rebuild `gp` (Dockerfile always builds the UI) |

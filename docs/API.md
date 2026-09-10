@@ -4,8 +4,7 @@ Base URL (local): `http://127.0.0.1:8009`
 Compose: `http://127.0.0.1:8069`  
 OpenAPI: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 
-CORS: allow all origins. Auth is optional (`Authorization: Bearer …` on
-`/v1/predict` only).
+CORS: allow all origins. No login. `/v1/predict` runs People Like You in-process.
 
 ## Routes
 
@@ -18,6 +17,7 @@ CORS: allow all origins. Auth is optional (`Authorization: Bearer …` on
 | `POST` | `/v1/predict` | People Like You → Need Profiler → Need Calculator |
 | `POST` | `/v1/score` | HappiU `preHappiU` / `postHappiU` |
 | `POST` | `/v1/project` | Scenario Visualizer wealth path |
+| `GET` | `/v1/report-walkthrough` | Public URL of the shared dummy report video |
 | `POST` | `/v1/video-notify` | Queue HeyGen plan video; WhatsApp (and optional email) when ready |
 | `GET` | `/v1/video-notify/{jobId}` | Poll job status and public media URL |
 
@@ -170,6 +170,12 @@ Same session body.
 Unreachable SV → **503**.
 
 ---
+
+## `GET /v1/report-walkthrough`
+
+**200** `{ success, dummyUrl }`. `dummyUrl` is
+`{MEDIA_PUBLIC_BASE_URL}/gp/generic-walkthrough.mp4` — the same generic clip for
+every customer. The report plays this until a customised job sets `mediaUrl`.
 
 ## `POST /v1/video-notify`
 

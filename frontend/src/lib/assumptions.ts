@@ -18,3 +18,12 @@ export function assumeChangedCount(s: Record<AssumeKey, number>): number {
     return n + (Math.round(s[k] * 1000) !== Math.round(ASSUME_DEFAULTS[k] * 1000) ? 1 : 0);
   }, 0);
 }
+
+/** Plan Expected returns slider is percent (4.2); assumptions Investment return is a fraction (0.042). */
+export function investRetFromReturn(investmentReturn: number): number {
+  return Math.min(10, Math.max(2.2, Math.round(investmentReturn * 1000) / 10));
+}
+
+export function returnFromInvestRet(investRet: number): number {
+  return Math.min(0.1, Math.max(0.022, Math.round(investRet * 10) / 1000));
+}

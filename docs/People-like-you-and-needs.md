@@ -1,8 +1,10 @@
 # People Like You, Need Profiler, and Need Calculator
 
 How FinPlan360 turns **About you** into a money estimate and a set of goal
-amounts. The engines live in **FM**. GP’s `POST /v1/predict` calls them in
-order, maps the JSON into the session, and returns that to the UI.
+amounts. The engines run **in-process in GP** (`src/pipeline/`), ported from
+FM. `POST /v1/predict` calls them in order, maps the JSON into the session,
+and returns that to the UI. FM still exposes the same public/onboarding
+routes for the portal; GP no longer calls them for Estimate.
 
 The product story is in [Business-overview.md](Business-overview.md). The rest
 of the formula trail (goal-card edits, suggested plan, HappiU budget) stays in
@@ -21,10 +23,10 @@ If a formula here drifts, the file named in each section is the source of truth.
 | **Need Profiler** | Which of twelve life needs matter most, so which UNIFIED goals should be on? | No. Weighted scores from a spreadsheet (`Need_profiler.json`). |
 | **Need Calculator** | For each **enabled** goal, what lump (`needAmount`) and what gap vs existing cover/savings? | No. Present-value / multiple-of-income rules in `goal_math.py`. |
 
-GP does **not** re-implement the three engines. It maps their JSON, then:
+GP then:
 
 - Recomputes CPF, spend, liquid assets, property, and assumed life cover
-  (`GP/src/predict.py`, `GP/src/cpf.py`).
+  (`src/predict.py`, `src/cpf.py`).
 - Sets `existing` on each need (policies vs cash+investments).
 - Shows the customer **Your money**, where pencil edits stick (`moneyTouched`).
 
@@ -41,35 +43,33 @@ About you  (name, age, occupation, residency, dependants, gender)
     ▼
 GP  POST /v1/predict
     │
-    ├─ 1. FM  POST /v1/public/people-like-you     (or /v1/me/onboarding/... if JWT + persist)
-    │      GP maps finance → session  (_apply_plu)
-    │      If this call fails or success=false → HTTP 503. No occupation-band fallback.
+    ├─ 1. run_people_like_you     (Claude / OpenAI + closed-form spend)
+    │      maps finance → session  (_apply_plu)
+    │      If this raises → HTTP 503. No occupation-band fallback.
     │
-    ├─ 2. FM  POST /v1/public/need-profiler       topN = 5
-    │      GP maps ranked needs → session.needs  (_needs_from_profiler)
-    │      If this call fails → enable N_INC + N_RET (and N_EDU if dependants), amounts 0.
+    ├─ 2. run_need_profiler       topN = 5, including the PLU lifestyle blob
+    │      maps ranked needs → session.needs  (_needs_from_profiler)
+    │      If this raises → enable N_INC + N_RET (and N_EDU if dependants), amounts 0.
     │
-    ├─ 3. GP  need_existing(need, session)        policies for protection; cash+investments for wealth
+    ├─ 3. need_existing(need, session)        policies for protection; cash+investments for wealth
     │
-    └─ 4. FM  POST /v1/public/need-calculator     onlyEmpty = true
-           GP copies needAmount / gap            (_apply_calculator)
-           If this call fails → amounts stay 0; note in the response.
+    └─ 4. run_need_calculator     onlyEmpty = true
+           copies needAmount / gap            (_apply_calculator)
+           If this raises → amounts stay 0; note in the response.
 ```
 
-**Code:** `GP/src/app.py` `predict`, `GP/src/predict.py`.  
-**FM public routes:** `FM/src/routers/public_predict.py` (compute only, nothing stored).  
-Authenticated twins: `FM/src/routers/auth_onboarding.py` `/v1/me/onboarding/*`.
+**Code:** `GP/src/app.py` `predict`, `GP/src/pipeline/run.py`, `GP/src/predict.py`.
 
-GP always sends `country` / `city` = Singapore on this path.
+GP always uses `country` / `city` = Singapore on this path.
 
 ---
 
-## 3. People Like You (FM)
+## 3. People Like You
 
-**Code:** `FM/src/services/people_like_you_service.py`  
-**Prompt:** `FM/src/services/prompts/people_like_you_all_fields.json`  
-**Income bands:** `FM/src/services/prompts/income_anchors.json`  
-**GP body:** DOB (synthesised from age if missing), occupation, gender,
+**Code:** `GP/src/pipeline/people_like_you.py`  
+**Prompt:** `GP/src/pipeline/prompts/people_like_you_all_fields.json`  
+**Income bands:** `GP/src/pipeline/prompts/income_anchors.json`  
+**Inputs:** DOB (synthesised from age if missing), occupation, gender,
 dependants, residency, Singapore location.
 
 ### 3.1 What the model predicts vs what is calculated
@@ -115,9 +115,8 @@ GP stores this as `incomeMonthly`.
 
 ### 3.3 Employee CPF and spend
 
-Same rules in FM (`people_like_you_service.py`) and GP (`src/cpf.py`). GP
-**recomputes** spend and liquid assets in `_apply_plu` so a stale FM process
-cannot leave the session on an old formula.
+Same rules in `src/cpf.py`. Predict **recomputes** spend and liquid assets in
+`_apply_plu` so the session always uses GP’s formula.
 
 ```
 employee_cpf = 0                              if residency is Foreigner
@@ -196,34 +195,31 @@ returns **503**. There is no silent occupation-band fallback on this path.
 
 ---
 
-## 4. Need Profiler (FM)
+## 4. Need Profiler
 
-**Code:** `FM/src/services/need_profiler_service.py`,
-`FM/src/services/onboarding_pipeline.py` `build_profiler_profile`  
-**Weights:** `FM/src/services/prompts/Need_profiler.json`  
+**Code:** `GP/src/pipeline/need_profiler.py`,
+`GP/src/pipeline/onboarding.py` `build_profiler_profile`  
+**Weights:** `GP/src/pipeline/prompts/Need_profiler.json`  
 **No LLM.**
 
 Profiler answers: *which needs rank highest?* It does **not** compute dollar
 amounts. That is the calculator.
 
-### 4.1 What GP sends
+### 4.1 What predict passes in
 
 ```text
 topN: 5
 policyOwner: dateOfBirth, gender, occupation, dependents, country, city,
-             isSmoker, ageOfRetirement
+             isSmoker (session or PLU), ageOfRetirement
 finance:     monthlyIncome, monthlyExpense, liquidAssetValue (cash + investments)
+peopleLikeYou: the PLU response (ownership, travel, sports, hospital/ward, liabilities)
 ```
 
-GP does **not** currently forward the People Like You blob (`peopleLikeYou`).
-So on the D2C path the profile usually has age, gender, dependants, occupation,
-smoker (session default **false** unless the UI set it), income, spend, and
-liquid assets. Ownership, travel, sports, hospital/ward, and FM liabilities are
-empty unless they appear on `policyOwner`. Full FM onboarding *can* pass the
-PLU result in and score those factors.
-
-FM flattens that into a profiler `profile` (Age, Gender, Dependents,
-Occupation, Smoker, MonthlyIncome, …). Missing keys are skipped (they add 0).
+`build_profiler_profile` flattens that into Age, Gender, Dependents,
+Occupation, Smoker, MonthlyIncome, HomeOwnership, and so on. Missing keys are
+skipped (they add 0). Because the PLU blob is in-process, home/car ownership
+now affect ranking (Home Protection ranks higher when People Like You said
+they own a flat).
 
 ### 4.2 Twelve AI labels, seven UNIFIED cards
 
@@ -323,10 +319,10 @@ GP does not fail the whole predict. It enables `N_INC` and `N_RET`, plus
 
 ---
 
-## 5. Need Calculator (FM)
+## 5. Need Calculator
 
-**Code:** `FM/src/services/need_calculator_service.py` →
-`FM/src/services/goal_math.py` (`compute_need_amounts`)  
+**Code:** `GP/src/pipeline/need_calculator.py` →
+`GP/src/pipeline/goal_math.py` (`compute_need_amounts`)  
 **TS twin (same formulas):** `shared/input_model/src/goalMath.ts`
 
 The calculator does **not** rank needs. It fills **dollars** for rows that are
@@ -421,7 +417,7 @@ later engines run. A note is returned (`Need Calculator unavailable…`).
 
 ## 6. After predict — two different need-amount models
 
-The first fill is **FM `goal_math.py`** (§5), `r = 3%`.
+The first fill is **GP `goal_math.py`** (§5), `r = 3%`.
 
 If the customer opens a goal card on Score or Plan and edits it, the browser
 recomputes `needAmount` with **`frontend/src/lib/needEdit.ts`**: session
@@ -438,17 +434,17 @@ Suggested plan products and the half-surplus budget check are D2C UI
 
 | Concern | Path |
 |---------|------|
-| Predict orchestration | `GP/src/app.py` `predict` |
-| GP mapping (PLU, profiler, calculator) | `GP/src/predict.py` |
-| GP CPF / spend (recompute) | `GP/src/cpf.py` |
-| Existing cover before calculator | `GP/src/hu_payload.py` `need_existing` |
-| FM People Like You | `FM/src/services/people_like_you_service.py` |
-| FM PLU prompt + income bands | `FM/src/services/prompts/people_like_you_all_fields.json`, `income_anchors.json` |
-| FM Need Profiler | `FM/src/services/need_profiler_service.py` |
-| Profiler weights | `FM/src/services/prompts/Need_profiler.json` |
-| Profile flatten | `FM/src/services/onboarding_pipeline.py` `build_profiler_profile` |
-| FM Need Calculator | `FM/src/services/need_calculator_service.py` |
-| Amount math | `FM/src/services/goal_math.py` |
+| Predict orchestration | `src/app.py` `predict` |
+| Local engines | `src/pipeline/run.py` |
+| Session mapping | `src/predict.py` |
+| CPF / spend (recompute) | `src/cpf.py` |
+| Existing cover before calculator | `src/hu_payload.py` `need_existing` |
+| People Like You | `src/pipeline/people_like_you.py` |
+| PLU prompt + income bands | `src/pipeline/prompts/` |
+| Need Profiler | `src/pipeline/need_profiler.py` |
+| Profiler weights | `src/pipeline/prompts/Need_profiler.json` |
+| Profile flatten | `src/pipeline/onboarding.py` `build_profiler_profile` |
+| Need Calculator | `src/pipeline/need_calculator.py` |
+| Amount math | `src/pipeline/goal_math.py` |
 | Shared TS twin | `shared/input_model/src/goalMath.ts` |
-| Public HTTP | `FM/src/routers/public_predict.py` |
-| Goal-card recalc (after predict) | `GP/frontend/src/lib/needEdit.ts` |
+| Goal-card recalc (after predict) | `frontend/src/lib/needEdit.ts` |

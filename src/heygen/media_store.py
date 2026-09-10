@@ -10,6 +10,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+DUMMY_VIDEO_ID = "generic-walkthrough"
+
 
 class StoreError(RuntimeError):
     """MEDIA_DIR is set but the file could not be written."""
@@ -22,6 +24,12 @@ def media_dir() -> Path | None:
 
 def public_base() -> str:
     return (os.environ.get("MEDIA_PUBLIC_BASE_URL") or "").rstrip("/")
+
+
+def dummy_media_url() -> str:
+    """Public URL of the shared generic walkthrough (same file for every customer)."""
+    base = public_base()
+    return f"{base}/gp/{DUMMY_VIDEO_ID}.mp4" if base else ""
 
 
 def save_mp4(heygen_url: str, short_id: str) -> str | None:

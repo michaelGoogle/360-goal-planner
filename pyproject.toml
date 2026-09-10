@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "goalplanner"
 version = "0.1.0"
-description = "360-Goal Planner (GP) — D2C BFF consuming FM / HU / SV"
+description = "360-Goal Planner (GP) — D2C BFF with in-process People Like You / needs; HU / SV upstreams"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastapi>=0.110",
@@ -45,4 +45,4 @@ ignore = ["E501"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"src" = ["prompts/*.md"]
+"src" = ["prompts/*.md", "pipeline/prompts/*"]

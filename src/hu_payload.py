@@ -5,6 +5,7 @@ import uuid
 from datetime import date
 from typing import Any
 
+from src.session_rates import session_rate
 
 PARTNER_ID = "2807cba0-5698-11ec-855c-b5536ab81d64"
 PRODUCT_CODES = {
@@ -141,7 +142,29 @@ def _calc_entry(
     return {"primaryOutput": {PARTNER_ID: [primary]}, "metaOutput": meta}
 
 
-def _budget_line(need: dict[str, Any]) -> dict[str, Any]:
+def _asset(kind: str, value: float, rate: float, asset_id: str) -> dict[str, Any]:
+    return {
+        "type": kind,
+        "currentValue": value,
+        "interestRate": rate,
+        "id": asset_id,
+        "recurringContribution": {"value": 0, "frequency": 1, "duration": 0},
+        "proportion": 1,
+    }
+
+
+def _session_assets(session: dict[str, Any]) -> list[dict[str, Any]]:
+    cash = float(session.get("cash") or 0)
+    investments = float(session.get("investments") or 0)
+    cash_ret = session_rate(session, "interestRate")
+    inv_ret = session_rate(session, "investmentReturn")
+    return [
+        _asset("A_SAV", cash, cash_ret, "A_SAV_Main"),
+        _asset("A_INV", investments, inv_ret, "A_INV_Main"),
+    ]
+
+
+def _budget_line(need: dict[str, Any], inv_ret: float) -> dict[str, Any]:
     t = need["type"]
     rec_benefit = max(0, round(float(need.get("needAmount") or 0) / 50000) * 50000)
     return {
@@ -158,7 +181,7 @@ def _budget_line(need: dict[str, Any]) -> dict[str, Any]:
         "actualPaymentTerm": 10,
         "budget": float(need.get("annualPremium") or 200),
         "gfr": 0.05,
-        "growthRate": 0.035 if t in ACCUMULATION else 0,
+        "growthRate": inv_ret if t in ACCUMULATION else 0,
     }
 
 
@@ -170,6 +193,10 @@ def build_happiu_payload(session: dict[str, Any]) -> dict[str, Any]:
     expense = float(session.get("expenseMonthly") or 0)
     liquid = float(session.get("cash") or 0) + float(session.get("investments") or 0)
     ret_age = int(session.get("ageOfRetirement") or 65)
+    inflation = session_rate(session, "inflationRate")
+    income_grow = session_rate(session, "incomeGrowthRate")
+    cash_ret = session_rate(session, "interestRate")
+    inv_ret = session_rate(session, "investmentReturn")
     needs = [n for n in (session.get("needs") or []) if n.get("enabled")]
     if not any(n.get("type") == "N_RET" for n in needs):
         needs = list(needs) + [
@@ -243,16 +270,7 @@ def build_happiu_payload(session: dict[str, Any]) -> dict[str, Any]:
                     ],
                     "tax": {"value": 0},
                 },
-                "assets": [
-                    {
-                        "type": "A_SAV",
-                        "currentValue": liquid,
-                        "interestRate": 0.0225,
-                        "id": "A_SAV_Main",
-                        "recurringContribution": {"value": 0, "frequency": 1, "duration": 0},
-                        "proportion": 1,
-                    }
-                ],
+                "assets": _session_assets(session),
                 "socialSecurity": {
                     "retirement": None,
                     "health": None,
@@ -271,10 +289,13 @@ def build_happiu_payload(session: dict[str, Any]) -> dict[str, Any]:
             "totalMonthlyRegularExpense": expense,
             "annualBudget": 1500,
             "numDependents": int(session.get("dependents") or 0),
+            "inflationRate": inflation,
+            "incomeGrowthRate": income_grow,
+            "interestRate": cash_ret,
         },
         "solutionOptimizerOutput": {
             "packageCode": "P002",
-            "segregatedBudget": [_budget_line(n) for n in needs],
+            "segregatedBudget": [_budget_line(n, inv_ret) for n in needs],
         },
         "needCalculatorOutput": calc,
         "soAllOutput": [],

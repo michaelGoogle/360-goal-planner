@@ -1,5 +1,12 @@
 # GP as a third-party app talking to your APIs
 
+This repository **is** that GP-only clone (`360-goal-planner`). Day-to-day
+edits still live in `happiU_SV_portfolio` (`GP/`); refresh this repo when you
+need to share source.
+
+How to give a third party **GP source only** (their own GitHub repo) while their
+running app still talks to **your** FM / HU / SV over HTTP.
+
 How to give a third party **GP source only** (their own GitHub repo) while their
 running app still talks to **your** FM / HU / SV over HTTP.
 
@@ -10,58 +17,68 @@ workspace git tree, not its own repo. Anyone invited to that GitHub repo sees
 HU, SV, FM, PA, PG, portal, and secrets-shaped docs — not just `GP/`.
 Documented as open item [#10 in Open-issues-and-tasks.md](Open-issues-and-tasks.md).
 
-**GP can still run on their server** if their BFF can reach your engines. The
-React UI only talks to GP (`/v1/*`). GP then calls FM / HU / SV. PA and PG are
-not used.
+**GP can still run on their server** if their BFF can reach your HU / SV (and
+has an Anthropic or OpenAI key for People Like You). The React UI only talks
+to GP (`/v1/*`). Estimate no longer needs FM. PA and PG are not used.
 
 ```mermaid
 flowchart LR
   browser[Customer_browser]
   gp[GP_BFF_on_their_server]
-  fm[FM_your_server]
   hu[HU_your_server]
   sv[SV_your_server]
   llm[Anthropic_or_OpenAI]
   heygen[HeyGen_optional]
   browser --> gp
-  gp -->|"POST /v1/public/people-like-you need-profiler need-calculator"| fm
+  gp -->|"People Like You Need Profiler Need Calculator in-process"| llm
   gp -->|"POST /v1/happi-u"| hu
   gp -->|"POST /api/v2/scenario-visualizer"| sv
-  gp --> llm
   gp -.-> heygen
 ```
 
 ## Git: what to share
 
-This repository **is** the GP-only GitHub remote. Invite collaborators here, not
-to `michaelGoogle/happiU_SV_portfolio`.
+| Approach | Third party sees only GP? | GP still works? |
+|----------|---------------------------|-----------------|
+| New branch on this repo | No | Yes, but they get the whole workspace |
+| New GitHub repo via `git subtree split -P GP` (or copy `GP/`) | Yes | Yes, after a small packaging fix |
 
-Clone, copy `.env.example` to `.env`, set upstream URLs, then `python run_server.py`
-or `docker compose up -d --build`.
+Recommended: **new private GitHub repo** (e.g. `360-goal-planner`), not a
+branch of `michaelGoogle/happiU_SV_portfolio`. Keep this workspace on
+`working`; optionally keep a `gp` branch here for your own work — that is
+unrelated to third-party access.
 
-**Packaging already applied in this repo:**
+**Packaging so their clone builds:**
 
-- Unused `@siriheritage/input-model` npm dep removed (frontend did not import it).
-- [`Dockerfile`](../Dockerfile) and [`docker-compose.yml`](../docker-compose.yml)
-  live at the repo root (build context = this tree).
-- [`.env.example`](../.env.example) has WAN `FM_UPSTREAM` / `HU_UPSTREAM` /
-  `SV_UPSTREAM`.
-- [`src/env_bootstrap.py`](../src/env_bootstrap.py) loads this repo’s `.env`,
-  then a parent `.env` if present. A standalone clone only needs `.env` here.
+- Copy or vendor [`shared/input_model`](../../shared/input_model) **or** drop
+  the unused `@siriheritage/input-model` npm dep.
+  [`frontend/package.json`](../frontend/package.json) and
+  [`GP.Dockerfile`](../../deployment/docker/GP.Dockerfile) require it at
+  install/build time even though `frontend/src` does not import it.
+- Put a Dockerfile **inside** the GP repo (today it lives at
+  [`deployment/docker/GP.Dockerfile`](../../deployment/docker/GP.Dockerfile)
+  with **workspace-root** build context).
+- Give them a `.env.example` with `FM_UPSTREAM` / `HU_UPSTREAM` /
+  `SV_UPSTREAM` pointing at **your WAN URLs**, not `http://fm:8062`.
+- [`src/env_bootstrap.py`](../src/env_bootstrap.py) currently loads `GP/.env`
+  then **parent** `../.env`. On a standalone clone, parent `.env` will not
+  exist — that is fine if they set env on the process.
 
 Do **not** put Anthropic / OpenAI / HeyGen / SMTP passwords in the shared
 repo. They use their own keys, or you issue them separately.
 
 ## APIs you must open (current running code)
 
-[`src/app.py`](../src/app.py) `/v1/predict` calls FM over HTTP (`_safe_fm` →
-[`fm_public`](../src/upstream.py)).
+[`src/app.py`](../src/app.py) `/v1/predict` runs People Like You, Need Profiler,
+and Need Calculator **in-process** (`src/pipeline/`). They need
+`ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`) on their GP process. FM is not
+required for Estimate.
 
 ### Required for a full D2C journey
 
-| Their GP route | Calls your service | Method + path | Env on their GP | Typical URL today |
-|----------------|--------------------|---------------|-----------------|-------------------|
-| `POST /v1/predict` (Estimate) | **FM** | `POST /v1/public/people-like-you` then `/v1/public/need-profiler` then `/v1/public/need-calculator` | `FM_UPSTREAM` | LAN `http://192.168.1.43:8062` · WAN `https://mgzh11.synology.me:8462` |
+| Their GP route | Calls | Method + path | Env on their GP | Typical URL today |
+|----------------|-------|---------------|-----------------|-------------------|
+| `POST /v1/predict` (Estimate) | **In-process** + LLM | — | `ANTHROPIC_API_KEY` | — |
 | `POST /v1/score` | **HU** | `POST /v1/happi-u` | `HU_UPSTREAM` | LAN `:8063` · WAN `:8463` |
 | `POST /v1/project` | **SV** | `POST /api/v2/scenario-visualizer?tenant_id=helium` | `SV_UPSTREAM` | LAN `:8064` · WAN `:8464` |
 
@@ -116,28 +133,20 @@ Skip these unless they need “send me the video”. See
 4. Give them:
 
 ```text
-FM_UPSTREAM=https://mgzh11.synology.me:8462
 HU_UPSTREAM=https://mgzh11.synology.me:8463
 SV_UPSTREAM=https://mgzh11.synology.me:8464
 GP_UPSTREAM_TIMEOUT_S=120
+ANTHROPIC_API_KEY=their-or-yours
 ```
 
 5. Smoke from *their* host: `POST /v1/happi-u`,
-   `POST /api/v2/scenario-visualizer?tenant_id=helium`,
-   `POST /v1/public/people-like-you` (minimal bodies). Then start GP with those
-   env vars.
-
-## Optional: drop FM from the third-party path
-
-If `/v1/predict` is later moved in-process (People Like You / profiler /
-calculator inside GP), you **only open HU + SV**, and they hold the Anthropic
-key on GP. That is the better split: FM stays private (accounts, funds,
-statements).
+   `POST /api/v2/scenario-visualizer?tenant_id=helium`. Then start GP with those
+   env vars. Estimate uses the Anthropic key on GP, not FM.
 
 ## What “working” means on their server
 
 - **About You** works with no engines (local regex if no LLM).
-- **Estimate** needs FM (today) + LLM on FM.
+- **Estimate** needs an LLM key on GP (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`).
 - **Your score** needs HU.
 - **Your plan** needs SV (`tenant_id=helium` hardcoded in
   [`sv_project`](../src/upstream.py)).

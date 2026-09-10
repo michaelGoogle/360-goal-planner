@@ -4,6 +4,7 @@ import { HappiUGauge } from '../components/HappiUGauge';
 import { GoalCard, NeedGroups } from '../components/GoalCard';
 import { Foot, GroupTag, NarrBtn } from '../components/ui';
 import { X_RATIO_WHY } from '../lib/catalog';
+import type { ExplainKind } from '../lib/explain';
 import { Ico } from '../lib/icons';
 import { applyNeedPatch, needCardGap } from '../lib/needEdit';
 import { moneyRatios, rnum, type Ratio } from '../lib/ratios';
@@ -30,7 +31,7 @@ export function Score({
   onToggleNeed,
   onToggleExtra,
   busy,
-  narrOn,
+  narrKind,
   onNarr,
   gtTtOn,
   onGtTtComplete,
@@ -44,8 +45,8 @@ export function Score({
   onToggleNeed: (t: NeedType) => void;
   onToggleExtra: (k: ExtraNeed) => void;
   busy: boolean;
-  narrOn: boolean;
-  onNarr: () => void;
+  narrKind: ExplainKind | null;
+  onNarr: (kind: ExplainKind) => void;
   gtTtOn: boolean;
   onGtTtComplete: () => void;
 }) {
@@ -117,14 +118,16 @@ export function Score({
 
   return (
     <>
-      <div className="x-h1">Your financial future</div>
-      <div className="x-lead" style={{ maxWidth: 'none', marginBottom: 20 }}>
-        HappiU, the one financial wellbeing number for how well what you hold today covers what your life actually needs. It moves as you close gaps.
+      <div className="x-h1" style={{ marginBottom: 20 }}>
+        Your HappiU, and the goals and needs people like {who} typically have
       </div>
 
       <div className="x-card x-pad x-fade" style={{ padding: 30 }}>
         <div className="x-score">
           <div className="x-score-viz">
+            <p className="x-sm" style={{ textAlign: 'center', margin: '0 0 14px', maxWidth: '28ch' }}>
+              One number for how well your money holds up.
+            </p>
             {busy && pre == null ? (
               <div className="x-sm">Working out your HappiU Score…</div>
             ) : scoreError && pre == null ? (
@@ -139,17 +142,12 @@ export function Score({
                 </p>
               </>
             )}
-            <div className="x-score-narr">
-              <NarrBtn ariaLabel="Explain your HappiU score" label="Explain your HappiU score" on={narrOn} onClick={onNarr} />
-            </div>
           </div>
           <div>
-            <div className="x-scoreh">
-              <div className="x-h2">How well will your finances hold up?</div>
-              <p className="x-sm" style={{ marginTop: 6, maxWidth: '46ch' }}>
-                HappiU gives you one simple score for the resilience of your money against whatever comes next.
-              </p>
-            </div>
+            <p className="x-sm" style={{ margin: '0 0 14px' }}>
+              The goals and needs people like {who} typically have, and the gaps between what you hold today and what
+              each one needs.
+            </p>
             <div className="x-score-tags">
               <div ref={needsRef} className="x-need-rows">
                 {taggedNeeds.map(g => (
@@ -177,6 +175,20 @@ export function Score({
                 </span>
               </button>
             </div>
+          </div>
+          <div className="x-score-narr">
+            <NarrBtn
+              ariaLabel="Explain your HappiU score"
+              label="Explain your HappiU score"
+              on={narrKind === 'score'}
+              onClick={() => onNarr('score')}
+            />
+            <NarrBtn
+              ariaLabel="Explain your goals and needs"
+              label="Explain your goals and needs"
+              on={narrKind === 'needs'}
+              onClick={() => onNarr('needs')}
+            />
           </div>
         </div>
       </div>

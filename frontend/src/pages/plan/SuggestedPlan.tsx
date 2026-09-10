@@ -1,10 +1,10 @@
-import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { NEED_GROUPS } from '../../components/GoalCard';
 import { HappiUGauge } from '../../components/HappiUGauge';
 import { GroupTag, NarrBtn, Switch } from '../../components/ui';
 import type { ExplainKind } from '../../lib/explain';
 import { Ico } from '../../lib/icons';
-import { PLAN_FOR_NEED, planAfford, planRemain, suggestedInGroup, suggestedNeeds } from '../../lib/planProducts';
+import { PLAN_FOR_NEED, allPlansOn, planAfford, planRemain, suggestedInGroup, suggestedNeeds, toggleAllPlansPatch } from '../../lib/planProducts';
 import {
   EXTRA_NEEDS,
   HAPPI_COL,
@@ -45,7 +45,8 @@ function PlanAffordPanel({ session }: { session: GpSession }) {
       <div className="x-prod-fitg x-prod-bud">
         <FitRow label="Monthly available budget" value={money(a.available)} kind="hi" />
         <FitRow label={`Recommended free budget (${a.freePct}%)`} value={money(a.free)} />
-        <FitRow label="Premiums & monthly contributions" value={`${money(a.monthly)}/mo`} />
+        <FitRow label="Protection premiums" value={`${money(a.premMth)}/mo`} />
+        <FitRow label="Monthly contributions" value={`${money(a.contribMth)}/mo`} />
         <FitRow
           label={monthlyOver ? 'Over free budget' : 'Within free budget'}
           value={monthlyOver ? money(a.monthlyOver) : 'Fits'}
@@ -99,6 +100,7 @@ export function SuggestedPlan({
   gapType?: NeedType | null;
 }) {
   const suggested = suggestedNeeds(session);
+  const plansOn = allPlansOn(session);
   const toggleEdit = (type: NeedType) => setEditProd(p => (p === type ? null : type));
 
   useEffect(() => {
@@ -175,7 +177,23 @@ export function SuggestedPlan({
           <b>Suggested plan</b>
           <GroupTag session={session} keys={[]} verb="usually consider this" />
         </button>
-        <NarrBtn label="Why this plan" on={narrKind === 'prod'} onClick={() => onNarr('prod')} />
+        {planOpen ? (
+          <NarrBtn
+            label="Explain plan's benefits"
+            on={narrKind === 'prod'}
+            onClick={() => onNarr('prod')}
+          />
+        ) : null}
+        {suggested.length ? (
+          <div className="x-prod-apply">
+            <span>Apply this plan</span>
+            <Switch
+              on={plansOn}
+              label={plansOn ? 'Stop applying this plan' : 'Apply this plan'}
+              onClick={() => onChange(toggleAllPlansPatch(session))}
+            />
+          </div>
+        ) : null}
         <button
           className="cv"
           type="button"
@@ -238,6 +256,11 @@ export function SuggestedPlan({
               <span className="x-sm">Every activated goal is already funded.</span>
             )}
           </div>
+          <NarrBtn
+            label="Explain plan's benefits"
+            on={narrKind === 'prod'}
+            onClick={() => onNarr('prod')}
+          />
         </div>
       )}
       {planModal ? (

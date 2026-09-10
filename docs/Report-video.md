@@ -1,12 +1,15 @@
 # Plan report video (HeyGen notify)
 
-On **Your plan**, **Share report** captures a **mobile number** (required) and
-optional email, then queues a HeyGen spokesperson clip. The HTML report is
-always available; the **video window is hidden until that mobile is provided**.
-After share, the same window shows a preparing state, then the lx MP4.
+On **View report**, a **shared dummy walkthrough** plays immediately (same MP4
+for every customer). **Share report** captures a **mobile number** (required) and
+optional email, then queues a **customised** HeyGen clip. WhatsApp (and optional
+email) send only that customised clip plus the report — never the dummy. While
+it is rendering, the dummy stays on screen; it is replaced when the job
+completes. If customised HeyGen fails, the dummy stays.
 
-HTTP contract: [API.md](API.md) (`POST` / `GET /v1/video-notify`). This page is
-how the pipeline works and **where to change the spoken prompt**.
+HTTP contract: [API.md](API.md) (`GET /v1/report-walkthrough`, `POST` / `GET
+/v1/video-notify`). This page is how the pipeline works and **where to change
+the spoken prompt**.
 
 ---
 
@@ -16,7 +19,8 @@ The talking-head script is **Python**, not a Markdown file under `src/prompts/`.
 
 | What to change | Where |
 |----------------|--------|
-| Spoken script, figures, close | [`src/heygen/prompt.py`](../src/heygen/prompt.py) → `build_spoken_script()` |
+| Generic dummy walkthrough (no figures) | [`src/heygen/prompt.py`](../src/heygen/prompt.py) → `build_dummy_spoken_script()` then `python scripts/produce_dummy_walkthrough.py` |
+| Customised spoken script, figures, close | same file, `build_spoken_script()` — amounts as “Singapore dollars”, never `S$` |
 | Avatar look note | same file, `spokesperson_look()` — country from the **mobile** calling code (stored on the job; HeyGen uses a stock Avatar III look) |
 | Need-type labels (“retirement”, …) | same file, `NEED_LABEL` |
 | Which avatar / voice | `HEYGEN_AVATAR_ID` (default `Juan_standing_office_front`, June Office Front 2), optional `HEYGEN_VOICE_ID` |
@@ -36,14 +40,14 @@ change which figures are spoken, update that test.
 
 ## What the customer does
 
-1. Plan footer or report bar → **Share report**.
-2. Popup: **mobile required**, email optional. UI:
+1. Plan footer → **View report**. The dummy walkthrough plays at once.
+2. Plan footer or report bar → **Share report**.
+3. Popup: **mobile required**, email optional. UI:
    [`frontend/src/pages/plan/ReportNotify.tsx`](../frontend/src/pages/plan/ReportNotify.tsx).
-3. Toast: we will notify you when the video is ready. **View report** then shows
-   the video window (preparing, then the clip). Without a mobile, the HTML
-   report has no video window.
-4. Later: WhatsApp and optional SMTP with a **text link** to the MP4 (not the
-   file attached).
+4. Toast: we will notify you when the customised video is ready. The dummy stays
+   on the report until that clip replaces it.
+5. Later: WhatsApp and optional SMTP with a **text link** to the customised MP4
+   (not the dummy, not the file attached).
 
 The customer is **the mobile number** (Singapore 8-digit locals stored as
 `+65…`). The same mobile **overwrites** the previous video and FM row. A

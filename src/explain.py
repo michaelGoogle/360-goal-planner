@@ -9,7 +9,7 @@ from src.openai_client import chat_complete, llm_configured
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
-KINDS = ("mira", "intro", "money", "score", "chart", "prod")
+KINDS = ("mira", "intro", "money", "score", "needs", "chart", "prod")
 ROUTES = ("d2cIntro", "d2cAbout", "d2cMoney", "d2cScore", "d2cPlan")
 
 _MIRA_FILES = {
@@ -23,6 +23,7 @@ _KIND_FILES = {
     "intro": "intro.md",
     "money": "money.md",
     "score": "score.md",
+    "needs": "needs.md",
     "chart": "chart.md",
     "prod": "products.md",
 }
@@ -86,20 +87,34 @@ def _first_name(ctx: dict[str, Any]) -> str:
     return name if name and name.lower() != "you" else ""
 
 
-def _enabled_gaps(ctx: dict[str, Any]) -> list[dict[str, Any]]:
+def _gap_of(n: dict[str, Any]) -> float:
+    try:
+        return float(n.get("gap") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _need_spoken_label(n: dict[str, Any]) -> str:
+    typed = NEED_LABELS.get(str(n.get("type") or ""))
+    if typed:
+        return typed
+    raw = str(n.get("label") or "a goal").replace("&", "and")
+    return raw.strip() or "a goal"
+
+
+def _enabled_needs(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     rows = ctx.get("needs") if isinstance(ctx.get("needs"), list) else []
     out = []
     for n in rows:
         if not isinstance(n, dict) or not n.get("enabled"):
             continue
-        try:
-            gap = float(n.get("gap") or 0)
-        except (TypeError, ValueError):
-            gap = 0
-        if gap > 0:
-            out.append(n)
-    out.sort(key=lambda n: float(n.get("gap") or 0), reverse=True)
+        out.append(n)
+    out.sort(key=_gap_of, reverse=True)
     return out
+
+
+def _enabled_gaps(ctx: dict[str, Any]) -> list[dict[str, Any]]:
+    return [n for n in _enabled_needs(ctx) if _gap_of(n) > 0]
 
 
 def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> str:
@@ -188,6 +203,40 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
             f"Your HappiU Score is {pre if pre is not None else 'being worked out'} out of 100, "
             f"which is {band}. {short}.{top_l} Start with the biggest shortfall rather than everything at once."
         )
+    if kind == "needs":
+        rows = _enabled_needs(context)
+        who = name or "you"
+        if not rows:
+            return (
+                f"These are the goals and needs people like {who} typically have. "
+                "None are switched on yet. Add one from the list below."
+            )
+        short_bits: list[str] = []
+        funded: list[str] = []
+        for n in rows:
+            lab = _need_spoken_label(n)
+            gap = _gap_of(n)
+            if gap > 0:
+                short_bits.append(f"{lab} is short by {_say_money(gap)}")
+            else:
+                funded.append(lab)
+        bits = [f"These are the goals and needs people like {who} typically have."]
+        if short_bits:
+            bits.append(". ".join(short_bits) + ".")
+        if funded:
+            if len(funded) == 1:
+                bits.append(f"{funded[0]} is fully funded.")
+            else:
+                bits.append(", ".join(funded[:-1]) + f" and {funded[-1]} are fully funded.")
+        elif not short_bits:
+            bits.append("Every switched-on need is fully funded.")
+        if short_bits:
+            bits.append(f"The largest gap is {_need_spoken_label(rows[0])}.")
+        bits.append(
+            "Tap a line to revise a figure that does not fit. "
+            "This screen identifies the goals, the needs, and the gaps."
+        )
+        return " ".join(bits)
     if kind == "chart":
         if not chart.get("ready"):
             return "The projection is still being drawn. Give it a moment, then ask me again."
@@ -197,11 +246,36 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
         if view == "wealth" and chart.get("withPlanEnd") is not None:
             low = chart.get("lowest")
             extra = f" Its lowest point is {_say_money(low)}." if low is not None else ""
+            plans_on = bool(chart.get("plansOn"))
+            side = "with the plan applied" if plans_on else "without the recommended plan"
+            end_wealth = chart.get("withPlanEnd") if plans_on else (chart.get("withoutEnd") or chart.get("withPlanEnd"))
             return (
                 f"This chart is your money projected from age {start} to {end}. "
-                f"You are looking at net wealth. It reaches {_say_money(chart.get('withPlanEnd'))} "
-                f"by age {end} with the plan applied.{extra} It is not a forecast. "
+                f"You are looking at net wealth {side}. It reaches {_say_money(end_wealth)} "
+                f"by age {end}.{extra} It is not a forecast. "
                 f"It is arithmetic on the rates under Assumptions."
+            )
+        if view == "cash":
+            side = (
+                "with the plan applied — premiums out, payouts in"
+                if chart.get("plansOn")
+                else "without the recommended plan"
+            )
+            return (
+                f"This chart is your money projected from age {start} to {end}. "
+                f"You are looking at cashflow {side}. Money in is above the line, money out below it. "
+                "It is not a forecast."
+            )
+        if view == "exp":
+            side = (
+                "with the plan applied"
+                if chart.get("plansOn")
+                else "without the recommended plan"
+            )
+            return (
+                f"This chart is your money projected from age {start} to {end}. "
+                f"You are looking at how expenses are funded {side}. "
+                "It is not a forecast."
             )
         return (
             f"This chart is your money projected from age {start} to {end}. "

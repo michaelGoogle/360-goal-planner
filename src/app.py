@@ -1,4 +1,4 @@
-"""Goal Planner FastAPI app — BFF over FM / HU / SV."""
+"""Goal Planner FastAPI app — in-process People Like You / needs; HU / SV upstreams."""
 from __future__ import annotations
 
 import logging
@@ -6,27 +6,28 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.explain import KINDS, ROUTES, generate_explanation
 from src.heygen.jobs import get_job
+from src.heygen.media_store import dummy_media_url
 from src.heygen.pipeline import NotifyError, resume_pending, submit_notify
 from src.hu_payload import build_happiu_payload, need_existing
 from src.openai_client import llm_configured
 from src.parse_sentence import extract_about_you
+from src.pipeline.run import run_need_calculator, run_need_profiler, run_people_like_you
 from src.predict import (
     UNIFIED_TYPES,
     _apply_calculator,
     _apply_plu,
     _needs_from_profiler,
-    plu_body,
     session_dict,
 )
 from src.sv_payload import build_sv_payload
-from src.upstream import UpstreamError, fm_public, hu_happiu, sv_project
+from src.upstream import UpstreamError, hu_happiu, sv_project
 
 logger = logging.getLogger(__name__)
 PLU_UNAVAILABLE = (
@@ -53,7 +54,7 @@ async def lifespan(_app: FastAPI):
 
 api = FastAPI(
     title="360-Goal Planner",
-    description="D2C Goal Planner BFF — People Like You / Need Profiler / Need Calculator / HappiU / Scenario Visualizer",
+    description="D2C Goal Planner BFF — People Like You / Need Profiler / Need Calculator (in-process) / HappiU / Scenario Visualizer",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -102,6 +103,11 @@ class GpSession(BaseModel):
     incomeGrowthRate: float = 0.028
     investmentReturn: float = 0.042
     assetReturn: float = 0.03
+    plansOff: list[str] = Field(default_factory=list)
+    planMth: dict[str, float] = Field(default_factory=dict)
+    planLump: dict[str, float] = Field(default_factory=dict)
+    planSum: dict[str, float] = Field(default_factory=dict)
+    planPrem: dict[str, float] = Field(default_factory=dict)
     numSims: int = 200
     svNumSims: int = 20
     persist: bool = False
@@ -154,52 +160,47 @@ def explain(body: ExplainBody) -> dict[str, Any]:
     return {"success": True, "kind": kind, "source": source, "text": text}
 
 
-def _people_like_you_failed(status: int, plu: Any) -> bool:
-    if status != 200 or not isinstance(plu, dict):
-        return True
-    return plu.get("success") is False
-
-
 @api.post("/v1/predict")
-def predict(body: GpSession, authorization: str | None = Header(default=None)) -> dict[str, Any]:
-    """People Like You → Need Profiler → Need Calculator. Errors if People Like You is down."""
+def predict(body: GpSession) -> dict[str, Any]:
+    """People Like You → Need Profiler → Need Calculator. Errors if People Like You cannot run."""
     session = session_dict(body.model_dump())
-    persist = bool(body.persist and authorization)
     notes: list[str] = []
 
-    status, plu = _safe_fm("people-like-you", plu_body(session, persist), authorization)
-    if _people_like_you_failed(status, plu):
-        detail = ""
-        if isinstance(plu, dict):
-            detail = str(plu.get("detail") or plu.get("error") or "")[:400]
-        logger.warning("People Like You unavailable status=%s detail=%s", status, detail)
-        raise HTTPException(status_code=503, detail=PLU_UNAVAILABLE)
+    try:
+        plu = run_people_like_you(session)
+    except Exception as exc:
+        logger.warning("People Like You unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail=PLU_UNAVAILABLE) from exc
     session = _apply_plu(session, plu)
 
-    np_body: dict[str, Any] = {
-        "topN": 5,
-        "persist": persist,
-        "policyOwner": {
-            "dateOfBirth": session["dateOfBirth"],
-            "gender": session.get("gender"),
-            "occupation": session.get("occupation"),
-            "dependents": session.get("dependents"),
-            "country": "Singapore",
-            "city": "Singapore",
-            "isSmoker": session.get("isSmoker"),
-            "ageOfRetirement": session.get("ageOfRetirement"),
-        },
-        "finance": {
-            "monthlyIncome": session["incomeMonthly"],
-            "monthlyExpense": session["expenseMonthly"],
-            "liquidAssetValue": float(session.get("cash") or 0) + float(session.get("investments") or 0),
-        },
+    plu_data = (plu.get("onboarding") or {}).get("data") or {}
+    prefs = ((session.get("plu") or {}).get("clientPreferences") or {})
+    policy_owner = {
+        "dateOfBirth": session["dateOfBirth"],
+        "gender": session.get("gender"),
+        "occupation": session.get("occupation"),
+        "dependents": session.get("dependents"),
+        "country": "Singapore",
+        "city": "Singapore",
+        "isSmoker": bool(session.get("isSmoker") or prefs.get("isSmoker")),
+        "ageOfRetirement": session.get("ageOfRetirement"),
     }
-    status, npr = _safe_fm("need-profiler", np_body, authorization)
-    if status == 200 and isinstance(npr, dict):
+    finance = {
+        "monthlyIncome": session["incomeMonthly"],
+        "monthlyExpense": session["expenseMonthly"],
+        "liquidAssetValue": float(session.get("cash") or 0) + float(session.get("investments") or 0),
+    }
+    try:
+        npr = run_need_profiler(
+            policy_owner,
+            finance,
+            people_like_you=plu_data.get("peopleLikeYou"),
+            top_n=5,
+        )
         session = _needs_from_profiler(session, npr)
-    else:
-        notes.append(f"Need Profiler unavailable ({status}); enabled default goals.")
+    except Exception as exc:
+        logger.warning("Need Profiler unavailable: %s", exc)
+        notes.append("Need Profiler unavailable; enabled default goals.")
         deps = int(session.get("dependents") or 0)
         default_on = {"N_INC", "N_RET"}
         if deps:
@@ -212,27 +213,19 @@ def predict(body: GpSession, authorization: str | None = Header(default=None)) -
     for n in session.get("needs") or []:
         n["existing"] = need_existing(n, session)
 
-    nc_body = {
-        "onlyEmpty": True,
-        "persist": persist,
-        "policyOwner": np_body["policyOwner"],
-        "finance": np_body["finance"],
-        "needs": {n["type"]: n for n in session.get("needs") or []},
-    }
-    status, ncalc = _safe_fm("need-calculator", nc_body, authorization)
-    if status == 200 and isinstance(ncalc, dict):
+    try:
+        ncalc = run_need_calculator(
+            policy_owner,
+            finance,
+            {n["type"]: n for n in session.get("needs") or []},
+            only_empty=True,
+        )
         session = _apply_calculator(session, ncalc)
-    else:
-        notes.append(f"Need Calculator unavailable ({status}); amounts stay at zero until HU/SV.")
+    except Exception as exc:
+        logger.warning("Need Calculator unavailable: %s", exc)
+        notes.append("Need Calculator unavailable; amounts stay at zero until HU/SV.")
 
     return {"success": True, "session": session, "notes": notes}
-
-
-def _safe_fm(path: str, body: dict[str, Any], authorization: str | None) -> tuple[int, Any]:
-    try:
-        return fm_public(path, body, authorization)
-    except UpstreamError as exc:
-        return exc.status, {"detail": exc.detail}
 
 
 @api.post("/v1/score")
@@ -264,7 +257,20 @@ def project(body: GpSession) -> dict[str, Any]:
     if status >= 400:
         raise HTTPException(status_code=status, detail=data)
     inner = data.get("data") if isinstance(data, dict) else data
-    return {"success": True, "data": inner, "raw": data}
+    return {"success": True, "data": inner, "raw": data, "payload": payload}
+
+
+@api.post("/v1/sv-payload")
+def sv_payload(body: GpSession) -> dict[str, Any]:
+    """Map the session to an SV body without running the projection (debug)."""
+    payload = build_sv_payload(session_dict(body.model_dump()))
+    return {"success": True, "payload": payload}
+
+
+@api.get("/v1/report-walkthrough")
+def report_walkthrough() -> dict[str, Any]:
+    """Public URL of the shared dummy report video (same clip for every customer)."""
+    return {"success": True, "dummyUrl": dummy_media_url()}
 
 
 @api.post("/v1/video-notify", status_code=202)

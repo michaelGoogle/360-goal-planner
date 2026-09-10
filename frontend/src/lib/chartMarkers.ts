@@ -1,4 +1,5 @@
 import { NEED_ICONS, NEED_META, sessionAge, type GpSession, type NeedType } from './types';
+import { hydrateStressEvents, STRESS_BY_ID } from './stressEvents';
 
 export type ChartMarkerKind = 'need' | 'event' | 'warning';
 
@@ -15,15 +16,28 @@ export interface ChartMarker {
 
 /** Same icons as Scenario Visualizer — sourced from NEED_ICONS. */
 export const EVENT_ICONS: Record<string, string> = {
-  Death: 'RIP',
-  CI: '🏥',
-  PTD: '♿',
-  PersonalAccident: '🩹',
-  Unemployment: '💼',
+  crash: '📉',
   Crash: '📉',
   MarketCrash: '📉',
-  Inflation: '📈',
+  death: 'RIP',
+  Death: 'RIP',
+  ci: '🏥',
+  CI: '🏥',
+  tpd: '♿',
+  PTD: '♿',
   Disability: '♿',
+  pa: '🩹',
+  PersonalAccident: '🩹',
+  inc: '💼',
+  Unemployment: '💼',
+  infl: '📈',
+  Inflation: '📈',
+  hosp: '🏨',
+  care: '❤️',
+  wed: '💍',
+  baby: '👶',
+  exp: '🛒',
+  ccy: '$',
 };
 
 export const NEED_MARKER_COLOR = '#FB8C00';
@@ -87,17 +101,20 @@ export function extractSessionMarkers(session: GpSession): ChartMarker[] {
     });
   }
 
-  for (const ev of session.events) {
+  for (const ev of hydrateStressEvents(session.events)) {
     if (!ev.on) continue;
-    const x = startAge + Math.max(0, (ev.year || 1) - 1);
+    const spec = STRESS_BY_ID[ev.id];
+    const x = startAge + Math.max(0, ev.year || 0);
+    const xEnd = spec && spec.kind !== 'one' ? startAge + Math.max(ev.from, ev.to) : undefined;
     markers.push({
       kind: 'event',
       id: ev.id,
       label: ev.label,
       icon: EVENT_ICONS[ev.id] ?? '⚡',
       x,
+      xEnd,
       draggable: true,
-      hoverLines: [ev.label, `Event: ${ev.id}`, 'Drag to move · release to recalculate'],
+      hoverLines: [ev.label, `Event: ${ev.label}`, 'Drag to move · release to recalculate'],
     });
   }
 
@@ -145,7 +162,6 @@ export function applyMarkerMoveToSession(session: GpSession, marker: ChartMarker
   const startAge = sessionAge(session) || 40;
   const startYear = new Date().getFullYear();
   const age = Math.max(startAge, Math.round(newX));
-  const offset = Math.max(1, age - startAge + 1);
   const calendarYear = startYear + (age - startAge);
 
   if (marker.kind === 'need') {
@@ -170,9 +186,12 @@ export function applyMarkerMoveToSession(session: GpSession, marker: ChartMarker
   }
 
   if (marker.kind === 'event') {
+    const yearOffset = Math.max(0, age - startAge);
     return {
       ...session,
-      events: session.events.map(e => (e.id === marker.id ? { ...e, year: offset } : e)),
+      events: hydrateStressEvents(session.events).map(e =>
+        e.id === marker.id ? { ...e, year: yearOffset, from: yearOffset, to: Math.max(e.to, yearOffset) } : e,
+      ),
     };
   }
   return session;

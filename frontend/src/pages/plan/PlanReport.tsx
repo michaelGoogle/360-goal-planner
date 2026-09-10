@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { HappiUGauge } from '../../components/HappiUGauge';
 import { EqPie, GroupTag } from '../../components/ui';
 import { Ico } from '../../lib/icons';
 import { getJson } from '../../lib/api';
@@ -36,6 +37,7 @@ export function PlanReport({
   pre,
   post,
   onClose,
+  onShare,
   onChange,
 }: {
   session: GpSession;
@@ -43,6 +45,7 @@ export function PlanReport({
   post: number | null;
   svData: SvData | null;
   onClose: () => void;
+  onShare: () => void;
   onChange: (p: Partial<GpSession>) => void;
 }) {
   const who = firstName(session);
@@ -50,6 +53,7 @@ export function PlanReport({
   const today = reportPrintedOn();
   const score = post ?? pre ?? 0;
   const band = happiBand(score);
+  const showToday = pre != null && post != null && Math.round(pre) !== Math.round(post);
   const goals = goalRows(session);
   const ratios = ratioSummary(session);
   const afford = planAfford(session);
@@ -84,10 +88,29 @@ export function PlanReport({
     session.reportVideoStatus === 'failed' ||
     session.reportVideoStatus === 'pending'
       ? session.reportVideoStatus
-      : 'pending';
+      : 'idle';
+  const [dummyUrl, setDummyUrl] = useState('');
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const fallback = 'https://mgzh11.synology.me:8442/videos/gp/generic-walkthrough.mp4';
+    let gone = false;
+    void getJson<{ dummyUrl?: string }>('/v1/report-walkthrough', ac.signal)
+      .then(data => {
+        if (!gone) setDummyUrl(data.dummyUrl || fallback);
+      })
+      .catch(err => {
+        if (gone || (err instanceof Error && err.name === 'AbortError')) return;
+        setDummyUrl(fallback);
+      });
+    return () => {
+      gone = true;
+      ac.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasContact || !jobId) return;
@@ -126,8 +149,8 @@ export function PlanReport({
           Close
         </button>
         <span className="sp" />
-        <button className="x-assumb" type="button" onClick={() => window.print()}>
-          {Ico.print}Print / Save PDF
+        <button className="x-assumb" type="button" onClick={onShare}>
+          {Ico.share}Share report
         </button>
       </div>
 
@@ -140,30 +163,31 @@ export function PlanReport({
             {age ? ` · age ${age}` : ''}. Figures match Your plan. Not a quote, and not advice to buy.
           </p>
           <div className="x-rpt-scores">
-            <div>
-              <span>HappiU today</span>
-              <b style={{ color: pre == null ? undefined : HAPPI_COL[happiBand(pre)] }}>{pre == null ? '—' : Math.round(pre)}</b>
-            </div>
-            <div>
+            <div className="x-rpt-gauge">
               <span>With this plan</span>
-              <b style={{ color: post == null ? undefined : HAPPI_COL[happiBand(post)] }}>{post == null ? '—' : Math.round(post)}</b>
+              <HappiUGauge value={score} size={200} showBand={false} />
             </div>
-            <p className="x-scorecap" style={{ color: HAPPI_COL[band] }}>
-              {happiCaption(score)}
-            </p>
+            <div className="x-rpt-score-side">
+              {showToday ? (
+                <div>
+                  <span>HappiU today</span>
+                  <b style={{ color: HAPPI_COL[happiBand(pre)] }}>{Math.round(pre)}</b>
+                </div>
+              ) : null}
+              <p className="x-scorecap" style={{ color: HAPPI_COL[band] }}>
+                {happiCaption(score)}
+              </p>
+            </div>
           </div>
         </header>
 
-        {hasContact ? (
-          <>
-            <ReportWalkthrough
-              who={who}
-              mediaUrl={session.reportMediaUrl || ''}
-              status={videoStatus}
-            />
-            <ReportWalkthroughStill who={who} />
-          </>
-        ) : null}
+        <ReportWalkthrough
+          who={who}
+          dummyUrl={dummyUrl}
+          mediaUrl={session.reportMediaUrl || ''}
+          status={videoStatus}
+        />
+        <ReportWalkthroughStill who={who} />
 
         <section className="x-rpt-sec">
           <h2>About you</h2>

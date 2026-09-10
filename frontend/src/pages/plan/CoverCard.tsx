@@ -22,6 +22,7 @@ import {
   sizedCover,
   togglePlanPatch,
 } from '../../lib/planProducts';
+import { investRetFromReturn, returnFromInvestRet } from '../../lib/assumptions';
 import { money, NEED_META, type GpSession, type NeedType } from '../../lib/types';
 
 export { sizedCover } from '../../lib/planProducts';
@@ -328,14 +329,19 @@ export function GrowthPlanCard({
           />
           <AmountSlider
             label="Expected returns"
-            display={`${session.investRet.toFixed(1)}% p.a.`}
-            min={0}
-            max={15}
+            display={`${investRetFromReturn(session.investmentReturn).toFixed(1)}% p.a.`}
+            min={2.2}
+            max={10}
             step={0.1}
-            value={session.investRet}
+            value={investRetFromReturn(session.investmentReturn)}
             onChange={v => {
-              const investRet = Math.round(v * 10) / 10;
-              onChange({ investRet, ...clampAllWealthToCaps({ ...session, investRet }) });
+              const investmentReturn = returnFromInvestRet(v);
+              const investRet = investRetFromReturn(investmentReturn);
+              onChange({
+                investRet,
+                investmentReturn,
+                ...clampAllWealthToCaps({ ...session, investRet, investmentReturn }),
+              });
             }}
           />
         </div>

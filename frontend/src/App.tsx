@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Shell } from './components/Shell';
+import { AssumeModal } from './components/AssumeModal';
 import { Intro } from './pages/Intro';
 import { AboutYou } from './pages/AboutYou';
 import { Money } from './pages/Money';
 import { Score } from './pages/Score';
 import { Plan } from './pages/Plan';
+import { hydrateStressEvents, type GpEvent } from './lib/stressEvents';
 import {
   EMPTY_SESSION,
   NEED_TYPES,
@@ -17,11 +19,11 @@ import {
 } from './lib/types';
 import { loadAuthSession } from './lib/auth';
 import { postJson, sessionPayload, type PredictResponse, type ProjectResponse, type ScoreResponse } from './lib/api';
-import { ASSUME_DEFAULTS } from './lib/assumptions';
+import { ASSUME_DEFAULTS, assumeChangedCount, investRetFromReturn } from './lib/assumptions';
+import { clampAllWealthToCaps, productFlags } from './lib/planProducts';
 import { buildExplainContext, type ExplainKind, type ExplainResponse } from './lib/explain';
 import { applyMarkerMoveToSession, type ChartMarker } from './lib/chartMarkers';
 import { applyDocs, seedProducts } from './lib/local';
-import { productFlags } from './lib/planProducts';
 import { isSvData, type ChartView, type SvData } from './lib/sv';
 import { speak, stopSpeak } from './lib/speech';
 import { readGtTt, writeGtTt } from './lib/gtTt';
@@ -109,6 +111,7 @@ export default function App() {
   const [pre, setPre] = useState<number | null>(null);
   const [post, setPost] = useState<number | null>(null);
   const [svData, setSvData] = useState<SvData | null>(null);
+  const [svPayload, setSvPayload] = useState<Record<string, unknown> | null>(null);
   const [scoreError, setScoreError] = useState<string | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [predictError, setPredictError] = useState<string | null>(null);
@@ -129,7 +132,41 @@ export default function App() {
     sessionRef.current = session;
   }, [session]);
 
-  const patch = (p: Partial<GpSession>) => setSession(s => ({ ...s, ...p }));
+  const patch = (p: Partial<GpSession>) => {
+    setSession(s => {
+      const next = {
+        ...s,
+        ...p,
+        ...(p.planPrem ? { planPrem: { ...s.planPrem, ...p.planPrem } } : {}),
+        ...(p.planSum ? { planSum: { ...s.planSum, ...p.planSum } } : {}),
+        ...(p.planMth ? { planMth: { ...s.planMth, ...p.planMth } } : {}),
+        ...(p.planLump ? { planLump: { ...s.planLump, ...p.planLump } } : {}),
+      };
+      if (
+        route === 'd2cPlan' &&
+        [
+          'planMth',
+          'planLump',
+          'planSum',
+          'planPrem',
+          'plansOff',
+          'investMth',
+          'investLump',
+          'investRet',
+          'lifeSum',
+          'lifePrem',
+          'lifeOn',
+          'criOn',
+          'tpdOn',
+          'investOn',
+          'investmentReturn',
+        ].some(k => k in p)
+      ) {
+        scheduleProject(next);
+      }
+      return next;
+    });
+  };
 
   const scheduleScore = useCallback(
     (s: GpSession) => {
@@ -219,6 +256,7 @@ export default function App() {
         const res = await postJson<ProjectResponse>('/v1/project', sessionPayload(s), token);
         const data = isSvData(res.data) ? res.data : null;
         setSvData(data);
+        setSvPayload(res.payload && typeof res.payload === 'object' ? res.payload : null);
         setProjectError(data ? null : 'The projection did not return a wealth path.');
         const scored = await postJson<ScoreResponse>('/v1/score', sessionPayload(s), token);
         setPre(scored.preHappiU);
@@ -258,7 +296,16 @@ export default function App() {
 
   const toggleEvent = (id: string) => {
     setSession(s => {
-      const next = { ...s, events: s.events.map(e => (e.id === id ? { ...e, on: !e.on } : e)) };
+      const events = hydrateStressEvents(s.events).map(e => (e.id === id ? { ...e, on: !e.on } : e));
+      const next = { ...s, events };
+      scheduleProject(next);
+      return next;
+    });
+  };
+
+  const setEvents = (events: GpEvent[]) => {
+    setSession(s => {
+      const next = { ...s, events: hydrateStressEvents(events) };
       scheduleProject(next);
       return next;
     });
@@ -266,9 +313,13 @@ export default function App() {
 
   const setAssume = (p: Partial<GpSession>) => {
     setSession(s => {
-      const next = { ...s, ...p };
-      scheduleProject(next);
-      return next;
+      const synced =
+        p.investmentReturn != null ? { ...p, investRet: investRetFromReturn(p.investmentReturn) } : p;
+      const next = { ...s, ...synced };
+      const caps = synced.investmentReturn != null ? clampAllWealthToCaps(next) : {};
+      const out = { ...next, ...caps };
+      if (route === 'd2cPlan') scheduleProject(out);
+      return out;
     });
   };
 
@@ -358,6 +409,9 @@ export default function App() {
     };
   }, []);
 
+  const nAssume = assumeChangedCount(session);
+  const assumeOpen = session.tip?.startsWith('panel-assume') ?? false;
+
   return (
     <Shell
       route={route}
@@ -374,6 +428,20 @@ export default function App() {
         if (next) setTourSeen({});
       }}
       onShare={reportOpen ? () => setShareOpen(true) : undefined}
+      nAssume={nAssume}
+      assumeOn={assumeOpen}
+      onAssume={() => patch({ tip: assumeOpen ? null : 'panel-assume' })}
+      overlay={
+        assumeOpen ? (
+          <AssumeModal
+            session={session}
+            nAssume={nAssume}
+            onClose={() => patch({ tip: null })}
+            onAssume={setAssume}
+            onAssumeReset={resetAssume}
+          />
+        ) : null
+      }
     >
       {route === 'd2cIntro' && (
         <Intro narrOn={narrKind === 'intro'} onNarr={() => narrate('intro')} onStart={() => go('d2cAbout')} />
@@ -417,8 +485,8 @@ export default function App() {
           onToggleNeed={toggleNeed}
           onToggleExtra={toggleExtra}
           busy={busy}
-          narrOn={narrKind === 'score'}
-          onNarr={() => narrate('score')}
+          narrKind={narrKind}
+          onNarr={kind => narrate(kind)}
           gtTtOn={gtTtOn && !tourSeen.score}
           onGtTtComplete={() => setTourSeen(s => ({ ...s, score: true }))}
         />
@@ -429,14 +497,14 @@ export default function App() {
           pre={pre}
           post={post}
           svData={svData}
+          svPayload={svPayload}
           projectError={projectError}
           onChange={patch}
           onBack={() => go('d2cScore')}
           onToggleNeed={toggleNeed}
           onToggleExtra={toggleExtra}
           onToggleEvent={toggleEvent}
-          onAssume={setAssume}
-          onAssumeReset={resetAssume}
+          onEvents={setEvents}
           onMarkerMove={moveMarker}
           onMarkerClick={clickMarker}
           busy={busy}

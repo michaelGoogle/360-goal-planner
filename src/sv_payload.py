@@ -6,14 +6,273 @@ from datetime import date
 from typing import Any
 
 from src.cpf import session_take_home
-from src.hu_payload import ACCUMULATION, dob_from_age
+from src.hu_payload import ACCUMULATION, PROTECTION, dob_from_age
+from src.session_rates import session_rate
 
+ASSET_CASH = "7c3a91e2-4b8f-4d21-9e6a-2f5c8b1d0a44"
 ASSET_LIQUID = "d3ee1790-c469-4fb6-979a-fa4276f6d488"
 ASSET_PROPERTY = "3f0413bb-e985-4ba2-8286-2f8fc54184c5"
 
 
 def _need_id(need_type: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"gp-need-{need_type}"))
+
+
+# GP sliders use 0 = this year. SV columns are 1-based (1 = this year).
+_EVENT_ALIAS = {
+    "crash": "crash",
+    "Crash": "crash",
+    "MarketCrash": "crash",
+    "death": "death",
+    "Death": "death",
+    "ci": "ci",
+    "CI": "ci",
+    "tpd": "tpd",
+    "PTD": "tpd",
+    "pa": "pa",
+    "PersonalAccident": "pa",
+    "inc": "inc",
+    "Unemployment": "inc",
+    "infl": "infl",
+    "Inflation": "infl",
+    "hosp": "hosp",
+    "care": "care",
+    "wed": "wed",
+    "Wedding": "wed",
+    "Marriage": "wed",
+    "baby": "baby",
+    "Newborn": "baby",
+    "exp": "exp",
+    "ccy": "ccy",
+}
+
+# HTML prototype: about two-thirds of the invested book sits outside SGD.
+_FX_SHARE = 2.0 / 3.0
+
+_DEFAULT_V = {
+    "crash": 0.35,
+    "ccy": 0.14,
+    "infl": 0.03,
+    "inc": -0.2,
+    "death": 20_000,
+    "ci": 150_000,
+    "tpd": 200_000,
+    "pa": 80_000,
+    "hosp": 120_000,
+    "care": 90_000,
+    "wed": 60_000,
+    "baby": 35_000,
+    "exp": 0.15,
+}
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        return default if value is None else int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_float(value: Any, default: float) -> float:
+    try:
+        return default if value is None else float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _sv_year(offset: int) -> int:
+    return max(1, offset + 1)
+
+
+def _event_window(ev: dict[str, Any]) -> tuple[int, int, int]:
+    year_off = _as_int(ev.get("year"), 0)
+    if ev.get("year") is None and ev.get("from") is not None:
+        year_off = _as_int(ev.get("from"), 0)
+    start_off = _as_int(ev.get("from"), year_off)
+    end_off = _as_int(ev.get("to"), year_off)
+    start = _sv_year(start_off)
+    end = max(start, _sv_year(end_off))
+    return _sv_year(year_off), start, end
+
+
+def _shock(event_type: str, year: int, **config: Any) -> dict[str, Any]:
+    return {"flag": True, "eventType": event_type, "year": year, "config": config}
+
+
+def _range_event(event_type: str, start: int, end: int, measurement: str, impact: float) -> dict[str, Any]:
+    return {
+        "flag": True,
+        "eventType": event_type,
+        "startYear": start,
+        "endYear": end,
+        "measurement": measurement,
+        "impact": impact,
+    }
+
+
+def session_manual_events(session: dict[str, Any]) -> list[dict[str, Any]]:
+    """Map GP stress-test rows onto SV manualEvents (1-based year + config)."""
+    inflation = session_rate(session, "inflationRate")
+    out: list[dict[str, Any]] = []
+    for ev in session.get("events") or []:
+        if not ev.get("on"):
+            continue
+        kind = _EVENT_ALIAS.get(str(ev.get("id") or ev.get("eventType") or ""))
+        if not kind:
+            continue
+        year, start, end = _event_window(ev)
+        v = _as_float(ev.get("v"), _DEFAULT_V[kind])
+        if kind == "death":
+            out.append(_shock("Death", year, oneTimeCost=abs(v)))
+        elif kind == "ci":
+            out.append(_shock("CI", year, oneTimeCost=abs(v)))
+        elif kind == "tpd":
+            out.append(_shock("PTD", year, oneTimeCost=abs(v)))
+        elif kind == "pa":
+            out.append(_shock("PersonalAccident", year, oneTimeCost=abs(v)))
+        elif kind == "baby":
+            out.append(_shock("Newborn", year, oneTimeCost=abs(v)))
+        elif kind == "wed":
+            out.append(_shock("Marriage", year, oneTimeCost=abs(v)))
+        elif kind == "crash":
+            out.append(_shock("MarketCrash", year, marketShock=abs(v)))
+        elif kind == "ccy":
+            out.append(_shock("CurrencyShock", year, currencyShock=abs(v) * _FX_SHARE))
+        elif kind == "infl":
+            out.append(_shock("Inflation", start, inflationRate=inflation + abs(v), length=max(1, end - start + 1)))
+        elif kind == "inc":
+            out.append(_range_event("Income", start, end, "percentage", v if v <= 0 else -abs(v)))
+        elif kind == "exp":
+            out.append(_range_event("Expense", start, end, "percentage", abs(v)))
+        elif kind == "hosp":
+            out.append(_shock("Hospitalization", year, oneTimeCost=abs(v)))
+        elif kind == "care":
+            out.append(_range_event("Expense", start, end, "amount", abs(v)))
+    return out
+
+
+_PLAN_PRODUCT = {
+    "N_INC": ("GPP", "Life cover", "TermLife"),
+    "N_CRI": ("CEJ", "Critical illness cover", "TermLife"),
+    "N_TPD": ("TPD", "Disability cover", "TermLife"),
+    "N_RET": ("AIARS", "Retirement plan", "Savings"),
+    "N_EDU": ("ERX", "Education plan", "Savings"),
+    "N_SAV": ("SAV", "Saving plan", "Savings"),
+    "N_PRP": ("PRP", "Property plan", "Savings"),
+}
+
+
+def _num_map(value: Any) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, float] = {}
+    for key, raw in value.items():
+        try:
+            out[str(key)] = float(raw or 0)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _cover_prem(sum_assured: float) -> float:
+    return max(0.0, round((sum_assured * 0.00078) / 10) * 10)
+
+
+def _bvo_product(code: str, name: str, category: str, columns: dict[str, list[float]]) -> dict[str, Any]:
+    return {
+        "productCode": code,
+        "productName": name,
+        "productVersion": "1",
+        "productCategory": category,
+        "productPlans": [
+            {
+                "isAddedToSummary": True,
+                "benefitProjection": [{"column": col, "values": vals} for col, vals in columns.items()],
+            }
+        ],
+    }
+
+
+def _grow_pot(lump: float, annual: float, rate: float, years: int, pay_years: int) -> tuple[list[float], list[float]]:
+    paid = 0.0
+    acc = 0.0
+    premiums: list[float] = []
+    account: list[float] = []
+    for t in range(years):
+        if t < pay_years:
+            contrib = annual + (lump if t == 0 else 0.0)
+            paid += contrib
+            acc = (acc + contrib) * (1 + rate)
+        else:
+            acc *= 1 + rate
+        premiums.append(round(paid, 2))
+        account.append(round(max(0.0, acc), 2))
+    return premiums, account
+
+
+def plan_benefit_visualizer(session: dict[str, Any]) -> list[dict[str, Any]]:
+    """Illustrate the D2C suggested mix so SV's post path is 'with this plan'."""
+    age = int(session.get("age") or 40)
+    ret_age = int(session.get("ageOfRetirement") or 65)
+    now_year = date.today().year
+    inv_ret = session_rate(session, "investmentReturn")
+    off = {str(t) for t in (session.get("plansOff") or [])}
+    plan_mth = _num_map(session.get("planMth"))
+    plan_lump = _num_map(session.get("planLump"))
+    plan_sum = _num_map(session.get("planSum"))
+    plan_prem = _num_map(session.get("planPrem"))
+    n_years = max(20, 100 - age)
+    out: list[dict[str, Any]] = []
+    for need in session.get("needs") or []:
+        t = str(need.get("type") or "")
+        if t not in _PLAN_PRODUCT or t in off or not need.get("enabled"):
+            continue
+        meta = _PLAN_PRODUCT[t]
+        if t in ACCUMULATION:
+            mth = plan_mth.get(t, 0.0)
+            lump = plan_lump.get(t, 0.0)
+            if mth <= 0 and lump <= 0:
+                continue
+            if t == "N_RET":
+                pay = max(1, ret_age - age)
+            else:
+                funds = int(need.get("fundsNeededYear") or now_year + 10)
+                pay = max(1, funds - now_year)
+            premiums, account = _grow_pot(lump, mth * 12, inv_ret, n_years, pay)
+            out.append(
+                _bvo_product(
+                    meta[0],
+                    meta[1],
+                    meta[2],
+                    {"totalPremiumPaidToDate": premiums, "totalAccountValue": account},
+                )
+            )
+            continue
+        if t not in PROTECTION:
+            continue
+        sum_assured = plan_sum.get(t, 0.0)
+        prem = plan_prem.get(t, _cover_prem(sum_assured) if sum_assured else 0.0)
+        if sum_assured <= 0 and prem <= 0:
+            continue
+        pay = max(1, ret_age - age)
+        paid = 0.0
+        premiums: list[float] = []
+        benefit: list[float] = []
+        for t_i in range(n_years):
+            if t_i < pay:
+                paid += prem
+            premiums.append(round(paid, 2))
+            benefit.append(round(sum_assured, 2) if t_i < pay else 0.0)
+        col = "guaranteedCriticalIllnessBenefit" if t == "N_CRI" else "guaranteedDeathBenefit"
+        out.append(
+            _bvo_product(
+                meta[0],
+                meta[1],
+                meta[2],
+                {"totalPremiumPaidToDate": premiums, col: benefit},
+            )
+        )
+    return out
 
 
 def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
@@ -28,10 +287,11 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
     property_v = float(session.get("property") or 0)
     mortgage = float(session.get("mortgage") or 0)
     ret_age = int(session.get("ageOfRetirement") or 65)
-    inflation = float(session.get("inflationRate") if session.get("inflationRate") is not None else 0.023)
-    income_grow = float(session.get("incomeGrowthRate") if session.get("incomeGrowthRate") is not None else 0.028)
-    inv_ret = float(session.get("investmentReturn") if session.get("investmentReturn") is not None else 0.042)
-    asset_ret = float(session.get("assetReturn") if session.get("assetReturn") is not None else 0.03)
+    inflation = session_rate(session, "inflationRate")
+    income_grow = session_rate(session, "incomeGrowthRate")
+    cash_ret = session_rate(session, "interestRate")
+    inv_ret = session_rate(session, "investmentReturn")
+    asset_ret = session_rate(session, "assetReturn")
     prop_ret = max(0.0, asset_ret + 0.004)
     now_year = date.today().year
     needs = [n for n in (session.get("needs") or []) if n.get("enabled")]
@@ -65,18 +325,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
             result["fundsNeededYear"] = funds_year
         nco.append({"type": t, "needId": nid, "result": result})
 
-    events = []
-    for ev in session.get("events") or []:
-        if not ev.get("on"):
-            continue
-        raw = str(ev.get("id") or ev.get("eventType") or "")
-        events.append(
-            {
-                "eventType": "MarketCrash" if raw == "Crash" else raw,
-                "year": int(ev.get("year") or 1),
-                "flag": True,
-            }
-        )
+    events = session_manual_events(session)
 
     existing_ins: list[dict[str, Any]] = []
     for p in session.get("policies") or []:
@@ -97,7 +346,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
         )
 
     cpf_on = session.get("residency") != "Foreigner"
-    return {
+    payload = {
         "sessionId": str(uuid.uuid4()),
         "noDeathFlag": True,
         "numSims": max(10, min(200, int(session.get("svNumSims") or 20))),
@@ -153,10 +402,19 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
                 },
                 "assets": [
                     {
+                        "id": ASSET_CASH,
+                        "type": "A_SAV",
+                        "otherAssetType": None,
+                        "currentValue": int(round(cash)),
+                        "interestRate": cash_ret,
+                        "recurringContribution": {"value": 0, "duration": 100},
+                        "isLiquid": True,
+                    },
+                    {
                         "id": ASSET_LIQUID,
                         "type": "INVESTMENT_PORTFOLIO",
                         "otherAssetType": None,
-                        "currentValue": int(round(cash + investments)),
+                        "currentValue": int(round(investments)),
                         "interestRate": inv_ret,
                         "recurringContribution": {
                             "value": int(round(max(0, take_home - expense))),
@@ -187,3 +445,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
         ],
         "needCalculatorOutput": nco,
     }
+    bvo = plan_benefit_visualizer(session)
+    if bvo:
+        payload["benefitVisualizerOutput"] = bvo
+    return payload

@@ -4,87 +4,43 @@ from fastapi.testclient import TestClient
 from src.app import api
 from src.cpf import expenses_from_gross
 from src.predict import _apply_plu, _assumed_life_policy, seed_property_value
-from src.upstream import UpstreamError
+
+
+def _plu_ok(income=9000, expenses=5000, assets=100000, *, own=False):
+    result = {
+        "income": income,
+        "expenses": expenses,
+        "assets": assets,
+        "ownershipInformation": {"property": own},
+        "clientPreferences": {},
+    }
+    return {
+        "success": True,
+        "result": result,
+        "onboarding": {
+            "data": {
+                "finance": {
+                    "monthlyIncome": income,
+                    "monthlyExpense": expenses,
+                    "liquidAssetValue": assets,
+                },
+                "peopleLikeYou": {"response": {}, "result": result},
+            }
+        },
+    }
 
 
 def test_predict_errors_when_people_like_you_down():
     client = TestClient(api)
-    with patch("src.app.fm_public", side_effect=UpstreamError(503, "down")):
+    with patch("src.app.run_people_like_you", side_effect=RuntimeError("down")):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "CEO"})
     assert r.status_code == 503
     assert "360-PeopleLikeU" in r.json()["detail"]
 
 
-def test_predict_errors_when_people_like_you_returns_failure():
+def test_predict_runs_in_process_profiler_and_calculator():
     client = TestClient(api)
-
-    def fake(path, body, authorization):  # noqa: ARG001
-        if path == "people-like-you":
-            return 200, {"success": False, "detail": "missing key"}
-        return 200, {}
-
-    with patch("src.app.fm_public", side_effect=fake):
-        r = client.post("/v1/predict", json={"age": 42, "occupation": "CEO"})
-    assert r.status_code == 503
-    assert "360-PeopleLikeU" in r.json()["detail"]
-
-
-def test_predict_uses_fm_when_ok():
-    def fake(path, body, authorization):  # noqa: ARG001
-        if path == "people-like-you":
-            return 200, {
-                "success": True,
-                "result": {"income": 9000, "expenses": 5000, "assets": 100000},
-                "onboarding": {
-                    "data": {
-                        "finance": {
-                            "monthlyIncome": 9000,
-                            "monthlyExpense": 5000,
-                            "liquidAssetValue": 100000,
-                        }
-                    }
-                },
-            }
-        if path == "need-profiler":
-            return 200, {
-                "success": True,
-                "result": {"rankedNeeds": [{"unifiedType": "N_RET"}, {"unifiedType": "N_INC"}]},
-                "onboarding": {
-                    "data": {
-                        "needs": {
-                            "N_RET": {"enabled": True, "needAmount": 0, "weightageScore": 9},
-                            "N_INC": {"enabled": True, "needAmount": 0, "weightageScore": 8},
-                        }
-                    }
-                },
-            }
-        if path == "need-calculator":
-            return 200, {
-                "success": True,
-                "amounts": {"N_RET": 1_200_000, "N_INC": 500_000},
-                "onboarding": {
-                    "data": {
-                        "needs": {
-                            "N_RET": {
-                                "enabled": True,
-                                "needAmount": 1_200_000,
-                                "existing": 0,
-                                "gap": 1_200_000,
-                            },
-                            "N_INC": {
-                                "enabled": True,
-                                "needAmount": 500_000,
-                                "existing": 0,
-                                "gap": 500_000,
-                            },
-                        }
-                    }
-                },
-            }
-        return 404, {}
-
-    client = TestClient(api)
-    with patch("src.app.fm_public", side_effect=fake):
+    with patch("src.app.run_people_like_you", return_value=_plu_ok()):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer"})
     assert r.status_code == 200
     session = r.json()["session"]
@@ -92,7 +48,15 @@ def test_predict_uses_fm_when_ok():
     assert session["incomeMonthly"] == 9000
     assert session["policies"] == []
     by_type = {n["type"]: n for n in session["needs"]}
-    assert by_type["N_RET"]["needAmount"] == 1_200_000
+    enabled = [t for t, n in by_type.items() if n["enabled"]]
+    assert 1 <= len(enabled) <= 5
+    assert by_type["N_RET"]["enabled"] is True or "N_INC" in enabled
+    for t, n in by_type.items():
+        if n["enabled"]:
+            assert n["needAmount"] > 0
+            if t == "N_CRI":
+                assert n["needAmount"] == 5 * 9000 * 12
+
 
 
 def test_life_cover_from_mortgage_when_property():

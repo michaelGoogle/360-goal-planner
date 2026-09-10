@@ -1,0 +1,198 @@
+{
+  "meta": {
+    "unit": "monthly_gross_local_currency",
+    "as_of": "2026",
+    "basis": "Typical well-compensated jobholder in a typical firm — not listed-company, national-champion, or bulge-bracket MD packages. Rounded 2025–2026 market bands from public pay scales and salary guides (BLS OEWS, MOM/MOE/MOHH, DOSM/JPA, Destatis/TVöD, HK C&SD/Hospital Authority, DepEd SSL, Vietnam GSO/ITviec, Fair Work awards, Glassdoor-style guides). Singapore bands lifted ~30–50% in 2026 so typical estimates sit closer to current market pay."
+  },
+  "country_aliases": {
+    "usa": ["united states", "united states of america", "us"],
+    "hong kong": ["hk", "hong kong sar"],
+    "vietnam": ["viet nam"],
+    "philippines": ["the philippines"],
+    "germany": ["de", "deutschland"]
+  },
+  "countries": [
+    {"id": "australia", "label": "Australia", "currency": "AUD"},
+    {"id": "germany", "label": "Germany", "currency": "EUR"},
+    {"id": "hong kong", "label": "Hong Kong", "currency": "HKD"},
+    {"id": "malaysia", "label": "Malaysia", "currency": "MYR"},
+    {"id": "philippines", "label": "Philippines", "currency": "PHP"},
+    {"id": "singapore", "label": "Singapore", "currency": "SGD"},
+    {"id": "thailand", "label": "Thailand", "currency": "THB"},
+    {"id": "usa", "label": "United States", "currency": "USD"},
+    {"id": "vietnam", "label": "Vietnam", "currency": "VND"}
+  ],
+  "prompt_order": [
+    "nurse",
+    "teacher",
+    "accountant",
+    "marketing_manager",
+    "software_engineer",
+    "doctor",
+    "investment_banker",
+    "ceo"
+  ],
+  "prompt": {
+    "intro": [
+      "Use these Singapore monthly GROSS bands as a scale. They reflect public salary",
+      "references such as Glassdoor-style market ranges and local pay scales for a",
+      "typical jobholder — not listed-company packages:"
+    ],
+    "unmatched": [
+      "If the occupation is not listed (for example baker, barista, driver, retail",
+      "assistant), place it relative to the nearest band. A baker is closer to nurse",
+      "or teacher than to software engineer.",
+      "When local-currency bands for this person's country are listed below, use those",
+      "figures. Otherwise keep this ranking and convert for cost of living.",
+      "Predict a well-compensated typical person in a typical firm. Do not use",
+      "national-champion or listed-bank CEO total compensation."
+    ]
+  },
+  "occupations": [
+    {
+      "id": "teacher",
+      "label": "Teacher / educator",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["teacher", "educator"] },
+      "bounds": {
+        "australia": { "min": 6300, "max": 9500 },
+        "germany": { "min": 4000, "max": 6500 },
+        "hong kong": { "min": 25000, "max": 45000 },
+        "malaysia": { "min": 3000, "max": 6000 },
+        "philippines": { "min": 30000, "max": 55000 },
+        "singapore": { "min": 5600, "max": 9800 },
+        "thailand": { "min": 18000, "max": 40000 },
+        "usa": { "min": 4000, "max": 7000 },
+        "vietnam": { "min": 8000000, "max": 18000000 }
+      }
+    },
+    {
+      "id": "software_engineer",
+      "label": "Software engineer",
+      "include_in_prompt": true,
+      "match": { "all_groups": [["software"], ["engineer", "developer"]] },
+      "bounds": {
+        "australia": { "min": 8000, "max": 14000 },
+        "germany": { "min": 4500, "max": 10000 },
+        "hong kong": { "min": 25000, "max": 60000 },
+        "malaysia": { "min": 4000, "max": 12000 },
+        "philippines": { "min": 35000, "max": 110000 },
+        "singapore": { "min": 7500, "max": 18000 },
+        "thailand": { "min": 35000, "max": 100000 },
+        "usa": { "min": 7000, "max": 14000 },
+        "vietnam": { "min": 18000000, "max": 55000000 }
+      },
+      "city_overrides": [
+        { "country": "usa", "city_contains": "san francisco", "min": 10000, "max": 18000 }
+      ]
+    },
+    {
+      "id": "investment_banker",
+      "label": "Investment banker / finance director",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["investment banker", "finance director"] },
+      "bounds": {
+        "australia": { "min": 10000, "max": 22000 },
+        "germany": { "min": 7000, "max": 16000 },
+        "hong kong": { "min": 50000, "max": 120000 },
+        "malaysia": { "min": 10000, "max": 25000 },
+        "philippines": { "min": 60000, "max": 150000 },
+        "singapore": { "min": 11200, "max": 28000 },
+        "thailand": { "min": 60000, "max": 150000 },
+        "usa": { "min": 10000, "max": 25000 },
+        "vietnam": { "min": 25000000, "max": 70000000 }
+      },
+      "city_overrides": [
+        { "country": "usa", "city_contains": "new york", "min": 12000, "max": 30000 }
+      ]
+    },
+    {
+      "id": "marketing_manager",
+      "label": "Marketing manager",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["marketing manager"] },
+      "bounds": {
+        "australia": { "min": 7000, "max": 12000 },
+        "germany": { "min": 4200, "max": 8000 },
+        "hong kong": { "min": 35000, "max": 70000 },
+        "malaysia": { "min": 5500, "max": 12000 },
+        "philippines": { "min": 40000, "max": 80000 },
+        "singapore": { "min": 7000, "max": 14000 },
+        "thailand": { "min": 40000, "max": 100000 },
+        "usa": { "min": 7000, "max": 14000 },
+        "vietnam": { "min": 20000000, "max": 50000000 }
+      }
+    },
+    {
+      "id": "doctor",
+      "label": "Doctor / physician",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["doctor", "physician", "general practitioner"] },
+      "bounds": {
+        "australia": { "min": 15000, "max": 30000 },
+        "germany": { "min": 6000, "max": 13000 },
+        "hong kong": { "min": 50000, "max": 150000 },
+        "malaysia": { "min": 5000, "max": 18000 },
+        "philippines": { "min": 40000, "max": 150000 },
+        "singapore": { "min": 10400, "max": 26000 },
+        "thailand": { "min": 80000, "max": 200000 },
+        "usa": { "min": 12000, "max": 28000 },
+        "vietnam": { "min": 15000000, "max": 60000000 }
+      }
+    },
+    {
+      "id": "nurse",
+      "label": "Nurse",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["nurse"] },
+      "bounds": {
+        "australia": { "min": 5500, "max": 9500 },
+        "germany": { "min": 3200, "max": 4600 },
+        "hong kong": { "min": 25000, "max": 50000 },
+        "malaysia": { "min": 3000, "max": 6500 },
+        "philippines": { "min": 20000, "max": 45000 },
+        "singapore": { "min": 4200, "max": 8400 },
+        "thailand": { "min": 25000, "max": 55000 },
+        "usa": { "min": 5500, "max": 9000 },
+        "vietnam": { "min": 8000000, "max": 18000000 }
+      }
+    },
+    {
+      "id": "accountant",
+      "label": "Accountant",
+      "include_in_prompt": true,
+      "match": { "any_substring": ["accountant"] },
+      "bounds": {
+        "australia": { "min": 5500, "max": 10000 },
+        "germany": { "min": 3500, "max": 6500 },
+        "hong kong": { "min": 22000, "max": 50000 },
+        "malaysia": { "min": 3000, "max": 8000 },
+        "philippines": { "min": 25000, "max": 60000 },
+        "singapore": { "min": 5600, "max": 11200 },
+        "thailand": { "min": 25000, "max": 80000 },
+        "usa": { "min": 5000, "max": 9000 },
+        "vietnam": { "min": 12000000, "max": 28000000 }
+      }
+    },
+    {
+      "id": "ceo",
+      "label": "CEO / managing director of a typical firm",
+      "include_in_prompt": true,
+      "match": {
+        "regex": ["\\bceo\\b"],
+        "any_substring": ["chief executive", "managing director"]
+      },
+      "bounds": {
+        "australia": { "min": 15000, "max": 32000 },
+        "germany": { "min": 10000, "max": 25000 },
+        "hong kong": { "min": 80000, "max": 200000 },
+        "malaysia": { "min": 10000, "max": 30000 },
+        "philippines": { "min": 150000, "max": 500000 },
+        "singapore": { "min": 16800, "max": 42000 },
+        "thailand": { "min": 80000, "max": 250000 },
+        "usa": { "min": 12000, "max": 35000 },
+        "vietnam": { "min": 40000000, "max": 120000000 }
+      }
+    }
+  ]
+}

@@ -289,7 +289,7 @@ export const EMPTY_SESSION: GpSession = {
   investOn: true,
   investMth: 0,
   investLump: 0,
-  investRet: 7.2,
+  investRet: 4.2,
   lifeSum: 0,
   lifePrem: 0,
   criOn: false,
@@ -399,6 +399,16 @@ export function employeeCpfMonthly(
 
 export function takeHomeMonthly(s: Pick<GpSession, 'incomeMonthly' | 'residency' | 'age'>): number {
   return Math.max(0, (s.incomeMonthly || 0) - employeeCpfMonthly(s));
+}
+
+/** 0 dependants → 67.5% of take-home; +5pp each; cap 90%. */
+export function spendShare(dependents: number): number {
+  const deps = Math.max(0, Math.floor(dependents || 0));
+  return Math.min(0.675 + 0.05 * deps, 0.9);
+}
+
+export function spendSharePct(dependents: number): number {
+  return Math.round(spendShare(dependents) * 1000) / 10;
 }
 
 export function availableBudget(s: Pick<GpSession, 'incomeMonthly' | 'expenseMonthly' | 'residency' | 'age'>): number {

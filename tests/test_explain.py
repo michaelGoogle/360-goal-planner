@@ -24,6 +24,10 @@ def test_prompt_files_exist_and_load():
     assert "incomeMonthly" in money
     assert "Glassdoor" in money
     assert prompt_filename("prod", None) == "products.md"
+    assert prompt_filename("needs", None) == "needs.md"
+    needs = load_prompt("needs", "d2cScore")
+    assert "goals and needs" in needs.lower()
+    assert "do not talk about a plan" in needs.lower()
 
 
 def test_explain_fallback_without_key(monkeypatch):
@@ -76,6 +80,37 @@ def test_explain_intro_fallback(monkeypatch):
     assert "predict" in text.lower()
     assert "statement" in text.lower()
     assert "estimate" not in text.lower()
+
+
+def test_explain_needs_fallback(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    client = TestClient(api)
+    r = client.post(
+        "/v1/explain",
+        json={
+            "kind": "needs",
+            "route": "d2cScore",
+            "context": {
+                "you": {"firstName": "Michael"},
+                "needs": [
+                    {"type": "N_RET", "label": "Retirement", "enabled": True, "gap": 3_000_000, "have": 200_000, "need": 3_200_000},
+                    {"type": "N_SAV", "label": "Savings goal", "enabled": True, "gap": 0, "have": 50_000, "need": 50_000},
+                    {"type": "N_EDU", "label": "Child’s university education", "enabled": False, "gap": 80_000},
+                ],
+            },
+        },
+    )
+    assert r.status_code == 200
+    text = r.json()["text"].lower()
+    assert r.json()["source"] == "fallback"
+    assert "people like michael" in text
+    assert "retirement" in text
+    assert "savings goal" in text
+    assert "fully funded" in text
+    assert "largest gap" in text
+    assert "plan" not in text
+    assert "happiu" not in text
 
 
 def test_explain_uses_llm_when_configured(monkeypatch):

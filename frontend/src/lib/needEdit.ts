@@ -222,8 +222,8 @@ export function moneyMax(base: number, floor: number): number {
 
 /** Singapore-reasonable floors for Money-page figure sliders. Max is moneyMax(value at open, floor). */
 export const MONEY_FIELD_SLIDER: Record<string, { floor: number; step: number; perMonth?: boolean }> = {
-  income: { floor: 20_000, step: 500, perMonth: true },
-  expense: { floor: 15_000, step: 500, perMonth: true },
+  income: { floor: 20_000, step: 100, perMonth: true },
+  expense: { floor: 15_000, step: 100, perMonth: true },
   savings: { floor: 500_000, step: 10_000 },
   property: { floor: 2_000_000, step: 50_000 },
   loans: { floor: 1_000_000, step: 25_000 },
