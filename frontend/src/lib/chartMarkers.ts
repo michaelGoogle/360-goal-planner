@@ -72,10 +72,9 @@ export function extractSessionMarkers(session: GpSession): ChartMarker[] {
       draggable = false;
     }
 
-    const hoverLines = [NEED_META[n.type].label, `Type: ${n.type}`];
+    const hoverLines = [NEED_META[n.type].label];
     if (n.needAmount) hoverLines.push(`Target: ${money(n.needAmount)}`);
     if (n.type === 'N_RET') hoverLines.push(`Retirement age: ${x}`);
-    if (draggable) hoverLines.push('Drag to move · release to recalculate');
 
     markers.push({
       kind: 'need',
@@ -97,7 +96,7 @@ export function extractSessionMarkers(session: GpSession): ChartMarker[] {
       icon: '🏖️',
       x: ret,
       draggable: true,
-      hoverLines: ['Retirement', `Retirement age: ${ret}`, 'Drag to move · release to recalculate'],
+      hoverLines: ['Retirement', `Retirement age: ${ret}`],
     });
   }
 
@@ -114,7 +113,7 @@ export function extractSessionMarkers(session: GpSession): ChartMarker[] {
       x,
       xEnd,
       draggable: true,
-      hoverLines: [ev.label, `Event: ${ev.label}`, 'Drag to move · release to recalculate'],
+      hoverLines: [ev.label],
     });
   }
 

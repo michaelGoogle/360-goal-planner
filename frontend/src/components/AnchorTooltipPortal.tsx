@@ -44,17 +44,14 @@ export function AnchorTooltipPortal({
       if (!anchor || !tip) return;
 
       const ar = anchor.getBoundingClientRect();
+      if (ar.width < 1 && ar.height < 1) return;
+
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const maxW = vw - VIEWPORT_PAD * 2;
-
       tip.style.maxWidth = `${maxW}px`;
-      tip.style.left = '0px';
-      tip.style.top = '0px';
-
-      const tr = tip.getBoundingClientRect();
-      const width = tr.width;
-      const height = tr.height;
+      const width = tip.offsetWidth;
+      const height = tip.offsetHeight;
 
       let left = ar.left + ar.width / 2 - width / 2;
       left = clamp(left, VIEWPORT_PAD, Math.max(VIEWPORT_PAD, vw - VIEWPORT_PAD - width));

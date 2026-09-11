@@ -31,28 +31,19 @@ function MarkerHoverTooltip({
   isWarning: boolean;
   canDrag: boolean;
 }) {
+  const [title, ...detail] = marker.hoverLines;
   return (
     <AnchorTooltipPortal
       anchorRef={anchorRef}
       open
-      className="pointer-events-none min-w-[12rem] max-w-[18rem] px-2.5 py-2 rounded-md text-left bg-[#1a243c] text-white text-sm leading-snug shadow-lg border border-[#26314f]"
+      className={`x-markertip${isWarning ? ' warn' : ''}`}
     >
-      {marker.hoverLines.map((line, i) => (
-        <div
-          key={i}
-          className={
-            i === 0
-              ? `font-semibold mb-0.5 ${isWarning ? 'text-red-300' : 'text-orange-200'}`
-              : 'text-[#c7d0ea]'
-          }
-        >
-          {line}
-        </div>
+      <b>{title}</b>
+      {detail.map(line => (
+        <p key={line}>{line}</p>
       ))}
       {!isWarning && (
-        <div className="mt-1 text-sm text-[#8b97b8]">
-          Click to edit · {canDrag ? 'drag to move' : 'fixed on timeline'}
-        </div>
+        <p className="m">Click to edit · {canDrag ? 'drag to move' : 'fixed on timeline'}</p>
       )}
     </AnchorTooltipPortal>
   );
@@ -110,6 +101,7 @@ function MarkerRailItem({
         onMouseDown={e => {
           e.preventDefault();
           e.stopPropagation();
+          setHoverId(null);
           if (isWarning) return;
           dragRef.current = {
             key: markerKey,
@@ -148,7 +140,7 @@ function MarkerRailItem({
         </span>
       </button>
 
-      {isHover && (
+      {isHover && !isDrag && (
         <MarkerHoverTooltip
           anchorRef={anchorRef}
           marker={marker}
@@ -228,6 +220,7 @@ export function MarkerRail({
       if (!d) return;
       dragRef.current = null;
       setDraggingId(null);
+      setHoverId(null);
       if (d.moved && d.marker.draggable && !disabled) {
         onDragEnd(d.marker, d.x);
       } else {
