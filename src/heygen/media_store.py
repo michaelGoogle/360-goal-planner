@@ -11,6 +11,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 DUMMY_VIDEO_ID = "generic-walkthrough"
+_WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 
 
 class StoreError(RuntimeError):
@@ -18,12 +19,32 @@ class StoreError(RuntimeError):
 
 
 def media_dir() -> Path | None:
-    raw = (os.environ.get("MEDIA_DIR") or "").strip()
-    return Path(raw) if raw else None
+    raw = (os.environ.get("MEDIA_DIR") or os.environ.get("MEDIA_HOST_DIR") or "").strip()
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        path = (_WORKSPACE_ROOT / path).resolve()
+    return path
 
 
 def public_base() -> str:
     return (os.environ.get("MEDIA_PUBLIC_BASE_URL") or "").rstrip("/")
+
+
+def require_media() -> tuple[Path, str]:
+    root = media_dir()
+    base = public_base()
+    if root is None:
+        raise StoreError("MEDIA_DIR is required")
+    if not base:
+        raise StoreError("MEDIA_PUBLIC_BASE_URL is required")
+    return root, base
+
+
+def gp_public_url(short_id: str, ext: str) -> str:
+    _, base = require_media()
+    return f"{base}/gp/{short_id}.{ext.lstrip('.')}"
 
 
 def dummy_media_url() -> str:
@@ -32,15 +53,12 @@ def dummy_media_url() -> str:
     return f"{base}/gp/{DUMMY_VIDEO_ID}.mp4" if base else ""
 
 
-def save_mp4(heygen_url: str, short_id: str) -> str | None:
-    """Write ``gp/{id}.mp4``. Return public URL, or None if MEDIA_DIR is unset.
+def save_mp4(heygen_url: str, short_id: str) -> str:
+    """Write ``gp/{id}.mp4``. Return the public media URL.
 
-    Raises StoreError when MEDIA_DIR is set but the write fails.
+    Raises StoreError when MEDIA_DIR / MEDIA_PUBLIC_BASE_URL is missing or the write fails.
     """
-    root = media_dir()
-    if root is None:
-        logger.info("MEDIA_DIR unset — skip local store, caller may use HeyGen URL")
-        return None
+    root, base = require_media()
     dest_dir = root / "gp"
     dest = dest_dir / f"{short_id}.mp4"
     try:
@@ -58,10 +76,26 @@ def save_mp4(heygen_url: str, short_id: str) -> str | None:
         raise
     except Exception as exc:
         raise StoreError(f"could not write {dest}: {exc}") from exc
-
-    base = public_base()
-    if not base:
-        raise StoreError("MEDIA_PUBLIC_BASE_URL is required when MEDIA_DIR is set")
     url = f"{base}/gp/{short_id}.mp4"
     logger.info("Stored report video at %s", url)
+    return url
+
+
+def save_html(body: str, short_id: str) -> str:
+    """Write ``gp/{id}.html``. Return the public media URL."""
+    root, base = require_media()
+    dest_dir = root / "gp"
+    dest = dest_dir / f"{short_id}.html"
+    try:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest.write_text(body, encoding="utf-8")
+        if dest.stat().st_size < 40:
+            dest.unlink(missing_ok=True)
+            raise StoreError("report html is empty")
+    except StoreError:
+        raise
+    except Exception as exc:
+        raise StoreError(f"could not write {dest}: {exc}") from exc
+    url = f"{base}/gp/{short_id}.html"
+    logger.info("Stored report html at %s", url)
     return url

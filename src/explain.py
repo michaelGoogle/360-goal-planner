@@ -129,24 +129,24 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
     if kind == "mira" and route == "d2cIntro":
         return (
             "Hello, I am Mira. I will walk you through this if you would like me to. "
-            "This takes about three minutes. You tell us a little about yourself. We predict "
-            "where you stand today from people like you — unless you type the figures or add "
-            "a statement, in which case we use those instead. Then you see how far what you "
-            "already have goes toward the goals that matter — income if you could not work, "
-            "retirement, family — and a year-by-year picture you can test. There is no "
-            "sign-up and we do not ask for an identity number. Press Start my plan when you "
-            "are ready."
+            "The whole plan takes about three minutes — that is the point. You tell us a little "
+            "about yourself. We predict where you stand today from people like you — unless you "
+            "type the figures or add a statement, in which case we use those instead. Then you see "
+            "how far what you already have goes toward the goals that matter — income if you could "
+            "not work, retirement, family — and a year-by-year picture you can test. There is no "
+            "sign-up and we do not ask for an identity number. Press Start my plan when you are "
+            "ready."
         )
     if kind == "intro":
         return (
-            "FinPlan360 is a goal planner. In about three minutes it shows how ready you are "
-            "for the life you want. You tell us a little about yourself. We predict where you "
-            "stand today from people like you — income, spending, savings, cover. If you type "
-            "your own figures or add a statement, we use those instead of the prediction. "
-            "Then we size the goals that actually matter — income if you could not work, "
-            "retirement, family — against what you already have. You leave with the gaps, "
-            "and a year-by-year picture of your wealth you can test. There is no sign-up and "
-            "we do not ask for an identity number. Press Start my plan when you are ready."
+            "FinPlan360 is a goal planner. The wow is that it takes about three minutes to see "
+            "how ready you are for the life you want. You tell us a little about yourself. We "
+            "predict where you stand today from people like you — income, spending, Cash & Savings, "
+            "investments, cover. If you type your own figures or add a statement, we use those "
+            "instead of the prediction. Then we size the goals that actually matter — income if "
+            "you could not work, retirement, family — against what you already have. You leave "
+            "with the gaps, and a year-by-year picture of your wealth you can test. There is no "
+            "sign-up and we do not ask for an identity number. Press Start my plan when you are ready."
         )
     if kind == "mira" and route == "d2cAbout":
         missing = context.get("missing") if isinstance(context.get("missing"), list) else []

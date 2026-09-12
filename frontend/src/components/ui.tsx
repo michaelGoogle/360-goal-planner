@@ -228,31 +228,25 @@ export function NarrBtn({
   label,
   ariaLabel,
   on,
+  paused,
   onClick,
 }: {
   label: ReactNode;
   ariaLabel?: string;
   on?: boolean;
+  paused?: boolean;
   onClick: () => void;
 }) {
+  const playing = !!on && !paused;
   return (
     <button
-      className={`x-play ${on ? 'on' : ''}`}
+      className={`x-play ${on ? 'on' : ''}${paused ? ' paused' : ''}`}
       type="button"
       onClick={onClick}
       aria-pressed={!!on}
       aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
     >
-      {on ? (
-        <span className="eq">
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-      ) : (
-        Ico.play
-      )}
+      {playing ? Ico.pause : Ico.play}
       {label}
     </button>
   );

@@ -8,6 +8,7 @@ import {
   clampCoverToCaps,
   clampPlanToCaps,
   coverSliderCaps,
+  planAfford,
   planCoverPrem,
   planCoverSum,
   planIncluded,
@@ -26,6 +27,21 @@ import { investRetFromReturn, returnFromInvestRet } from '../../lib/assumptions'
 import { money, NEED_META, type GpSession, type NeedType } from '../../lib/types';
 
 export { sizedCover } from '../../lib/planProducts';
+
+function PlanAffordWarn({ session }: { session: GpSession }) {
+  const a = planAfford(session);
+  const bits: string[] = [];
+  if (a.monthlyOver > 0) {
+    bits.push(`This plan is ${money(a.monthlyOver)}/mo over your free monthly budget.`);
+  }
+  if (a.lumpOver > 0) {
+    bits.push(
+      `Lump sums are ${money(a.lumpOver)} over your investments. Cash & Savings is not used for this check.`,
+    );
+  }
+  if (!bits.length) return null;
+  return <p className="x-affwarn">{bits.join(' ')}</p>;
+}
 
 export function coverOn(session: GpSession, type: NeedType) {
   return planIncluded(session, type);
@@ -238,6 +254,7 @@ export function ProtectPlanCard({
             value={prem}
             onChange={v => onChange(setPlanCoverPatch(session, type, { prem: v }))}
           />
+          <PlanAffordWarn session={session} />
         </div>
       ) : null}
       <NeedShortfallBar
@@ -344,6 +361,7 @@ export function GrowthPlanCard({
               });
             }}
           />
+          <PlanAffordWarn session={session} />
         </div>
       ) : null}
       <NeedShortfallBar

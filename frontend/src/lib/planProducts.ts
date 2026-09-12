@@ -1,5 +1,5 @@
 import { fillNeedEdit, fv, fvAnnuity, needCardGap, needCardHave, nowYear } from './needEdit';
-import { liquid, NEED_META, NEED_TYPES, availableBudget, sessionAge, type GpSession, type NeedRow, type NeedType } from './types';
+import { NEED_META, NEED_TYPES, availableBudget, sessionAge, type GpSession, type NeedRow, type NeedType } from './types';
 
 export const PLAN_FOR_NEED: Record<NeedType, string> = {
   N_INC: 'Life cover',
@@ -295,7 +295,7 @@ export function planAfford(session: GpSession) {
   const premMth = premYr / 12;
   const contribMth = investMthFromPlans(session);
   const monthly = Math.round(contribMth + premMth);
-  const savings = liquid(session);
+  const investments = session.investments || 0;
   const lumps = investLumpFromPlans(session);
   return {
     available,
@@ -305,8 +305,9 @@ export function planAfford(session: GpSession) {
     contribMth,
     monthly,
     monthlyOver: monthly - free,
-    savings,
+    savings: investments,
+    investments,
     lumps,
-    lumpOver: lumps - savings,
+    lumpOver: lumps - investments,
   };
 }

@@ -90,11 +90,23 @@ export const TIPS: Record<string, { title: string; body: ReactNode | ((s: GpSess
     ),
   },
   savings: {
-    title: 'Savings & investments · today',
+    title: 'Cash & Savings · today',
     body: (
       <>
-        <p>Cash, deposits, shares and funds — anything you could reach if you had to. A balance, not a monthly amount.</p>
-        <p className="m">Not CPF: that is projected separately from your own contributions. Not property either — that has its own line.</p>
+        <p>
+          Short-term liquidity: cash at bank, deposits, and other money you could reach quickly. A balance, not a
+          monthly amount. Grows more slowly than investments.
+        </p>
+        <p className="m">Not CPF: that is projected separately. Not property — that has its own line. Not funds or ETFs — those sit under Investments.</p>
+      </>
+    ),
+  },
+  investments: {
+    title: 'Investments · today',
+    body: (
+      <>
+        <p>Longer-term holdings — typically over five years: mutual funds, ETFs, shares, and similar. A balance, not a monthly amount.</p>
+        <p className="m">Cash, deposits, and endowments sit under Cash &amp; Savings. CPF and property have their own lines.</p>
       </>
     ),
   },
@@ -161,7 +173,8 @@ export const TIPS: Record<string, { title: string; body: ReactNode | ((s: GpSess
 export const EDIT_HINT: Record<string, string> = {
   income: 'Gross, before your own CPF, including a twelfth of any bonus.',
   expense: 'Spend including your CPF contribution.',
-  savings: 'Cash, deposits, shares and funds. Not CPF, not property.',
+  savings: 'Cash, deposits and other short-term liquidity. Not investments, CPF, or property.',
+  investments: 'Funds, ETFs and other longer-term holdings. Not Cash & Savings, CPF, or property.',
   property: 'What it would sell for today, not what you paid.',
   loans: 'Everything still outstanding, mortgage included.',
 };

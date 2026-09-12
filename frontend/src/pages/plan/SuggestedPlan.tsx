@@ -54,10 +54,10 @@ function PlanAffordPanel({ session }: { session: GpSession }) {
         />
       </div>
       <div className="x-prod-fitg x-prod-sav">
-        <FitRow label="Savings & investments" value={money(a.savings)} kind="hi" />
+        <FitRow label="Investments" value={money(a.investments ?? a.savings)} kind="hi" />
         <FitRow label="Plan lump sums" value={money(a.lumps)} />
         <FitRow
-          label={lumpOver ? 'Over savings & investments' : 'Within savings & investments'}
+          label={lumpOver ? 'Over investments' : 'Within investments'}
           value={lumpOver ? money(a.lumpOver) : 'Fits'}
           kind={lumpOver ? 'no' : 'ok'}
         />
@@ -78,6 +78,7 @@ export function SuggestedPlan({
   onChange,
   onToggleExtra,
   narrKind,
+  narrPaused,
   onNarr,
   mixRef,
   gapRef,
@@ -94,6 +95,7 @@ export function SuggestedPlan({
   onChange: (p: Partial<GpSession>) => void;
   onToggleExtra: (k: ExtraNeed) => void;
   narrKind: string | null;
+  narrPaused?: boolean;
   onNarr: (kind: ExplainKind) => void;
   mixRef?: RefObject<HTMLDivElement | null>;
   gapRef?: RefObject<HTMLButtonElement | null>;
@@ -181,6 +183,7 @@ export function SuggestedPlan({
           <NarrBtn
             label="Explain plan's benefits"
             on={narrKind === 'prod'}
+            paused={narrPaused}
             onClick={() => onNarr('prod')}
           />
         ) : null}
@@ -259,6 +262,7 @@ export function SuggestedPlan({
           <NarrBtn
             label="Explain plan's benefits"
             on={narrKind === 'prod'}
+            paused={narrPaused}
             onClick={() => onNarr('prod')}
           />
         </div>

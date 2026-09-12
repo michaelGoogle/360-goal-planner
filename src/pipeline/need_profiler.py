@@ -19,7 +19,46 @@ from src.pipeline.onboarding import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TOP_N = 5
+DEFAULT_TOP_N = 4
+MANDATORY_UNIFIED = ("N_RET",)
+PROTECTION_UNIFIED = ("N_INC", "N_CRI", "N_TPD")
+GROWTH_UNIFIED = ("N_RET", "N_EDU", "N_SAV", "N_PRP")
+GROUP_N = 2
+
+
+def select_unified_top(
+    ranked: list[dict[str, Any]],
+    top_n: int = DEFAULT_TOP_N,
+    *,
+    mandatory: tuple[str, ...] = MANDATORY_UNIFIED,
+) -> list[str]:
+    """Two wealth-protection and two wealth-growth types. Retirement is always one of the growth pair."""
+    _ = (top_n, mandatory)
+    ranked_uts: list[str] = []
+    for need in ranked:
+        ut = need.get("unifiedType")
+        if ut and ut not in ranked_uts:
+            ranked_uts.append(ut)
+    prot: list[str] = []
+    grow: list[str] = ["N_RET"]
+    for ut in ranked_uts:
+        if ut in PROTECTION_UNIFIED and ut not in prot and len(prot) < GROUP_N:
+            prot.append(ut)
+        elif ut in GROWTH_UNIFIED and ut not in grow and len(grow) < GROUP_N:
+            grow.append(ut)
+        if len(prot) >= GROUP_N and len(grow) >= GROUP_N:
+            break
+    for ut in PROTECTION_UNIFIED:
+        if len(prot) >= GROUP_N:
+            break
+        if ut not in prot:
+            prot.append(ut)
+    for ut in GROWTH_UNIFIED:
+        if len(grow) >= GROUP_N:
+            break
+        if ut not in grow:
+            grow.append(ut)
+    return prot[:GROUP_N] + grow[:GROUP_N]
 
 
 def load_needs_config() -> dict[str, Any]:
@@ -295,15 +334,7 @@ def apply_top_needs_to_onboarding(
     Enable UNIFIED needs corresponding to the top-N ranked AI needs (mapped only).
     Disable other UNIFIED types. Preserve existing needAmount values.
     """
-    mapped_unified: list[str] = []
-    for need in ranked:
-        ut = need.get("unifiedType")
-        if ut and ut not in mapped_unified:
-            mapped_unified.append(ut)
-        if len(mapped_unified) >= top_n:
-            break
-
-    enable_set = set(mapped_unified)
+    enable_set = set(select_unified_top(ranked, top_n))
     for ut, row in needs_map.items():
         row = dict(row)
         row["enabled"] = ut in enable_set

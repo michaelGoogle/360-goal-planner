@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from src.heygen.agent import GenerateError, heygen_configured, start_video_generation, wait_for_url
-from src.heygen.media_store import DUMMY_VIDEO_ID, dummy_media_url, save_mp4
+from src.heygen.media_store import DUMMY_VIDEO_ID, save_mp4
 from src.heygen.prompt import build_dummy_spoken_script
 
 logger = logging.getLogger(__name__)
@@ -31,4 +31,4 @@ def produce_dummy_walkthrough() -> str:
     if status != "completed" or not heygen_url:
         raise DummyProduceError(f"HeyGen ended {status or 'failed'}")
     media_url = save_mp4(heygen_url, DUMMY_VIDEO_ID)
-    return media_url or dummy_media_url() or heygen_url
+    return media_url

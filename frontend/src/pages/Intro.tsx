@@ -3,10 +3,12 @@ import { NarrBtn } from '../components/ui';
 
 export function Intro({
   narrOn,
+  narrPaused,
   onNarr,
   onStart,
 }: {
   narrOn: boolean;
+  narrPaused?: boolean;
   onNarr: () => void;
   onStart: () => void;
 }) {
@@ -33,11 +35,16 @@ export function Intro({
             test.
           </div>
           <div className="x-hero-cta">
-            <button className="x-cta" type="button" onClick={onStart}>
-              Start my plan
-            </button>
-            <div className="x-sm">3 minutes · no sign-up · no identity number</div>
-            <NarrBtn label="Hear what you get" on={narrOn} onClick={onNarr} />
+            <div className="x-hero-act">
+              <button className="x-cta" type="button" onClick={onStart}>
+                Start my plan
+              </button>
+              <div className="x-hero-wow">
+                <span>Your plan in 3 min.</span>
+                <span className="x-hero-wow-rest">No sign up. No mobile number.</span>
+              </div>
+            </div>
+            <NarrBtn label="Hear what you get" on={narrOn} paused={narrPaused} onClick={onNarr} />
           </div>
         </div>
         <div className="x-hero-visual">

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import threading
@@ -54,6 +55,10 @@ def _connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(_SCHEMA)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(video_jobs)")}
+    for name, spec in (("session_json", "TEXT"), ("happi_pre", "REAL"), ("happi_post", "REAL")):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE video_jobs ADD COLUMN {name} {spec}")
     return conn
 
 
@@ -68,15 +73,30 @@ def insert_job(
     mobile: str,
     first_name: str,
     prompt: str,
+    session: dict[str, Any] | None = None,
+    pre: float | None = None,
+    post: float | None = None,
 ) -> None:
     now = _now()
     with _LOCK:
         conn = _connect()
         try:
             conn.execute(
-                "INSERT INTO video_jobs (id, email, mobile, first_name, prompt, status, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)",
-                (job_id, email, mobile, first_name, prompt, now, now),
+                "INSERT INTO video_jobs (id, email, mobile, first_name, prompt, status, "
+                "session_json, happi_pre, happi_post, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)",
+                (
+                    job_id,
+                    email,
+                    mobile,
+                    first_name,
+                    prompt,
+                    json.dumps(session or {}),
+                    pre,
+                    post,
+                    now,
+                    now,
+                ),
             )
             conn.commit()
         finally:
@@ -128,6 +148,9 @@ def reset_job(
     mobile: str,
     first_name: str,
     prompt: str,
+    session: dict[str, Any] | None = None,
+    pre: float | None = None,
+    post: float | None = None,
 ) -> None:
     update_job(
         job_id,
@@ -135,6 +158,9 @@ def reset_job(
         mobile=mobile,
         first_name=first_name,
         prompt=prompt,
+        session_json=json.dumps(session or {}),
+        happi_pre=pre,
+        happi_post=post,
         heygen_id="",
         heygen_url="",
         media_url="",

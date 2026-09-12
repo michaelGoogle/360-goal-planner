@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HappiUGauge } from '../../components/HappiUGauge';
 import { EqPie, GroupTag } from '../../components/ui';
 import { Ico } from '../../lib/icons';
@@ -31,6 +31,32 @@ import {
   rnum,
 } from './reportModel';
 import { planAfford } from '../../lib/planProducts';
+
+const REPORT_JUMP = [
+  ['rpt-video', 'Video'],
+  ['rpt-about', 'About you'],
+  ['rpt-money', 'Your money'],
+  ['rpt-goals', 'Your goals'],
+  ['rpt-score', 'Your score'],
+  ['rpt-plan', 'Your plan'],
+] as const;
+
+function ReportSec({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <details id={id} className="x-rpt-sec" open>
+      <summary>{title}</summary>
+      {children}
+    </details>
+  );
+}
 
 export function PlanReport({
   session,
@@ -69,7 +95,7 @@ export function PlanReport({
   const assume = changedAssumptions(session);
   const eventsOn = session.events.filter(e => e.on);
   const extras = EXTRA_NEEDS.filter(x => session.extraNeeds.includes(x.k));
-  const moneyKeys = ['income', 'expense', 'savings', 'property', 'loans', 'cover'] as const;
+  const moneyKeys = ['income', 'expense', 'cash', 'investments', 'property', 'loans', 'cover'] as const;
   const mInc = session.incomeMonthly;
   const surplus = availableBudget(session);
   const net = netWealth(session);
@@ -153,12 +179,12 @@ export function PlanReport({
   return (
     <div className="x-report-ov" role="dialog" aria-modal="true" aria-labelledby="x-rpt-title">
       <div className="x-report-bar">
-        <button className="x-btn g" type="button" onClick={onClose}>
-          Close
-        </button>
         <span className="sp" />
         <button className="x-assumb" type="button" onClick={onShare}>
           {Ico.share}Share report
+        </button>
+        <button className="x-btn g" type="button" onClick={onClose}>
+          {Ico.close} Close
         </button>
       </div>
 
@@ -172,35 +198,41 @@ export function PlanReport({
           </p>
           <div className="x-rpt-scores">
             <div className="x-rpt-gauge">
-              <span>With this plan</span>
+              <span>Your new HappiU Score</span>
               <HappiUGauge value={score} size={200} showBand={false} />
             </div>
             <div className="x-rpt-score-side">
               {lift != null && lift !== 0 ? (
-                <div>
-                  <span>HappiU uplift</span>
-                  <b className="x-rpt-lift" style={{ color: lift > 0 ? HAPPI_COL.GOOD : HAPPI_COL.POOR }}>
-                    {lift > 0 ? `+${lift}` : lift}
-                  </b>
-                </div>
+                <b className="x-rpt-lift" style={{ color: lift > 0 ? HAPPI_COL.GOOD : HAPPI_COL.POOR }}>
+                  {lift > 0 ? `+${lift}` : lift}
+                </b>
               ) : null}
-              <p className="x-scorecap" style={{ color: HAPPI_COL[band] }}>
-                {liftCopy}
+              <p className="x-scorecap" style={{ color: HAPPI_COL[band], textAlign: 'left' }}>
+                {lift != null && lift !== 0 ? `uplift. ${liftCopy}` : liftCopy}
               </p>
             </div>
           </div>
         </header>
 
-        <ReportWalkthrough
-          who={who}
-          dummyUrl={dummyUrl}
-          mediaUrl={session.reportMediaUrl || ''}
-          status={videoStatus}
-        />
-        <ReportWalkthroughStill who={who} />
+        <nav className="x-rpt-jump" aria-label="Jump to report section">
+          {REPORT_JUMP.map(([id, label]) => (
+            <a key={id} href={`#${id}`}>
+              {label}
+            </a>
+          ))}
+        </nav>
 
-        <section className="x-rpt-sec">
-          <h2>About you</h2>
+        <div id="rpt-video">
+          <ReportWalkthrough
+            who={who}
+            dummyUrl={dummyUrl}
+            mediaUrl={session.reportMediaUrl || ''}
+            status={videoStatus}
+          />
+          <ReportWalkthroughStill who={who} />
+        </div>
+
+        <ReportSec id="rpt-about" title="About you">
           <dl className="x-rpt-dl">
             <div><dt>Name</dt><dd>{session.name.trim() || '—'}</dd></div>
             <div><dt>Age</dt><dd>{age ?? '—'}</dd></div>
@@ -209,10 +241,9 @@ export function PlanReport({
             <div><dt>Dependants</dt><dd>{session.dependents}</dd></div>
             <div><dt>Retire at</dt><dd>{session.ageOfRetirement}</dd></div>
           </dl>
-        </section>
+        </ReportSec>
 
-        <section className="x-rpt-sec">
-          <h2>Your money</h2>
+        <ReportSec id="rpt-money" title="Your money">
           <p className="x-rpt-note">
             <GroupTag session={session} keys={[...moneyKeys]} verb="usually look like this" />
           </p>
@@ -240,7 +271,7 @@ export function PlanReport({
           </div>
 
           <dl className="x-rpt-dl">
-            <div><dt>Cash</dt><dd>{money(session.cash)}</dd></div>
+            <div><dt>Cash &amp; Savings</dt><dd>{money(session.cash)}</dd></div>
             <div><dt>Investments</dt><dd>{money(session.investments)}</dd></div>
             <div><dt>Property</dt><dd>{money(session.property)}</dd></div>
           </dl>
@@ -277,10 +308,9 @@ export function PlanReport({
           ) : (
             <p className="x-sm">No existing policies on this session.</p>
           )}
-        </section>
+        </ReportSec>
 
-        <section className="x-rpt-sec">
-          <h2>Your goals</h2>
+        <ReportSec id="rpt-goals" title="Your goals">
           <table className="x-rpt-table">
             <thead>
               <tr><th>Goal</th><th>On</th><th>Need</th><th>Have</th><th>Gap</th></tr>
@@ -300,10 +330,9 @@ export function PlanReport({
           {extras.length ? (
             <p className="x-sm">Also on: {extras.map(x => x.label).join(', ')}.</p>
           ) : null}
-        </section>
+        </ReportSec>
 
-        <section className="x-rpt-sec">
-          <h2>Your score</h2>
+        <ReportSec id="rpt-score" title="Your score">
           <p className="x-sm">{ratios.ok} of {ratios.rows.length} money-health ratios are in good shape.</p>
           <table className="x-rpt-table">
             <thead>
@@ -320,10 +349,9 @@ export function PlanReport({
               ))}
             </tbody>
           </table>
-        </section>
+        </ReportSec>
 
-        <section className="x-rpt-sec">
-          <h2>Your plan</h2>
+        <ReportSec id="rpt-plan" title="Your plan">
           <dl className="x-rpt-dl">
             <div><dt>Monthly surplus</dt><dd>{money(afford.available)}</dd></div>
             <div><dt>Recommended free budget ({afford.freePct}%)</dt><dd>{money(afford.free)}</dd></div>
@@ -367,7 +395,7 @@ export function PlanReport({
           ) : (
             <p className="x-sm">Projection uses the default Singapore assumption set.</p>
           )}
-        </section>
+        </ReportSec>
 
         <footer className="x-rpt-foot">
           People Like You figures are estimates until you edit them or add a statement. This report is not a product

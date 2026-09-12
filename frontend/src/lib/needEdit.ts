@@ -8,6 +8,31 @@ import {
   type NeedType,
 } from './types';
 
+export const MANDATORY_NEEDS: NeedType[] = ['N_RET'];
+export const SCORE_NEED_CAP = 4;
+const GROUP_N = 2;
+
+function byNeedWeight(a: NeedRow, b: NeedRow): number {
+  return (b.gap || 0) - (a.gap || 0) || (b.needAmount || 0) - (a.needAmount || 0);
+}
+
+export function capEnabledNeeds(needs: NeedRow[]): NeedRow[] {
+  const withMand = needs.map(n => (n.type === 'N_RET' ? { ...n, enabled: true } : n));
+  const pick = (group: 'p' | 'w', must: NeedType[]) => {
+    const pool = withMand.filter(n => NEED_META[n.type].group === group).sort(byNeedWeight);
+    const keep: NeedType[] = [...must];
+    const enabled = pool.filter(n => n.enabled && !must.includes(n.type));
+    const rest = pool.filter(n => !n.enabled && !must.includes(n.type));
+    for (const n of [...enabled, ...rest]) {
+      if (keep.length >= GROUP_N) break;
+      keep.push(n.type);
+    }
+    return keep.slice(0, GROUP_N);
+  };
+  const keep = new Set<NeedType>([...pick('p', []), ...pick('w', ['N_RET'])]);
+  return withMand.map(n => ({ ...n, enabled: keep.has(n.type) }));
+}
+
 export const LIFESTYLE: { v: number; label: string; rate: number }[] = [
   { v: 1, label: 'Frugal', rate: 0.5 },
   { v: 2, label: 'Stress free', rate: 0.67 },
@@ -224,7 +249,9 @@ export function moneyMax(base: number, floor: number): number {
 export const MONEY_FIELD_SLIDER: Record<string, { floor: number; step: number; perMonth?: boolean }> = {
   income: { floor: 20_000, step: 100, perMonth: true },
   expense: { floor: 15_000, step: 100, perMonth: true },
-  savings: { floor: 500_000, step: 10_000 },
+  savings: { floor: 200_000, step: 5_000 },
+  cash: { floor: 200_000, step: 5_000 },
+  investments: { floor: 500_000, step: 10_000 },
   property: { floor: 2_000_000, step: 50_000 },
   loans: { floor: 1_000_000, step: 25_000 },
 };
@@ -232,7 +259,8 @@ export const MONEY_FIELD_SLIDER: Record<string, { floor: number; step: number; p
 export const MONEY_EDIT_TIP: Record<string, string> = {
   income: 'einc',
   expense: 'eexp',
-  savings: 'esav',
+  cash: 'esav',
+  investments: 'einv',
   property: 'eprp',
   loans: 'eloan',
 };

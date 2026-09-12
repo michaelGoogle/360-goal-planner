@@ -185,8 +185,9 @@ Email is optional. The same mobile **overwrites** the previous job and
 `media/gp/{jobId}.mp4` rather than creating a second version.
 
 Returns **202** `{ success, jobId }` immediately; a background thread polls
-HeyGen, writes the MP4 on the lx43 media volume, then sends a **text link**
-(not the file) over WhatsApp and SMTP when an address was given.
+HeyGen, writes `{jobId}.mp4` and a hosted HTML snapshot `{jobId}.html` on the
+lx43 media volume, then sends **the same two text links** (never HeyGen CDN,
+never attached files) over WhatsApp and SMTP when an address was given.
 
 GP also best-effort POSTs the snapshot to FM `POST /v1/public/plan-report`
 (contact, full session JSON, HappiU pre/post, HeyGen id, lx media URL). FM
@@ -202,12 +203,14 @@ down does not block the video.
 | `post` | number \| null | no | HappiU with this plan |
 | `session` | object | yes | Full GP session (prompt + FM snapshot) |
 
-Needs `HEYGEN_API_KEY`. With `MEDIA_DIR` set, also needs `MEDIA_PUBLIC_BASE_URL`
-(e.g. `https://mgzh11.synology.me:8442/videos`). Public file:
-`{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.mp4`.
+Needs `HEYGEN_API_KEY`, `MEDIA_DIR`, and `MEDIA_PUBLIC_BASE_URL` (e.g.
+`https://mgzh11.synology.me:8442/videos`). Public files:
+
+- Customised video: `{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.mp4`
+- Hosted HTML report: `{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.html`
 
 **202** `{ success, jobId }`. **400** if mobile is missing/invalid. **503** if
-HeyGen is unset or generate fails.
+HeyGen or the media volume is unset, or generate fails.
 
 ## `GET /v1/video-notify/{jobId}`
 
@@ -223,7 +226,7 @@ until `mediaUrl` is set.
 |--------|------|
 | **400** | Unknown explainer kind / Mira missing route; video-notify missing mobile |
 | **422** | Invalid JSON body (Pydantic) |
-| **503** | Upstream unreachable, parse-sentence model failure, or video-notify without HeyGen |
+| **503** | Upstream unreachable, parse-sentence model failure, or video-notify without HeyGen / media volume |
 
 FastAPI `detail` is a string or the upstream JSON. There is no Prometheus
 `/metrics` on GP.

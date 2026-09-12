@@ -25,7 +25,8 @@ import { buildExplainContext, type ExplainKind, type ExplainResponse } from './l
 import { applyMarkerMoveToSession, type ChartMarker } from './lib/chartMarkers';
 import { applyDocs, seedProducts } from './lib/local';
 import { isSvData, type ChartView, type SvData } from './lib/sv';
-import { speak, stopSpeak } from './lib/speech';
+import { pauseSpeak, resumeSpeak, speak, stopSpeak } from './lib/speech';
+import { capEnabledNeeds } from './lib/needEdit';
 import { readGtTt, writeGtTt } from './lib/gtTt';
 
 const PLU_UNAVAILABLE =
@@ -54,19 +55,21 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
       needAmount,
       existing: existing || 0,
       gap: n.gap ?? Math.max(0, needAmount - existing),
-      enabled: prev ? prev.enabled : (n.enabled ?? false),
+      enabled: n.type === 'N_RET' ? true : prev ? prev.enabled : (n.enabled ?? false),
       retAge: n.retAge ?? prev?.retAge,
       targetYear: n.targetYear ?? prev?.targetYear,
     };
   });
   const seen = new Set(mapped.map(n => n.type));
-  const needs = mapped.concat(NEED_TYPES.filter(t => !seen.has(t)).map(t => skeletonNeed(t, s.needs.find(n => n.type === t))));
+  const needs = capEnabledNeeds(
+    mapped.concat(NEED_TYPES.filter(t => !seen.has(t)).map(t => skeletonNeed(t, s.needs.find(n => n.type === t)))),
+  );
   return {
     ...s,
     incomeMonthly: skip.income ? s.incomeMonthly : Number(p.incomeMonthly ?? s.incomeMonthly),
     expenseMonthly: skip.expense ? s.expenseMonthly : Number(p.expenseMonthly ?? s.expenseMonthly),
-    cash: skip.savings ? s.cash : Number(p.cash ?? s.cash),
-    investments: skip.savings ? s.investments : Number(p.investments ?? s.investments),
+    cash: skip.cash || skip.savings ? s.cash : Number(p.cash ?? s.cash),
+    investments: skip.investments || skip.savings ? s.investments : Number(p.investments ?? s.investments),
     property: skip.property ? s.property : Number(p.property ?? s.property),
     mortgage: skip.loans ? s.mortgage : Number(p.mortgage ?? s.mortgage),
     policies: skip.cover ? s.policies : ((p.policies as GpSession['policies']) ?? s.policies),
@@ -76,7 +79,7 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
   };
 }
 
-const MONEY_PROV = ['income', 'expense', 'savings', 'property', 'loans', 'cover'] as const;
+const MONEY_PROV = ['income', 'expense', 'savings', 'cash', 'investments', 'property', 'loans', 'cover'] as const;
 
 function resetPredictedMoney(s: GpSession): GpSession {
   const provenance = { ...s.provenance };
@@ -118,6 +121,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [miraOn, setMiraOn] = useState(false);
   const [narrKind, setNarrKind] = useState<ExplainKind | null>(null);
+  const [narrPaused, setNarrPaused] = useState(false);
   const [gtTtOn, setGtTtOn] = useState(readGtTt);
   const [tourSeen, setTourSeen] = useState<Partial<Record<'about' | 'money' | 'score' | 'plan', boolean>>>({});
   const [reportOpen, setReportOpen] = useState(false);
@@ -280,7 +284,7 @@ export default function App() {
 
   const toggleNeed = (t: NeedType) => {
     setSession(s => {
-      const needs = s.needs.map(n => (n.type === t ? { ...n, enabled: !n.enabled } : n));
+      const needs = capEnabledNeeds(s.needs.map(n => (n.type === t ? { ...n, enabled: !n.enabled } : n)));
       const next = { ...s, needs, ...productFlags({ ...s, needs }) };
       if (route === 'd2cPlan') scheduleProject(next);
       return next;
@@ -351,10 +355,21 @@ export default function App() {
     stopSpeak();
     setMiraOn(false);
     setNarrKind(null);
+    setNarrPaused(false);
   };
 
   const narrate = (kind: ExplainKind, extras?: { chartView?: ChartView }) => {
-    if (narrKind === kind || (kind === 'mira' && miraOn)) {
+    const same = narrKind === kind || (kind === 'mira' && miraOn);
+    if (same) {
+      if (narrPaused) {
+        resumeSpeak();
+        setNarrPaused(false);
+        return;
+      }
+      if (pauseSpeak()) {
+        setNarrPaused(true);
+        return;
+      }
       stopVoice();
       return;
     }
@@ -362,6 +377,7 @@ export default function App() {
     narrAbort.current?.abort();
     const ac = new AbortController();
     narrAbort.current = ac;
+    setNarrPaused(false);
     if (kind === 'mira') {
       setMiraOn(true);
       setNarrKind(null);
@@ -385,10 +401,12 @@ export default function App() {
         const ok = speak(res.text, () => {
           setMiraOn(false);
           setNarrKind(null);
+          setNarrPaused(false);
         });
         if (!ok) {
           setMiraOn(false);
           setNarrKind(null);
+          setNarrPaused(false);
           showToast('Voice playback is not available in this browser');
         }
       })
@@ -396,6 +414,7 @@ export default function App() {
         if (ac.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
         setMiraOn(false);
         setNarrKind(null);
+        setNarrPaused(false);
         showToast('Could not generate the explanation');
       });
   };
@@ -419,6 +438,7 @@ export default function App() {
       onGo={go}
       toast={toast}
       miraOn={miraOn}
+      miraPaused={narrPaused && miraOn}
       onMira={() => narrate('mira')}
       onToast={showToast}
       gtTtOn={gtTtOn}
@@ -427,7 +447,7 @@ export default function App() {
         setGtTt(next);
         if (next) setTourSeen({});
       }}
-      onShare={reportOpen ? () => setShareOpen(true) : undefined}
+      onShare={undefined}
       nAssume={nAssume}
       assumeOn={assumeOpen}
       onAssume={() => patch({ tip: assumeOpen ? null : 'panel-assume' })}
@@ -444,7 +464,12 @@ export default function App() {
       }
     >
       {route === 'd2cIntro' && (
-        <Intro narrOn={narrKind === 'intro'} onNarr={() => narrate('intro')} onStart={() => go('d2cAbout')} />
+        <Intro
+          narrOn={narrKind === 'intro'}
+          narrPaused={narrPaused}
+          onNarr={() => narrate('intro')}
+          onStart={() => go('d2cAbout')}
+        />
       )}
       {route === 'd2cAbout' && (
         <AboutYou
@@ -469,6 +494,7 @@ export default function App() {
           busy={busy}
           predictError={predictError}
           narrOn={narrKind === 'money'}
+          narrPaused={narrPaused}
           onNarr={() => narrate('money')}
           gtTtOn={gtTtOn && !tourSeen.money}
           onGtTtComplete={() => setTourSeen(s => ({ ...s, money: true }))}
@@ -486,6 +512,7 @@ export default function App() {
           onToggleExtra={toggleExtra}
           busy={busy}
           narrKind={narrKind}
+          narrPaused={narrPaused}
           onNarr={kind => narrate(kind)}
           gtTtOn={gtTtOn && !tourSeen.score}
           onGtTtComplete={() => setTourSeen(s => ({ ...s, score: true }))}
@@ -509,6 +536,7 @@ export default function App() {
           onMarkerClick={clickMarker}
           busy={busy}
           narrKind={narrKind}
+          narrPaused={narrPaused}
           onNarr={(k, extras) => narrate(k, extras)}
           onToast={showToast}
           reportOpen={reportOpen}

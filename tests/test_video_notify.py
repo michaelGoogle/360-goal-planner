@@ -36,28 +36,47 @@ def test_prompt_uses_session_figures():
     text = build_video_prompt(session, 38, 61, "+6591234567")
     assert "Alex" in text
     assert "Singapore" in text
-    assert "Singapore dollars" in text
-    assert "9,000" in text
-    assert "5,500" in text
-    assert "1,900" in text
+    assert text.count("Singapore dollars") == 1
+    assert "9 thousand" in text
+    assert "5 thousand 500" in text
+    assert "1 thousand 900" in text
     assert "950" in text
+    assert "1.10 million" in text
+    assert "9,000" not in text
     assert "S$" not in text
     assert "SGD" not in text
     assert "38" in text
     assert "61" in text
     assert "retirement" in text
     assert "not a quote" in text
-    assert "Singapore" in text
     assert "red lipstick" in text
     assert "English" in text
     from src.heygen.prompt import build_spoken_script
 
     spoken = build_spoken_script(session, 38, 61)
     assert spoken.startswith("Hello Alex.")
-    assert "Singapore dollars" in spoken
+    assert spoken.count("Singapore dollars") == 1
+    assert "All numbers presented are in Singapore dollars." in spoken
+    assert "Singapore dollars" not in spoken.split("Singapore dollars.", 1)[1]
     assert "S$" not in spoken
     assert "SGD" not in spoken
     assert "red lipstick" not in spoken
+
+
+def test_speak_money_rounds_big_figures():
+    from src.heygen.prompt import _speak_money
+
+    assert _speak_money(4_993_922) == "4.99 million"
+    assert _speak_money(11_232) == "11 thousand 200"
+    assert _speak_money(9_000) == "9 thousand"
+    assert _speak_money(5_500) == "5 thousand 500"
+    assert _speak_money(950) == "950"
+    assert _speak_money(1_000_000) == "1 million"
+    assert _speak_money(1_100_000) == "1.10 million"
+    assert _speak_money(0) == "0"
+    assert _speak_money(-11_232) == "minus 11 thousand 200"
+    assert "Singapore" not in _speak_money(4_993_922)
+    assert "SGD" not in _speak_money(4_993_922)
 
 
 def test_prompt_spokesperson_follows_mobile_country():
@@ -137,10 +156,25 @@ def test_video_notify_requires_heygen_key(monkeypatch, tmp_path):
     assert r.status_code == 503
 
 
-def test_video_notify_queues_job(monkeypatch, tmp_path):
+def test_video_notify_requires_media_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("HEYGEN_API_KEY", "test-key")
     monkeypatch.setenv("GP_VIDEO_JOBS", str(tmp_path / "jobs.sqlite"))
     monkeypatch.delenv("MEDIA_DIR", raising=False)
+    monkeypatch.delenv("MEDIA_HOST_DIR", raising=False)
+    monkeypatch.delenv("MEDIA_PUBLIC_BASE_URL", raising=False)
+    with TestClient(api_client()) as client:
+        r = client.post(
+            "/v1/video-notify",
+            json={"mobile": "91234567", "session": {"name": "A"}},
+        )
+    assert r.status_code == 503
+
+
+def test_video_notify_queues_job(monkeypatch, tmp_path):
+    monkeypatch.setenv("HEYGEN_API_KEY", "test-key")
+    monkeypatch.setenv("GP_VIDEO_JOBS", str(tmp_path / "jobs.sqlite"))
+    monkeypatch.setenv("MEDIA_DIR", str(tmp_path / "media"))
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "https://mgzh11.synology.me:8442/videos")
     with (
         patch("src.heygen.pipeline.start_video_generation", return_value="vid-1"),
         patch("src.heygen.pipeline.persist_plan_report"),
@@ -169,6 +203,8 @@ def test_video_notify_queues_job(monkeypatch, tmp_path):
 def test_video_notify_overwrites_same_mobile(monkeypatch, tmp_path):
     monkeypatch.setenv("HEYGEN_API_KEY", "test-key")
     monkeypatch.setenv("GP_VIDEO_JOBS", str(tmp_path / "jobs.sqlite"))
+    monkeypatch.setenv("MEDIA_DIR", str(tmp_path / "media"))
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "https://mgzh11.synology.me:8442/videos")
     with (
         patch("src.heygen.pipeline.start_video_generation", return_value="vid-1"),
         patch("src.heygen.pipeline.persist_plan_report"),
@@ -213,6 +249,8 @@ def test_video_status_returns_job(monkeypatch, tmp_path):
 def test_video_notify_heygen_402_explains_credits(monkeypatch, tmp_path):
     monkeypatch.setenv("HEYGEN_API_KEY", "test-key")
     monkeypatch.setenv("GP_VIDEO_JOBS", str(tmp_path / "jobs.sqlite"))
+    monkeypatch.setenv("MEDIA_DIR", str(tmp_path / "media"))
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "https://mgzh11.synology.me:8442/videos")
     from src.heygen.agent import HEYGEN_NEEDS_CREDIT, GenerateError
 
     with (
@@ -302,11 +340,22 @@ def test_notify_ready_sends_email_and_whatsapp():
         patch("src.heygen.delivery.send_email", return_value={"ok": True}) as em,
         patch("src.heygen.delivery.send_whatsapp", return_value={"ok": True}) as wa,
     ):
-        out = notify_ready("a@b.co", "+6590000000", "http://lx43:8042/videos/gp/x.mp4", "job1", "Alex")
+        out = notify_ready(
+            "a@b.co",
+            "+6590000000",
+            "http://lx43:8042/videos/gp/x.mp4",
+            "http://lx43:8042/videos/gp/x.html",
+            "job1",
+            "Alex",
+        )
     assert out["email"]["ok"]
     assert out["whatsapp"]["ok"]
     assert "videos/gp/x.mp4" in em.call_args.args[2]
+    assert "videos/gp/x.html" in em.call_args.args[2]
     assert "videos/gp/x.mp4" in wa.call_args.args[1]
+    assert "videos/gp/x.html" in wa.call_args.args[1]
+    assert "Customised video" in em.call_args.args[2]
+    assert "Your report" in em.call_args.args[2]
     assert "Video id: job1" in em.call_args.args[2]
     assert "Video id: job1" in wa.call_args.args[1]
     assert "not advice to buy" in em.call_args.args[2]
@@ -342,9 +391,11 @@ def test_finish_job_stores_and_notifies(monkeypatch, tmp_path):
     insert_job("abc123", email="a@b.co", mobile="+6591111111", first_name="Alex", prompt="hi")
     update_job("abc123", heygen_id="vid-1")
     public = "http://lx43:8042/videos/gp/abc123.mp4"
+    report = "http://lx43:8042/videos/gp/abc123.html"
     with (
         patch("src.heygen.pipeline.wait_for_url", return_value=("completed", "https://heygen.example/v.mp4")),
         patch("src.heygen.pipeline.save_mp4", return_value=public),
+        patch("src.heygen.pipeline.save_html", return_value=report),
         patch("src.heygen.pipeline.persist_plan_report"),
         patch(
             "src.heygen.pipeline.notify_ready",
@@ -356,7 +407,8 @@ def test_finish_job_stores_and_notifies(monkeypatch, tmp_path):
     assert job["status"] == "completed"
     assert job["media_url"] == public
     notify.assert_called_once()
-    assert public in notify.call_args.args
+    assert notify.call_args.args[2] == public
+    assert notify.call_args.args[3] == report
 
 
 def test_save_mp4_writes_under_media_dir(monkeypatch, tmp_path):
@@ -386,6 +438,68 @@ def test_save_mp4_errors_when_download_fails(monkeypatch, tmp_path):
     with patch("src.heygen.media_store.requests.get", side_effect=OSError("nope")):
         with pytest.raises(StoreError):
             save_mp4("https://heygen.example/v.mp4", "abc")
+
+
+def test_save_mp4_errors_when_media_dir_unset(monkeypatch):
+    monkeypatch.delenv("MEDIA_DIR", raising=False)
+    monkeypatch.delenv("MEDIA_HOST_DIR", raising=False)
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "http://lx43:8042/videos")
+    with pytest.raises(StoreError, match="MEDIA_DIR"):
+        save_mp4("https://heygen.example/v.mp4", "abc")
+
+
+def test_media_dir_falls_back_to_host_dir(monkeypatch, tmp_path):
+    from src.heygen.media_store import media_dir
+
+    host = tmp_path / "host-media"
+    monkeypatch.delenv("MEDIA_DIR", raising=False)
+    monkeypatch.setenv("MEDIA_HOST_DIR", str(host))
+    assert media_dir() == host
+
+
+def test_save_html_writes_under_media_dir(monkeypatch, tmp_path):
+    media = tmp_path / "media"
+    media.mkdir()
+    monkeypatch.setenv("MEDIA_DIR", str(media))
+    monkeypatch.setenv("MEDIA_PUBLIC_BASE_URL", "http://lx43:8042/videos")
+    from src.heygen.media_store import save_html
+
+    url = save_html("<html><body><p>plan report snapshot</p></body></html>", "abc123")
+    dest = media / "gp" / "abc123.html"
+    assert dest.is_file()
+    assert "plan report snapshot" in dest.read_text(encoding="utf-8")
+    assert url == "http://lx43:8042/videos/gp/abc123.html"
+
+
+def test_render_report_html_uses_session_not_heygen():
+    from src.heygen.report_html import render_report_html
+
+    html = render_report_html(
+        {
+            "name": "Alex Tan",
+            "age": 42,
+            "occupation": "Engineer",
+            "incomeMonthly": 9000,
+            "expenseMonthly": 5500,
+            "needs": [{"type": "N_RET", "enabled": True, "needAmount": 1_200_000, "existing": 100_000}],
+        },
+        38,
+        61,
+        video_url="https://mgzh11.synology.me:8442/videos/gp/abc.mp4",
+    )
+    assert "Alex" in html
+    assert "61" in html
+    assert "videos/gp/abc.mp4" in html
+    assert "<video" in html
+    assert "Your new HappiU Score" in html
+    assert "uplift." in html
+    assert "Figures match Your plan" in html
+    assert "age 42" in html
+    assert "What comes in and goes out" in html
+    assert "Your score" in html
+    assert "Watch the customised video" not in html
+    assert "heygen" not in html.lower()
+    assert "not advice to buy" in html
 
 
 def test_low_balance_alert_emails_once(monkeypatch, tmp_path):

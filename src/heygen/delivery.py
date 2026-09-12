@@ -83,14 +83,23 @@ def send_whatsapp(to: str, text: str, client_message_id: str) -> dict[str, Any]:
         return {"ok": False, "error": detail}
 
 
-def notify_ready(email: str, mobile: str, display_url: str, job_id: str, first_name: str) -> dict[str, Any]:
+def notify_ready(
+    email: str,
+    mobile: str,
+    video_url: str,
+    report_url: str,
+    job_id: str,
+    first_name: str,
+) -> dict[str, Any]:
     who = first_name or "you"
     text = (
-        f"Hi {who}, your FinPlan360 plan video is ready. Watch it here: {display_url}\n\n"
+        f"Hi {who}, your FinPlan360 plan is ready.\n\n"
+        f"Customised video: {video_url}\n"
+        f"Your report: {report_url}\n\n"
         f"Video id: {job_id}\n\n"
         "This is a sizing illustration, not a quote and not advice to buy."
     )
-    subject = "Your FinPlan360 plan video is ready"
+    subject = "Your FinPlan360 plan is ready"
     out: dict[str, Any] = {"email": None, "whatsapp": None}
     if email:
         out["email"] = send_email(email, subject, text)

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { HappiUGauge } from '../components/HappiUGauge';
 import { GoalCard, NeedGroups } from '../components/GoalCard';
+import { InfoTip } from '../components/InfoTip';
 import { Foot, GroupTag, NarrBtn } from '../components/ui';
 import { X_RATIO_WHY } from '../lib/catalog';
 import type { ExplainKind } from '../lib/explain';
 import { Ico } from '../lib/icons';
-import { applyNeedPatch, needCardGap } from '../lib/needEdit';
+import { applyNeedPatch, capEnabledNeeds, needCardGap } from '../lib/needEdit';
 import { moneyRatios, rnum, type Ratio } from '../lib/ratios';
 import {
   EXTRA_NEEDS,
@@ -32,6 +33,7 @@ export function Score({
   onToggleExtra,
   busy,
   narrKind,
+  narrPaused,
   onNarr,
   gtTtOn,
   onGtTtComplete,
@@ -46,6 +48,7 @@ export function Score({
   onToggleExtra: (k: ExtraNeed) => void;
   busy: boolean;
   narrKind: ExplainKind | null;
+  narrPaused?: boolean;
   onNarr: (kind: ExplainKind) => void;
   gtTtOn: boolean;
   onGtTtComplete: () => void;
@@ -68,8 +71,12 @@ export function Score({
   const offNeeds = session.needs.filter(n => !n.enabled);
   const offExtra = EXTRA_NEEDS.filter(x => !session.extraNeeds.includes(x.k));
   const okRatios = R.filter(r => r.ok).length;
-  const ratioShape = `${okRatios} out of ${R.length} ratios ${okRatios === 1 ? 'is' : 'are'} in good shape`;
-  const ratioOk = okRatios === R.length;
+  const badRatios = R.length - okRatios;
+  const ratioTone = badRatios === 0 ? 'ok' : badRatios <= 3 ? 'warn' : 'no';
+  const ratioShape =
+    badRatios === 0
+      ? `All ${R.length} financial health ratios are in good shape`
+      : `${badRatios} financial health ${badRatios === 1 ? 'ratio needs' : 'ratios need'} attention`;
   const [needsOpen, setNeedsOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [editNeed, setEditNeed] = useState<NeedType | null>(null);
@@ -78,9 +85,15 @@ export function Score({
   const ratiosRef = useRef<HTMLSpanElement>(null);
   const closeModal = () => setEditNeed(null);
   const who = firstName(session);
+  const chipNeeds = (() => {
+    const tagged = session.needs.map(n => ({ ...n, gap: needCardGap(session, n) }));
+    const on = tagged.filter(n => n.enabled);
+    const prot = on.filter(n => NEED_META[n.type].group === 'p').sort((a, b) => (b.gap || 0) - (a.gap || 0));
+    const grow = on.filter(n => NEED_META[n.type].group === 'w').sort((a, b) => (b.gap || 0) - (a.gap || 0));
+    return [...prot.slice(0, 2), ...grow.slice(0, 2)];
+  })();
   const shortN = taggedNeeds.filter(n => n.gap > 0).length;
   const fundedN = taggedNeeds.length - shortN;
-  const badRatios = R.length - okRatios;
   const scoreReady = pre != null;
   const bandLabel = band === 'GOOD' ? 'Good' : band === 'FAIR' ? 'Fair' : 'Poor';
   const scoreTip = `${Math.round(score)} out of 100 is ${bandLabel}. HappiU is one score for how well your money holds up: below 50 is Poor, 50 to 84 is Fair, and 85 and above is Good.`;
@@ -91,8 +104,15 @@ export function Score({
       ? ' Revise any goal or need with a shortfall, or close it on Build my plan by taking a protection product or an investing plan.'
       : '');
   const ratiosTip =
-    `${okRatios} of ${R.length} ratios ${okRatios === 1 ? 'is' : 'are'} in good shape. ` +
-    `${badRatios} of ${R.length} ${badRatios === 1 ? 'is' : 'are'} not. Click the icon to open the checks.`;
+    badRatios === 0
+      ? `All ${R.length} ratios are in good shape. Click the icon to open the checks.`
+      : `${ratioShape}. Click the icon to open the checks.`;
+
+  useEffect(() => {
+    const next = capEnabledNeeds(session.needs.map(n => ({ ...n, gap: needCardGap(session, n) })));
+    const changed = next.some(n => session.needs.find(x => x.type === n.type)?.enabled !== n.enabled);
+    if (changed) onChange({ needs: next });
+  }, [session.needs, onChange]);
 
   useEffect(() => {
     if (!editNeed) return;
@@ -142,15 +162,22 @@ export function Score({
                 </p>
               </>
             )}
+            <NarrBtn
+              ariaLabel="Explain your HappiU score"
+              label="Explain your HappiU score"
+              on={narrKind === 'score'}
+              paused={narrPaused}
+              onClick={() => onNarr('score')}
+            />
           </div>
-          <div>
+          <div className="x-score-goals">
             <p className="x-sm" style={{ margin: '0 0 14px' }}>
               The goals and needs people like {who} typically have, and the gaps between what you hold today and what
               each one needs.
             </p>
             <div className="x-score-tags">
               <div ref={needsRef} className="x-need-rows">
-                {taggedNeeds.map(g => (
+                {chipNeeds.map(g => (
                   <button
                     key={g.type}
                     className={`x-chip ${g.gap > 0 ? 'no' : 'ok'}`}
@@ -164,31 +191,24 @@ export function Score({
                   </button>
                 ))}
               </div>
-              <button
-                className={`x-chip ${ratioOk ? 'ok' : 'no'}`}
-                type="button"
-                onClick={openHealth}
-              >
-                <span>{ratioShape}</span>
-                <span ref={ratiosRef} className="x-coach-hit">
-                  {Ico.eye}
-                </span>
-              </button>
             </div>
-          </div>
-          <div className="x-score-narr">
-            <NarrBtn
-              ariaLabel="Explain your HappiU score"
-              label="Explain your HappiU score"
-              on={narrKind === 'score'}
-              onClick={() => onNarr('score')}
-            />
             <NarrBtn
               ariaLabel="Explain your goals and needs"
               label="Explain your goals and needs"
               on={narrKind === 'needs'}
+              paused={narrPaused}
               onClick={() => onNarr('needs')}
             />
+            <button
+              className={`x-chip ${ratioTone}`}
+              type="button"
+              onClick={openHealth}
+            >
+              <span>{ratioShape}</span>
+              <span ref={ratiosRef} className="x-coach-hit">
+                {Ico.eye}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -237,7 +257,7 @@ export function Score({
             onClick={() => setHealthOpen(open => !open)}
           >
             <b>Your financial health ratios</b>
-            <span className={`x-chip ${ratioOk ? 'ok' : 'no'}`}>{ratioShape}</span>
+            <span className={`x-chip ${ratioTone}`}>{ratioShape}</span>
             <span className="cv">{Ico.chev}</span>
           </button>
           {healthOpen ? (
@@ -313,7 +333,10 @@ function RatioCard({ r, showWhy }: { r: Ratio; showWhy?: boolean }) {
   return (
     <div className={`x-r ${r.ok ? 'ok' : 'no'}${showWhy ? ' open' : ''}`}>
       <div className="x-r-h">
-        <b>{r.n}</b>
+        <b>
+          {r.n}
+          {why ? <InfoTip className="x-r-info" text={`${why[0]} ${why[1]}`} /> : null}
+        </b>
         <span className="x-face">{r.ok ? Ico.thumbUp : Ico.thumbDn}</span>
       </div>
       <div className="x-r-v">

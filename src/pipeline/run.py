@@ -87,7 +87,7 @@ def run_need_profiler(
     finance: dict[str, Any],
     *,
     people_like_you: dict[str, Any] | None = None,
-    top_n: int = 5,
+    top_n: int = 4,
     preferred_needs: list[str] | None = None,
 ) -> dict[str, Any]:
     data: dict[str, Any] = {
@@ -99,7 +99,7 @@ def run_need_profiler(
     profile = build_profiler_profile(data)
     if profile.get("Age") is None:
         raise ValueError("dateOfBirth is required on policyOwner before need profiler")
-    n = max(1, min(int(top_n or 5), 12))
+    n = max(1, min(int(top_n or 4), 12))
     result = identify_needs(profile, top_n=n, preferred_needs=preferred_needs)
     needs_map = ensure_needs_map(data)
     apply_top_needs_to_onboarding(needs_map, result["rankedNeeds"], top_n=n)

@@ -88,6 +88,7 @@ export function Plan({
   onMarkerClick,
   busy,
   narrKind,
+  narrPaused,
   onNarr,
   onToast,
   reportOpen,
@@ -113,6 +114,7 @@ export function Plan({
   onMarkerClick: (marker: ChartMarker) => void;
   busy: boolean;
   narrKind: string | null;
+  narrPaused?: boolean;
   onNarr: (kind: ExplainKind, extras?: { chartView?: ChartView }) => void;
   onToast?: (msg: string) => void;
   reportOpen: boolean;
@@ -270,12 +272,12 @@ export function Plan({
       >
         <div className="x-svhead">
           <b className="x-svtitle">
-            {copy.title}
+            <span>{copy.title}</span>
             <InfoTip text={copy.info} />
-            {view === 'wealth' && plansOn ? null : (
-              <span className="x-svside">{plansOn ? 'With this plan' : 'Without this plan'}</span>
-            )}
           </b>
+          {view === 'wealth' && plansOn ? null : (
+            <span className="x-svside">{plansOn ? 'With this plan' : 'Without this plan'}</span>
+          )}
           <span className="x-addbs">
             <button className="x-addb" type="button" onClick={() => onChange({ tip: 'panel-events' })}>
               + Stress Test
@@ -314,7 +316,7 @@ export function Plan({
           </div>
           {busy ? <SvBusy compact /> : null}
           <div className="x-svhead-end">
-            <NarrBtn label="Explain this chart" on={narrKind === 'chart'} onClick={() => onNarr('chart', { chartView: view })} />
+            <NarrBtn label="Explain this chart" on={narrKind === 'chart'} paused={narrPaused} onClick={() => onNarr('chart', { chartView: view })} />
             <button
               className="x-svdbg"
               type="button"
@@ -417,6 +419,7 @@ export function Plan({
         onChange={onChange}
         onToggleExtra={onToggleExtra}
         narrKind={narrKind}
+        narrPaused={narrPaused}
         onNarr={onNarr}
         mixRef={mixRef}
         gapRef={gapRef}

@@ -130,10 +130,15 @@ export function parsedToSession(got: ParsedSentence): Partial<GpSession> {
 export function applyDocs(session: GpSession): GpSession {
   const next = { ...session, provenance: { ...session.provenance }, policies: [...session.policies] };
   const bank = session.docs.bank;
-  if (bank?.state === 'done' && bank.v && !session.moneyTouched.savings) {
-    next.cash = Math.max(0, Math.round(Number(bank.v.cash) || 0));
-    next.investments = Math.max(0, Math.round(Number(bank.v.investments) || 0));
-    next.provenance.savings = 'doc';
+  if (bank?.state === 'done' && bank.v) {
+    if (!session.moneyTouched.cash && !session.moneyTouched.savings) {
+      next.cash = Math.max(0, Math.round(Number(bank.v.cash) || 0));
+      next.provenance.cash = 'doc';
+    }
+    if (!session.moneyTouched.investments && !session.moneyTouched.savings) {
+      next.investments = Math.max(0, Math.round(Number(bank.v.investments) || 0));
+      next.provenance.investments = 'doc';
+    }
   }
   const pol = session.docs.pol;
   if (pol?.state === 'done' && pol.v && Number(pol.v.sum) > 0) {

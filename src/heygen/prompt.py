@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from src.heygen.mobile import country_from_mobile
@@ -29,14 +30,53 @@ NEED_LABEL = {
 }
 
 
-def _money(n: Any) -> str:
-    """Spoken amounts. 'Singapore dollars', not S$ (TTS says S-dollars) or SGD (spelled letter by letter)."""
+def _round_sigfigs(n: float, sig: int = 3) -> float:
+    """Round the magnitude to ``sig`` significant figures (3 digits)."""
+    mag = abs(float(n))
+    if mag == 0:
+        return 0.0
+    exp = math.floor(math.log10(mag))
+    factor = 10 ** (sig - 1 - exp)
+    return round(mag * factor) / factor
+
+
+def _fmt_scaled(x: float) -> str:
+    """Speak a million/billion scale with up to 2 decimal digits (e.g. 4.99)."""
+    ax = abs(x)
+    if abs(ax - round(ax)) < 1e-9:
+        return str(int(round(ax)))
+    if ax < 10:
+        return f"{ax:.2f}"
+    if ax < 100:
+        return f"{ax:.1f}".rstrip("0").rstrip(".")
+    return f"{ax:.0f}"
+
+
+def _speak_money(n: Any) -> str:
+    """Spoken amount, no currency. Big figures: 3 significant digits.
+
+    4,993,922 → ``4.99 million``. 11,232 → ``11 thousand 200``.
+    Under 1,000 stays exact. Never ``S$`` / ``SGD`` / ``Singapore dollars``.
+    """
     try:
-        v = int(round(float(n or 0)))
+        v = float(n or 0)
     except (TypeError, ValueError):
-        return "0 Singapore dollars"
+        return "0"
+    if math.isnan(v) or math.isinf(v):
+        return "0"
     sign = "minus " if v < 0 else ""
-    return f"{sign}{abs(v):,} Singapore dollars"
+    rounded = _round_sigfigs(v, 3)
+    if rounded >= 1_000_000_000:
+        return f"{sign}{_fmt_scaled(rounded / 1_000_000_000)} billion"
+    if rounded >= 1_000_000:
+        return f"{sign}{_fmt_scaled(rounded / 1_000_000)} million"
+    if rounded >= 1_000:
+        thousands = int(rounded // 1000)
+        rest = int(round(rounded % 1000))
+        if rest == 0:
+            return f"{sign}{thousands} thousand"
+        return f"{sign}{thousands} thousand {rest}"
+    return f"{sign}{int(round(rounded))}"
 
 
 def _first_name(session: dict[str, Any]) -> str:
@@ -81,8 +121,8 @@ def build_spoken_script(
     age = session.get("age") or ""
     occ = str(session.get("occupation") or "").strip() or "their occupation"
     deps = int(session.get("dependents") or 0)
-    income = _money(session.get("incomeMonthly"))
-    expense = _money(session.get("expenseMonthly"))
+    income = _speak_money(session.get("incomeMonthly"))
+    expense = _speak_money(session.get("expenseMonthly"))
     gap_type, gap_amt = _biggest_gap(session)
     gap_label = NEED_LABEL.get(gap_type, gap_type or "their largest goal")
     pre_s = "not yet scored" if pre is None else str(int(round(pre)))
@@ -91,6 +131,7 @@ def build_spoken_script(
     parts: list[str] = []
     if name:
         parts.append(f"Hello {name}. ")
+    parts.append("All numbers presented are in Singapore dollars. ")
     parts.append("I am walking you through this FinPlan360 plan snapshot. ")
     parts.append(
         f"{you} {age} years old, work as {occ}, and have {deps} dependant"
@@ -107,14 +148,14 @@ def build_spoken_script(
     if avail > 0:
         free = round(avail * 0.5)
         parts.append(
-            f"Monthly surplus is {_money(avail)}; the recommended free budget (50 percent) is {_money(free)}. "
+            f"Monthly surplus is {_speak_money(avail)}; the recommended free budget (50 percent) is {_speak_money(free)}. "
         )
     parts.append(f"The HappiU score today is {pre_s}")
     if post is not None:
         parts.append(f", and with this suggested plan it is {post_s}")
     parts.append(". ")
     if gap_amt > 0:
-        parts.append(f"The largest remaining gap is {gap_label} at {_money(gap_amt)}. ")
+        parts.append(f"The largest remaining gap is {gap_label} at {_speak_money(gap_amt)}. ")
     parts.append(
         "These are estimates and a sizing illustration, not a quote and not advice to buy, "
         "switch, or cancel cover. Please open the link and review the full report."

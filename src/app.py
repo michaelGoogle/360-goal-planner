@@ -195,16 +195,16 @@ def predict(body: GpSession) -> dict[str, Any]:
             policy_owner,
             finance,
             people_like_you=plu_data.get("peopleLikeYou"),
-            top_n=5,
+            top_n=4,
         )
         session = _needs_from_profiler(session, npr)
     except Exception as exc:
         logger.warning("Need Profiler unavailable: %s", exc)
         notes.append("Need Profiler unavailable; enabled default goals.")
         deps = int(session.get("dependents") or 0)
-        default_on = {"N_INC", "N_RET"}
+        default_on = {"N_INC", "N_CRI", "N_RET", "N_SAV"}
         if deps:
-            default_on.add("N_EDU")
+            default_on = {"N_INC", "N_CRI", "N_RET", "N_EDU"}
         session["needs"] = [
             {"type": t, "enabled": t in default_on, "needAmount": 0, "priority": 3}
             for t in UNIFIED_TYPES

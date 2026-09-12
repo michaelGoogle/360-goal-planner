@@ -63,13 +63,18 @@ body {
 .x-svtitle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   font-size: 17px;
   font-weight: 650;
   letter-spacing: -0.3px;
   color: inherit;
-  white-space: nowrap;
+  flex: 1 1 12rem;
+  min-width: 0;
+  white-space: normal;
+}
+.x-svtitle > span {
+  min-width: 0;
 }
 .x-svside {
   font-size: 12px;
@@ -115,6 +120,7 @@ body {
   cursor: grab;
 }
 .x-chip.ok svg,
+.x-chip.warn svg,
 .x-chip.no svg,
 .x-chip.n svg {
   flex: 0 0 auto;

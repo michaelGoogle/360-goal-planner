@@ -247,11 +247,10 @@
 .x-score-viz{display:flex;flex-direction:column;align-items:center}
 .x-score-ghit{display:block;width:100%;max-width:258px}
 .x-score-tags>.x-chip .x-coach-hit{display:inline-flex;line-height:0;flex:0 0 auto}
-.x-score-narr{grid-column:1/-1;width:100%;display:flex;flex-direction:row;align-items:center;
- gap:12px;flex-wrap:wrap;margin-top:18px}
-@media(max-width:960px){
- .x-score-narr{justify-content:center}
-}
+.x-score-viz .x-play{margin-top:10px}
+.x-score-goals{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.x-score-goals .x-play{margin-top:10px}
+.x-score-goals>button.x-chip{margin-top:10px;align-self:flex-start}
 .x-scoreh{margin-bottom:10px}
 .x-scoreh .x-h2{margin-bottom:0}
 .x-scorecap{text-align:center;font-size:15px;font-weight:650;line-height:1.4;
@@ -314,6 +313,7 @@
 .x-play:hover{border-color:var(--acc2);background:var(--acc-t)}
 .x-play svg{fill:var(--acc)}
 .x-play.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.x-play.on svg{fill:#fff}
 /* A quiet outline that keeps expanding away from the button. Nothing in the
    button itself moves — a control that jumps is a control the pointer misses —
    and it stops the moment the customer either plays it or reaches for it, so
@@ -321,9 +321,9 @@
 .x-play{position:relative}
 .x-play:not(.on)::before,.x-play:not(.on)::after{content:"";position:absolute;inset:-1px;
  border-radius:99px;border:2px solid var(--acc);pointer-events:none;opacity:0;
- animation:xping 2.2s cubic-bezier(.22,.61,.36,1) infinite}
+ animation:xping 2.2s cubic-bezier(.22,.61,.36,1) 2 both}
 .x-play:not(.on)::after{animation-delay:1.1s}   /* two rings, so one is always on its way out */
-.x-play:not(.on){animation:xplaytint 2.2s ease-in-out infinite}
+.x-play:not(.on){animation:xplaytint 2.2s ease-in-out 2 both}
 .x-play:hover,.x-play:focus-visible{animation:none}
 .x-play:hover::before,.x-play:hover::after,
 .x-play:focus-visible::before,.x-play:focus-visible::after{animation:none;opacity:0}
@@ -337,7 +337,7 @@
  100%{transform:scale(1.22);opacity:0}}
 @keyframes xplaytint{0%,100%{background:#fff}50%{background:var(--acc-t)}}
 /* and a matching one on Mira, the other way into the same voice */
-.x-fab.mira:not(.on){animation:xfabglow 2.4s ease-in-out infinite}
+.x-fab.mira:not(.on){animation:xfabglow 2.4s ease-in-out 2 both}
 .x-fab.mira:hover{animation:none}
 @keyframes xfabglow{
  0%,100%{box-shadow:0 10px 26px rgba(12,20,36,.24)}

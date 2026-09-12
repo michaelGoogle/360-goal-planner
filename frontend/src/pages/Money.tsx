@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { EDIT_HINT, TIPS } from '../lib/catalog';
 import { MONEY_EDIT_TIP, MONEY_FIELD_SLIDER, moneyMax } from '../lib/needEdit';
-import { assets, availableBudget, chartMoneyOut, employeeCpfMonthly, liquid, money, netWealth, takeHomeMonthly, type GpSession } from '../lib/types';
+import { assets, availableBudget, chartMoneyOut, employeeCpfMonthly, money, netWealth, takeHomeMonthly, type GpSession } from '../lib/types';
 import { EqPie, Foot, GroupTag, NarrBtn, Tip } from '../components/ui';
 import { Ico } from '../lib/icons';
 import { ChainFold, MoneyRow } from './money/ChainFold';
@@ -18,6 +18,7 @@ export function Money({
   busy,
   predictError,
   narrOn,
+  narrPaused,
   onNarr,
   gtTtOn,
   onGtTtComplete,
@@ -30,6 +31,7 @@ export function Money({
   busy: boolean;
   predictError?: string | null;
   narrOn: boolean;
+  narrPaused?: boolean;
   onNarr: () => void;
   gtTtOn: boolean;
   onGtTtComplete: () => void;
@@ -47,7 +49,6 @@ export function Money({
   const takeHome = takeHomeMonthly(session);
   const sur = availableBudget(session);
   const outInclCpf = chartMoneyOut(session);
-  const liq = liquid(session);
   const prop = session.property;
   const liab = session.mortgage;
   const net = netWealth(session);
@@ -64,12 +65,8 @@ export function Money({
     if (key === 'budget') patch.expenseMonthly = Math.max(0, takeHome - v);
     if (key === 'income') patch.incomeMonthly = v;
     if (key === 'expense') patch.expenseMonthly = Math.max(0, v - cpf);
-    if (key === 'savings') {
-      const cur = liq;
-      const r = cur > 0 ? session.cash / cur : 0.45;
-      patch.cash = Math.round(v * r);
-      patch.investments = v - Math.round(v * r);
-    }
+    if (key === 'cash') patch.cash = v;
+    if (key === 'investments') patch.investments = v;
     if (key === 'property') patch.property = v;
     if (key === 'loans') patch.mortgage = v;
     onChange(patch);
@@ -159,7 +156,7 @@ export function Money({
           <div className="t">
             <b>Your financial position</b>
           </div>
-          <NarrBtn label="Explain these figures" on={narrOn} onClick={onNarr} />
+          <NarrBtn label="Explain these figures" on={narrOn} paused={narrPaused} onClick={onNarr} />
         </div>
 
         {session.explain ? <Explain session={session} onChange={onChange} /> : null}
@@ -227,7 +224,7 @@ export function Money({
 
         <ChainFold
           title="What you own and owe"
-          tag={<GroupTag session={session} keys={['savings', 'property', 'loans']} verb="own and owe about this" />}
+          tag={<GroupTag session={session} keys={['cash', 'investments', 'property', 'loans']} verb="own and owe about this" />}
           unit="today"
           open={open.wealth}
           onToggle={() => toggle('wealth')}
@@ -240,13 +237,24 @@ export function Money({
             ]}
           />
           <MoneyRow
-            label="Savings & investments"
-            value={liq}
-            tag={tag('savings')}
+            label="Cash & Savings"
+            value={session.cash}
+            tag={tag('cash') || tag('savings')}
             tipId="isav"
             editId="esav"
             tip={tipBody('savings')}
-            edit={editBody('savings', 'Savings & investments', liq)}
+            edit={editBody('cash', 'Cash & Savings', session.cash)}
+            open={session.tip}
+            onTip={toggleTip}
+          />
+          <MoneyRow
+            label="Investments"
+            value={session.investments}
+            tag={tag('investments') || tag('savings')}
+            tipId="iinv"
+            editId="einv"
+            tip={tipBody('investments')}
+            edit={editBody('investments', 'Investments', session.investments)}
             open={session.tip}
             onTip={toggleTip}
           />

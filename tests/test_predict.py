@@ -49,8 +49,12 @@ def test_predict_runs_in_process_profiler_and_calculator():
     assert session["policies"] == []
     by_type = {n["type"]: n for n in session["needs"]}
     enabled = [t for t, n in by_type.items() if n["enabled"]]
-    assert 1 <= len(enabled) <= 5
-    assert by_type["N_RET"]["enabled"] is True or "N_INC" in enabled
+    assert 1 <= len(enabled) <= 4
+    assert by_type["N_RET"]["enabled"] is True
+    prot = [t for t in enabled if t in ("N_INC", "N_CRI", "N_TPD")]
+    grow = [t for t in enabled if t in ("N_RET", "N_EDU", "N_SAV", "N_PRP")]
+    assert len(prot) == 2
+    assert len(grow) == 2
     for t, n in by_type.items():
         if n["enabled"]:
             assert n["needAmount"] > 0
@@ -193,4 +197,5 @@ def test_apply_plu_spend_is_share_of_take_home_after_cpf():
     assert session["expenseMonthly"] == round(7900 * 0.775, 2)
     surplus = 7900 - session["expenseMonthly"]
     assets = surplus * 12 * 0.5 * 21
-    assert session["cash"] + session["investments"] == round(assets * 0.45) + round(assets * 0.55)
+    assert session["cash"] == round(assets * 0.15)
+    assert session["investments"] == round(assets * 0.85)

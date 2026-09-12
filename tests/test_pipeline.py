@@ -55,8 +55,25 @@ def test_need_profiler_scores_twelve_and_maps_unified():
     apply_top_needs_to_onboarding(needs, result["rankedNeeds"], top_n=5)
     enabled = [t for t, row in needs.items() if row.get("enabled")]
     assert 1 <= len(enabled) <= 5
+    assert "N_RET" in enabled
     for t in enabled:
         assert t in AI_NEED_TO_UNIFIED.values()
+
+
+def test_top_needs_always_enable_retirement():
+    from src.pipeline.need_profiler import apply_top_needs_to_onboarding, select_unified_top
+
+    ranked = [
+        {"unifiedType": "N_CRI", "weightage_score": 9},
+        {"unifiedType": "N_SAV", "weightage_score": 8},
+        {"unifiedType": "N_INC", "weightage_score": 7},
+        {"unifiedType": "N_RET", "weightage_score": 1},
+    ]
+    assert select_unified_top(ranked) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
+    needs = ensure_needs_map({})
+    apply_top_needs_to_onboarding(needs, ranked)
+    enabled = [t for t, row in needs.items() if row.get("enabled")]
+    assert set(enabled) == {"N_RET", "N_CRI", "N_SAV", "N_INC"}
 
 
 def test_calculator_only_empty_preserves_manual_amount():

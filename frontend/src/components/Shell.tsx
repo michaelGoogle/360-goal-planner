@@ -11,11 +11,12 @@ export function Shell({
   children,
   toast,
   miraOn,
+  miraPaused,
   onMira,
   onToast,
   gtTtOn,
   onGtTtToggle,
-  onShare,
+  onShare: _onShare,
   nAssume,
   assumeOn,
   onAssume,
@@ -27,6 +28,7 @@ export function Shell({
   children: ReactNode;
   toast?: string;
   miraOn?: boolean;
+  miraPaused?: boolean;
   onMira?: () => void;
   onToast?: (msg: string) => void;
   gtTtOn: boolean;
@@ -68,13 +70,23 @@ export function Shell({
             <span>Powered by 360F</span>
           </div>
         </a>
-        <div className="x-top-end">
-          {onShare ? (
-            <button className="x-top-share" type="button" onClick={onShare}>
-              {Ico.share}
-              Share
+        <nav className="x-nav" aria-label="Progress">
+          {ROUTES.map((r, i) => (
+            <button
+              key={r}
+              type="button"
+              className={`${i === cur ? 'on' : ''} ${i < cur ? 'done' : ''}`}
+              disabled={i > maxStep}
+              aria-current={i === cur ? 'step' : undefined}
+              title={ROUTE_LABEL[r]}
+              onClick={() => onGo(r)}
+            >
+              <i>{i < cur ? '✓' : i + 1}</i>
+              <span>{ROUTE_LABEL[r]}</span>
             </button>
-          ) : null}
+          ))}
+        </nav>
+        <div className="x-top-end">
           {onAssume ? (
             <button
               className={`x-top-assume ${assumeOn ? 'on' : ''}`}
@@ -103,22 +115,6 @@ export function Shell({
               <i className="x-togk" />
             </span>
           </button>
-          <nav className="x-nav" aria-label="Progress">
-          {ROUTES.map((r, i) => (
-            <button
-              key={r}
-              type="button"
-              className={`${i === cur ? 'on' : ''} ${i < cur ? 'done' : ''}`}
-              disabled={i > maxStep}
-              aria-current={i === cur ? 'step' : undefined}
-              title={ROUTE_LABEL[r]}
-              onClick={() => onGo(r)}
-            >
-              <i>{i < cur ? '✓' : i + 1}</i>
-              <span>{ROUTE_LABEL[r]}</span>
-            </button>
-          ))}
-        </nav>
         </div>
         <span className="x-bar" style={{ width: `${pct}%` }} />
       </header>
@@ -176,23 +172,20 @@ export function Shell({
       ) : (
         <div className="x-fabs">
           <button
-            className={`x-fab mira ${miraOn ? 'on' : ''}`}
+            className={`x-fab mira ${miraOn ? 'on' : ''}${miraPaused ? ' paused' : ''}`}
             type="button"
             onClick={onMira}
             aria-pressed={!!miraOn}
-            title={miraOn ? 'Stop Mira' : 'Have Mira talk you through this screen'}
+            title={miraOn ? (miraPaused ? 'Resume Mira' : 'Pause Mira') : 'Have Mira talk you through this screen'}
           >
-            {miraOn ? (
-              <span className="eq">
-                <i />
-                <i />
-                <i />
-                <i />
-              </span>
-            ) : (
-              Ico.wand
-            )}
-            <span>{miraOn ? 'Mira is speaking — stop' : 'Let Mira guide you (AI adviser)'}</span>
+            {miraOn ? (miraPaused ? Ico.play : Ico.pause) : Ico.wand}
+            <span>
+              {miraOn
+                ? miraPaused
+                  ? 'Mira is paused — resume'
+                  : 'Mira is speaking — pause'
+                : 'Let Mira guide you (AI adviser)'}
+            </span>
           </button>
           {advSent ? (
             <div className="x-fab done">

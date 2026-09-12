@@ -5,10 +5,14 @@ from typing import Any
 
 from src.cpf import expenses_from_gross, take_home_income
 from src.hu_payload import dob_from_age
+from src.pipeline.need_profiler import select_unified_top
 
 UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_RET", "N_EDU", "N_SAV", "N_PRP")
 PROTECTION = ("N_INC", "N_CRI", "N_TPD")
 PROPERTY_LTV = 0.55
+# SV pots: cash/savings vs investments. GP labels these Cash & Savings / Investments.
+CASH_SAVINGS_SHARE = 0.15
+INVESTMENTS_SHARE = 0.85
 
 
 def seed_property_value(income_monthly: float) -> int:
@@ -96,13 +100,13 @@ def _apply_plu(session: dict[str, Any], result: dict[str, Any]) -> dict[str, Any
     surplus = take_home - session["expenseMonthly"]
     if session["incomeMonthly"] and session["expenseMonthly"] and age > 21:
         assets = max(0.0, surplus * 12 * 0.5 * (age - 21))
-        session["cash"] = round(assets * 0.45)
-        session["investments"] = round(assets * 0.55)
+        session["cash"] = round(assets * CASH_SAVINGS_SHARE)
+        session["investments"] = round(assets * INVESTMENTS_SHARE)
     else:
         assets = float(finance.get("liquidAssetValue") or mapped.get("assets") or 0)
         if assets:
-            session["cash"] = round(assets * 0.45)
-            session["investments"] = round(assets * 0.55)
+            session["cash"] = round(assets * CASH_SAVINGS_SHARE)
+            session["investments"] = round(assets * INVESTMENTS_SHARE)
     own = bool((mapped.get("ownershipInformation") or {}).get("property"))
     _seed_home(session, own=own)
     life = _assumed_life_policy(session)
@@ -132,14 +136,7 @@ def _needs_from_profiler(session: dict[str, Any], result: dict[str, Any]) -> dic
                 }
             )
     else:
-        unified = []
-        for n in ranked:
-            ut = n.get("unifiedType")
-            if ut and ut not in unified:
-                unified.append(ut)
-            if len(unified) >= 5:
-                break
-        enable = set(unified)
+        enable = set(select_unified_top(ranked))
         for t in UNIFIED_TYPES:
             rows.append({"type": t, "enabled": t in enable, "needAmount": 0, "priority": 3})
     session["needs"] = [r for r in rows if r.get("type") in UNIFIED_TYPES]

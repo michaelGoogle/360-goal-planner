@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from typing import Any
@@ -16,7 +17,7 @@ from src.heygen.jobs import (
     reset_job,
     update_job,
 )
-from src.heygen.media_store import StoreError, save_mp4
+from src.heygen.media_store import StoreError, media_dir, public_base, save_html, save_mp4
 from src.heygen.mobile import email_optional_ok, normalize_mobile
 from src.heygen.ops_alert import (
     alert_api_failure,
@@ -25,6 +26,7 @@ from src.heygen.ops_alert import (
 )
 from src.heygen.prompt import build_spoken_script, build_video_prompt
 from src.heygen.public_id import new_job_id
+from src.heygen.report_html import render_report_html
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,13 @@ def _finish_job(job_id: str, heygen_id: str | None = None) -> None:
         return
     try:
         media_url = save_mp4(heygen_url, job_id)
+        session = json.loads(job.get("session_json") or "{}")
+        if not isinstance(session, dict):
+            session = {}
+        pre = job.get("happi_pre")
+        post = job.get("happi_post")
+        html = render_report_html(session, pre, post, video_url=media_url)
+        report_url = save_html(html, job_id)
     except StoreError as exc:
         logger.warning("Media store failed for %s: %s", job_id, exc)
         if not _still_current(job_id, expected):
@@ -116,12 +125,12 @@ def _finish_job(job_id: str, heygen_id: str | None = None) -> None:
     if not _still_current(job_id, expected):
         logger.info("Video job %s superseded after store", job_id)
         return
-    display = media_url or heygen_url
-    update_job(job_id, status="completed", heygen_url=heygen_url, media_url=media_url or "")
+    update_job(job_id, status="completed", heygen_url=heygen_url, media_url=media_url)
     result = notify_ready(
         job.get("email") or "",
         job.get("mobile") or "",
-        display,
+        media_url,
+        report_url,
         job_id,
         job.get("first_name") or "",
     )
@@ -153,6 +162,8 @@ def submit_notify(email: str, mobile: str, session: dict[str, Any], pre: float |
         raise NotifyError(400, "Check the email address")
     if not heygen_configured():
         raise NotifyError(503, "Video notify is not configured (HEYGEN_API_KEY)")
+    if not media_dir() or not public_base():
+        raise NotifyError(503, "Video notify needs MEDIA_DIR and MEDIA_PUBLIC_BASE_URL")
     maybe_alert_low_balance()
     prompt = build_video_prompt(session, pre, post, mobile)
     script = build_spoken_script(session, pre, post)
@@ -160,7 +171,16 @@ def submit_notify(email: str, mobile: str, session: dict[str, Any], pre: float |
     existing = get_job_by_mobile(mobile)
     if existing:
         job_id = existing["id"]
-        reset_job(job_id, email=email, mobile=mobile, first_name=first, prompt=prompt)
+        reset_job(
+            job_id,
+            email=email,
+            mobile=mobile,
+            first_name=first,
+            prompt=prompt,
+            session=session,
+            pre=pre,
+            post=post,
+        )
     else:
         job_id = new_job_id()
         insert_job(
@@ -169,6 +189,9 @@ def submit_notify(email: str, mobile: str, session: dict[str, Any], pre: float |
             mobile=mobile,
             first_name=first,
             prompt=prompt,
+            session=session,
+            pre=pre,
+            post=post,
         )
     job = get_job(job_id) or {"id": job_id, "email": email, "mobile": mobile, "first_name": first}
     _persist_from_job(job, session, pre=pre, post=post, status="pending", heygen_id="", media_url="")

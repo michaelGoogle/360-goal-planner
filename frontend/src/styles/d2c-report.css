@@ -29,6 +29,17 @@ body.x-report-open .x-sticky {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--ln);
 }
+.x-report-bar .sp {
+  flex: 1 1 auto;
+}
+.x-report-bar .x-assumb,
+.x-report-bar .x-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .x-rpt-notify {
   z-index: 260;
   left: 50%;
@@ -91,15 +102,68 @@ body.x-report-open .x-sticky {
   letter-spacing: -0.6px;
 }
 .x-rpt-score-side .x-rpt-lift {
-  font-size: 34px;
-  letter-spacing: -0.8px;
+  font-size: 52px;
+  letter-spacing: -1.4px;
   font-weight: 800;
+  line-height: 1;
 }
 .x-rpt-scores .x-scorecap {
   margin: 0;
   font-size: 14.5px;
   font-weight: 650;
   line-height: 1.45;
+  text-align: left;
+}
+.x-rpt-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 4px 0 18px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--ln);
+  position: sticky;
+  top: 57px;
+  z-index: 1;
+  background: var(--page, #f5f7fa);
+}
+.x-rpt-jump a {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--acc);
+  text-decoration: none;
+}
+.x-rpt-jump a:hover {
+  text-decoration: underline;
+}
+.x-rpt-sec > summary {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.3px;
+  margin: 0 0 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.x-rpt-sec > summary::-webkit-details-marker {
+  display: none;
+}
+.x-rpt-sec > summary::after {
+  content: '▾';
+  float: right;
+  color: var(--ink2);
+  font-size: 16px;
+}
+.x-rpt-sec:not([open]) > summary::after {
+  content: '▸';
+}
+.x-affwarn {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--no-t, #fdeded);
+  color: var(--no, #e5484d);
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.4;
 }
 .x-rpt-stage {
   margin: 22px 0 8px;

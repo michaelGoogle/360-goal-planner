@@ -20,7 +20,7 @@ The talking-head script is **Python**, not a Markdown file under `src/prompts/`.
 | What to change | Where |
 |----------------|--------|
 | Generic dummy walkthrough (no figures) | [`src/heygen/prompt.py`](../src/heygen/prompt.py) → `build_dummy_spoken_script()` then `python scripts/produce_dummy_walkthrough.py` |
-| Customised spoken script, figures, close | same file, `build_spoken_script()` — amounts as “Singapore dollars”, never `S$` |
+| Customised spoken script, figures, close | same file, `build_spoken_script()` / `_speak_money()` — one intro “all numbers presented are in Singapore dollars”; amounts after that with no currency; big figures as 3 significant digits (`4.99 million`, `11 thousand 200`); never `S$` / `SGD` |
 | Avatar look note | same file, `spokesperson_look()` — country from the **mobile** calling code (stored on the job; HeyGen uses a stock Avatar III look) |
 | Need-type labels (“retirement”, …) | same file, `NEED_LABEL` |
 | Which avatar / voice | `HEYGEN_AVATAR_ID` (default `Juan_standing_office_front`, June Office Front 2), optional `HEYGEN_VOICE_ID` |
@@ -46,8 +46,8 @@ change which figures are spoken, update that test.
    [`frontend/src/pages/plan/ReportNotify.tsx`](../frontend/src/pages/plan/ReportNotify.tsx).
 4. Toast: we will notify you when the customised video is ready. The dummy stays
    on the report until that clip replaces it.
-5. Later: WhatsApp and optional SMTP with a **text link** to the customised MP4
-   (not the dummy, not the file attached).
+5. Later: WhatsApp and optional SMTP with the **same two text links** — customised
+   MP4 and hosted HTML report (not the dummy, not HeyGen CDN, not files attached).
 
 The customer is **the mobile number** (Singapore 8-digit locals stored as
 `+65…`). The same mobile **overwrites** the previous video and FM row. A
@@ -68,8 +68,9 @@ GP BFF      202 { jobId }     (thread continues)
      ├─ HeyGen  POST /v3/videos  Avatar III talking-head { script, avatar_id }
      ├─ poll    GET  /v3/videos/{id}      every 15s, up to 40 min
      ├─ store   {MEDIA_DIR}/gp/{jobId}.mp4     (overwrite)
-     ├─ FM POST again with heygen id + lx URL
-     └─ notify  WhatsApp and optional SMTP
+     ├─ store   {MEDIA_DIR}/gp/{jobId}.html    (hosted report snapshot)
+     ├─ FM POST again with heygen id + lx video URL
+     └─ notify  WhatsApp and optional SMTP  (both media URLs, never HeyGen CDN)
 ```
 
 The report UI polls `GET /v1/video-notify/{jobId}` until `mediaUrl` is set.
@@ -82,13 +83,16 @@ are still `pending` and already have a HeyGen id.
 | [`src/heygen/prompt.py`](../src/heygen/prompt.py) | Build the prompt |
 | [`src/heygen/agent.py`](../src/heygen/agent.py) | Generate + poll |
 | [`src/heygen/jobs.py`](../src/heygen/jobs.py) | sqlite (`GP_VIDEO_JOBS` or `GP/data/video_jobs.sqlite`) |
-| [`src/heygen/media_store.py`](../src/heygen/media_store.py) | Download MP4 onto the media volume |
+| [`src/heygen/media_store.py`](../src/heygen/media_store.py) | Write MP4 + HTML onto the media volume |
+| [`src/heygen/report_html.py`](../src/heygen/report_html.py) | Standalone HTML snapshot (about you, money, goals, plan) |
 | [`src/heygen/delivery.py`](../src/heygen/delivery.py) | Email + WhatsApp **text** |
 | [`src/heygen/mobile.py`](../src/heygen/mobile.py) | Normalize SG / E.164 |
 | [`src/heygen/public_id.py`](../src/heygen/public_id.py) | 12-hex job id (reused per mobile) |
 | [`src/heygen/pipeline.py`](../src/heygen/pipeline.py) | Orchestrate thread + resume + FM persist |
 
-Unset `HEYGEN_API_KEY` → **503** (no fake video). HeyGen generate failure → **503**.
+Unset `HEYGEN_API_KEY` → **503** (no fake video). Missing `MEDIA_DIR` or
+`MEDIA_PUBLIC_BASE_URL` → **503** (no HeyGen CDN fallback). HeyGen generate
+failure → **503**.
 
 ---
 
@@ -96,23 +100,31 @@ Unset `HEYGEN_API_KEY` → **503** (no fake video). HeyGen generate failure → 
 
 Nginx `media` already serves a host directory read-only as `/videos/` on LAN
 **8042** / WAN **8442**. GP mounts the **same directory read-write** and writes
-`gp/{jobId}.mp4`. Re-share for the same mobile **replaces** that file.
+`gp/{jobId}.mp4` and `gp/{jobId}.html`. Re-share for the same mobile
+**replaces** both files. Nginx must serve `.html` as `text/html` (see
+`deployment/media/nginx.conf`).
 
-Public URL (customers open this; it is not a GP redirect). The filename is a
+Public URLs (customers open these; they are not GP redirects). The filename is a
 **12-character hex id** from `new_job_id()` (or the previous id for that
 mobile). The same id is in the email/WhatsApp body as `Video id:` so you can
-find `media/gp/{jobId}.mp4` later.
+find the files later.
 
-`{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.mp4`
+| What | Path |
+|------|------|
+| Customised video | `{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.mp4` |
+| Hosted HTML report | `{MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.html` |
 
-Examples:
+Examples (WAN):
 
-- LAN: `http://192.168.1.43:8042/videos/gp/{jobId}.mp4`
-- WAN: `https://mgzh11.synology.me:8442/videos/gp/{jobId}.mp4`
+- `https://mgzh11.synology.me:8442/videos/gp/{jobId}.mp4`
+- `https://mgzh11.synology.me:8442/videos/gp/{jobId}.html`
 
-If `MEDIA_DIR` is unset (laptop without the volume), that job may fall back to
-the HeyGen CDN URL (those expire). If `MEDIA_DIR` is set but the write fails,
-the job is marked failed and nothing is sent.
+LAN uses `http://192.168.1.43:8042/videos/gp/…`. The dummy walkthrough is
+`…/gp/generic-walkthrough.mp4` only — there is no dummy HTML.
+
+If `MEDIA_DIR` or `MEDIA_PUBLIC_BASE_URL` is unset, Share returns **503** and
+nothing is queued. If the write fails after HeyGen completes, the job is marked
+failed and nothing is sent. **Never** send a `files2.heygen.ai` URL.
 
 ---
 
@@ -136,9 +148,22 @@ was given.
 
 - **Email:** workspace SMTP (`SMTP_HOST`, `SMTP_FROM`, …). If `SMTP_HOST` is
   unset, email is skipped (not treated as a hard fail).
-- **WhatsApp:** Baileys gateway `POST {WHATSAPP_GATEWAY_URL}/send` with a text
-  body that includes the public URL. Not Twilio. Not the MP4 as media (HeyGen
-  URLs expire; large media also fails on some gateways).
+- **WhatsApp and email share one body**, two media-server links:
+
+  ```text
+  Hi {name}, your FinPlan360 plan is ready.
+
+  Customised video: {MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.mp4
+  Your report:      {MEDIA_PUBLIC_BASE_URL}/gp/{jobId}.html
+
+  Video id: {jobId}
+
+  This is a sizing illustration, not a quote and not advice to buy.
+  ```
+
+- **WhatsApp:** Baileys gateway `POST {WHATSAPP_GATEWAY_URL}/send` with that
+  text. Not Twilio. Not the MP4 or HTML as media (large media fails on some
+  gateways; HeyGen CDN URLs expire).
 
 If WhatsApp is down, email still goes when an address was given. If only mobile
 was given and WhatsApp fails, that channel is marked failed on the job.
