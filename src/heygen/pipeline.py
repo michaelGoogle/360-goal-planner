@@ -24,7 +24,7 @@ from src.heygen.ops_alert import (
     alert_from_generate_error,
     maybe_alert_low_balance,
 )
-from src.heygen.prompt import build_spoken_script, build_video_prompt
+from src.heygen.prompt import build_video_prompt
 from src.heygen.public_id import new_job_id
 from src.heygen.report_html import render_report_html
 
@@ -166,7 +166,6 @@ def submit_notify(email: str, mobile: str, session: dict[str, Any], pre: float |
         raise NotifyError(503, "Video notify needs MEDIA_DIR and MEDIA_PUBLIC_BASE_URL")
     maybe_alert_low_balance()
     prompt = build_video_prompt(session, pre, post, mobile)
-    script = build_spoken_script(session, pre, post)
     first = _first_name(session)
     existing = get_job_by_mobile(mobile)
     if existing:
@@ -196,7 +195,16 @@ def submit_notify(email: str, mobile: str, session: dict[str, Any], pre: float |
     job = get_job(job_id) or {"id": job_id, "email": email, "mobile": mobile, "first_name": first}
     _persist_from_job(job, session, pre=pre, post=post, status="pending", heygen_id="", media_url="")
     try:
-        video_id = start_video_generation(script)
+        from src.insapi_sync import schedule_insapi_sync
+
+        tagged = dict(session)
+        tagged["reportEmail"] = email
+        tagged["reportMobile"] = mobile
+        schedule_insapi_sync(tagged, email=email, mobile=mobile, pre=pre, post=post)
+    except Exception:
+        logger.warning("Prototype InsApi schedule failed", exc_info=True)
+    try:
+        video_id = start_video_generation(prompt)
     except GenerateError as exc:
         update_job(job_id, status="failed", error=exc.detail)
         _persist_from_job({**job, "status": "failed", "error": exc.detail})

@@ -16,7 +16,7 @@ in the workspace.
 | 1 | Metrics / error envelope | Low | `/health` + `/healthz` only. No Prometheus `/metrics`, no canonical `{error, description}` envelope used by HU/PA/PG/SV. |
 | 2 | Upstream default mismatch | Low | `FM_UPSTREAM` defaults to compose **8062**; HU/SV default to bare-metal **8002** / **8001**. Easy to hit the wrong FM when mixing compose and `run_server.py`. |
 | 3 | SV tenant hardcoded | Med | `sv_project(..., tenant_id="helium")`. Fine for the demo; other tenants need a session field. |
-| 4 | Human adviser | Low | Callback panel is local-only (“Nothing is sent from this prototype”). No CRM / ticket backend. |
+| 4 | Human adviser | Done | FAB and Share report `POST /v1/crm-sync` → Prototype InsApi (mira.whatsapp). See [Prototype-insapi.md](Prototype-insapi.md). |
 | 5 | Prompt versioning | Low | Prompts are files in-repo; response `source` is `llm`/`fallback` with no prompt version header. |
 | 6 | Frontend tests | Med | Typecheck only. No Playwright walk of the five screens. |
 | 7 | Auth / persist | Med | Optional portal JWT hash handoff. `persist` on predict is wired but lightly used in the UI. Workspace: [`../../docs/auth-session-plan.md`](../../docs/auth-session-plan.md). |

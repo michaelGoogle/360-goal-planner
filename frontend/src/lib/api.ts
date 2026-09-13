@@ -106,6 +106,14 @@ export function sessionPayload(s: GpSession) {
     planLump: s.planLump,
     planSum: s.planSum,
     planPrem: s.planPrem,
+    extraNeeds: s.extraNeeds,
+    cpfOa: s.cpfOa,
+    cpfSa: s.cpfSa,
+    cpfMa: s.cpfMa,
+    reportEmail: s.reportEmail || '',
+    reportMobile: s.reportMobile || '',
+    insapiContactId: s.insapiContactId || '',
+    insapiPlanId: s.insapiPlanId || '',
     inflationRate: s.inflationRate,
     interestRate: s.interestRate,
     incomeGrowthRate: s.incomeGrowthRate,
@@ -118,6 +126,12 @@ export interface PredictResponse {
   success: boolean;
   notes: string[];
   session: Partial<GpSession> & { needs?: NeedRow[]; note?: string; source?: string };
+}
+
+export interface CrmSyncResponse {
+  success: boolean;
+  contactId?: string;
+  planId?: string;
 }
 
 export interface ScoreResponse {

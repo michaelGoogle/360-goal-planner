@@ -1,4 +1,4 @@
-"""HeyGen Avatar III talking-head generate + poll (no Video Agent)."""
+"""HeyGen Video Agent generate + poll (session then video)."""
 
 from __future__ import annotations
 
@@ -17,9 +17,6 @@ POLL_TIMEOUT_SEC = 2400
 HEYGEN_NEEDS_CREDIT = (
     "HeyGen needs credits or a payment method before we can make the video"
 )
-
-DEFAULT_AVATAR_ID = "Juan_standing_office_front"
-DEFAULT_VOICE_ID = "f081135e72934ddc82d4e9a26b513f91"
 
 
 class GenerateError(Exception):
@@ -64,12 +61,17 @@ def _clip_body(resp: requests.Response | None) -> str:
         return ""
 
 
+def _inner(payload: dict) -> dict:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    return data or payload
+
+
 def _avatar_id() -> str:
-    return (os.environ.get("HEYGEN_AVATAR_ID") or "").strip() or DEFAULT_AVATAR_ID
+    return (os.environ.get("HEYGEN_AVATAR_ID") or "").strip()
 
 
 def _voice_id() -> str:
-    return (os.environ.get("HEYGEN_VOICE_ID") or "").strip() or DEFAULT_VOICE_ID
+    return (os.environ.get("HEYGEN_VOICE_ID") or "").strip()
 
 
 def wallet_remaining_usd() -> float | None:
@@ -80,9 +82,7 @@ def wallet_remaining_usd() -> float | None:
     try:
         resp = requests.get(url, headers=_headers(), timeout=20)
         resp.raise_for_status()
-        data = resp.json()
-        inner = data.get("data") if isinstance(data.get("data"), dict) else data
-        wallet = (inner or {}).get("wallet") or {}
+        wallet = _inner(resp.json()).get("wallet") or {}
         if str(wallet.get("currency") or "").lower() not in {"usd", ""}:
             return None
         raw = wallet.get("remaining_balance")
@@ -94,17 +94,18 @@ def wallet_remaining_usd() -> float | None:
         return None
 
 
-def _generate_payload(script: str) -> dict:
+def _generate_payload(prompt: str) -> dict:
     body: dict = {
-        "type": "avatar",
-        "avatar_id": _avatar_id(),
-        "script": script,
-        "voice_id": _voice_id(),
-        "title": "FinPlan360 plan report",
-        "resolution": "1080p",
-        "aspect_ratio": "16:9",
-        "engine": {"type": "avatar_iii"},
+        "prompt": prompt,
+        "mode": "generate",
+        "orientation": "landscape",
     }
+    avatar = _avatar_id()
+    voice = _voice_id()
+    if avatar:
+        body["avatar_id"] = avatar
+    if voice:
+        body["voice_id"] = voice
     return body
 
 
@@ -112,7 +113,7 @@ def start_video_generation(prompt: str) -> Optional[str]:
     if not heygen_configured():
         logger.warning("HEYGEN_API_KEY not set; skipping video generation")
         return None
-    url = f"{_base_url()}/v3/videos"
+    url = f"{_base_url()}/v3/video-agents"
     try:
         resp = requests.post(url, json=_generate_payload(prompt), headers=_headers(), timeout=60)
         if resp.status_code == 402:
@@ -133,12 +134,18 @@ def start_video_generation(prompt: str) -> Optional[str]:
                 body=_clip_body(exc.response or resp),
             ) from exc
         data = resp.json()
-        inner = data.get("data") if isinstance(data.get("data"), dict) else data
-        video_id = (inner or {}).get("video_id") or (inner or {}).get("id") or data.get("video_id")
-        if video_id:
-            logger.info("HeyGen Avatar III started video_id=%s", video_id)
-            return str(video_id)
-        logger.error("HeyGen generate did not return video_id: %r", data)
+        inner = _inner(data)
+        session_id = (
+            inner.get("session_id")
+            or inner.get("id")
+            or data.get("session_id")
+            or inner.get("video_id")
+            or data.get("video_id")
+        )
+        if session_id:
+            logger.info("HeyGen Video Agent started session_id=%s", session_id)
+            return str(session_id)
+        logger.error("HeyGen generate did not return session_id: %r", data)
         raise GenerateError(
             "HeyGen did not start",
             endpoint=url,
@@ -151,6 +158,31 @@ def start_video_generation(prompt: str) -> Optional[str]:
         return None
 
 
+def poll_session_status(session_id: str) -> tuple[Optional[str], Optional[str]]:
+    """Return (status, video_id). status is ready | failed | processing | not_found | None."""
+    if not heygen_configured():
+        return (None, None)
+    url = f"{_base_url()}/v3/video-agents/{session_id}"
+    try:
+        resp = requests.get(url, headers=_headers(), timeout=30)
+        if resp.status_code in {400, 404}:
+            return ("not_found", None)
+        resp.raise_for_status()
+        inner = _inner(resp.json())
+        status = str(inner.get("status") or "").lower()
+        video_id = inner.get("video_id")
+        if status == "failed":
+            return ("failed", None)
+        if video_id:
+            return ("ready", str(video_id))
+        if status == "completed":
+            return ("failed", None)
+        return ("processing", None)
+    except Exception as exc:
+        logger.warning("HeyGen session poll error for %s: %s", session_id, exc)
+        return (None, None)
+
+
 def poll_video_status(video_id: str) -> tuple[Optional[str], Optional[str]]:
     """Return (status, video_url). status is completed | failed | processing | None."""
     if not heygen_configured():
@@ -159,10 +191,7 @@ def poll_video_status(video_id: str) -> tuple[Optional[str], Optional[str]]:
     try:
         resp = requests.get(url, headers=_headers(), timeout=30)
         resp.raise_for_status()
-        data = resp.json()
-        inner = data.get("data") if isinstance(data.get("data"), dict) else data
-        if not inner:
-            inner = data
+        inner = _inner(resp.json())
         status = str(inner.get("status") or "").lower()
         video_url = inner.get("video_url")
         if status == "completed" and video_url:
@@ -175,9 +204,27 @@ def poll_video_status(video_id: str) -> tuple[Optional[str], Optional[str]]:
         return (None, None)
 
 
-def wait_for_url(video_id: str) -> tuple[str, Optional[str]]:
-    """Block until completed, failed, or timeout. Returns (status, url)."""
+def wait_for_url(heygen_id: str) -> tuple[str, Optional[str]]:
+    """Block until completed, failed, or timeout. Returns (status, url).
+
+    ``heygen_id`` is a Video Agent session id. Legacy Avatar III video ids still
+    work: a missing session falls through to ``GET /v3/videos/{id}``.
+    """
     started = time.monotonic()
+    video_id: str | None = None
+    while (time.monotonic() - started) < POLL_TIMEOUT_SEC:
+        sess_status, sess_vid = poll_session_status(heygen_id)
+        if sess_status == "failed":
+            return ("failed", None)
+        if sess_status == "not_found":
+            video_id = heygen_id
+            break
+        if sess_vid:
+            video_id = sess_vid
+            break
+        time.sleep(POLL_INTERVAL_SEC)
+    if not video_id:
+        return ("timeout", None)
     while (time.monotonic() - started) < POLL_TIMEOUT_SEC:
         status, url = poll_video_status(video_id)
         if status == "completed" and url:

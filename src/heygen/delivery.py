@@ -22,6 +22,14 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
+# SendGrid wraps every URL in the body (urlNNNN.360f.com/ls/click?…) unless
+# click tracking is off. WhatsApp is not rewritten, so keep the same raw links.
+_SENDGRID_NO_CLICKTRACK = json.dumps(
+    {"filters": {"clicktrack": {"settings": {"enable": 0, "enable_text": 0}}}},
+    separators=(",", ":"),
+)
+
+
 def send_email(to: str, subject: str, text_body: str) -> dict[str, Any]:
     host = (os.environ.get("SMTP_HOST") or "").strip()
     if not host:
@@ -37,6 +45,7 @@ def send_email(to: str, subject: str, text_body: str) -> dict[str, Any]:
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = to
+    msg["X-SMTPAPI"] = _SENDGRID_NO_CLICKTRACK
     msg.set_content(text_body)
     try:
         if use_ssl:

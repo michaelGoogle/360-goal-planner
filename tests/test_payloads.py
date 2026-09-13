@@ -241,6 +241,15 @@ def test_sv_payload_plan_mix_becomes_post_path():
     assert life_cols["guaranteedDeathBenefit"][0] == 500_000
 
 
+def test_sv_payload_foreigner_uses_non_cpf_region():
+    session = _session()
+    session["residency"] = "Foreigner"
+    body = build_sv_payload(session)
+    assert body["personalDetails"][0]["socialSecurity"]["region"] == "R_OTH"
+    citizen = build_sv_payload(_session())
+    assert citizen["personalDetails"][0]["socialSecurity"]["region"] == "R_SGP"
+
+
 def test_sv_payload_plans_off_skips_bvo_product():
     session = _session()
     session["planMth"] = {"N_RET": 400}

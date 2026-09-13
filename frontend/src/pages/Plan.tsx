@@ -464,6 +464,8 @@ export function Plan({
               reportJobId: p.jobId,
               reportMediaUrl: '',
               reportVideoStatus: 'pending',
+              insapiContactId: p.contactId || session.insapiContactId,
+              insapiPlanId: p.planId || session.insapiPlanId,
             })
           }
         />

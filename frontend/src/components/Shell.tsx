@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import type { Route } from '../lib/types';
+import type { GpSession, Route } from '../lib/types';
 import { ROUTES, ROUTE_LABEL } from '../lib/types';
 import { suitePortalUrl } from '../lib/auth';
+import { postJson, sessionPayload, type CrmSyncResponse } from '../lib/api';
 import { Ico } from '../lib/icons';
 
 export function Shell({
@@ -21,6 +22,10 @@ export function Shell({
   assumeOn,
   onAssume,
   overlay,
+  session,
+  pre,
+  post,
+  onContactSaved,
 }: {
   route: Route;
   maxStep: number;
@@ -38,6 +43,15 @@ export function Shell({
   assumeOn?: boolean;
   onAssume?: () => void;
   overlay?: ReactNode;
+  session?: GpSession;
+  pre?: number | null;
+  post?: number | null;
+  onContactSaved?: (p: {
+    email: string;
+    mobile: string;
+    contactId?: string;
+    planId?: string;
+  }) => void;
 }) {
   const cur = ROUTES.indexOf(route);
   const pct = Math.round((cur / (ROUTES.length - 1)) * 100);
@@ -46,18 +60,47 @@ export function Shell({
   const [advEmail, setAdvEmail] = useState('');
   const [advPhone, setAdvPhone] = useState('');
   const [advVia, setAdvVia] = useState('');
+  const [advBusy, setAdvBusy] = useState(false);
+  const [advErr, setAdvErr] = useState('');
 
   const sendAdv = () => {
     const em = advEmail.trim();
     const ph = advPhone.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em) && !ph) {
-      onToast?.('Enter an email or a mobile number');
+    if (!em || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+      setAdvErr('Enter an email address');
       return;
     }
-    setAdvVia(em || ph);
-    setAdvSent(true);
-    setAdv(false);
-    onToast?.('An adviser will be in touch');
+    if (ph.replace(/\D/g, '').length < 8) {
+      setAdvErr('Enter a mobile number');
+      return;
+    }
+    setAdvErr('');
+    setAdvBusy(true);
+    const sess = session || ({} as GpSession);
+    void postJson<CrmSyncResponse>('/v1/crm-sync', {
+      email: em,
+      mobile: ph,
+      pre: pre ?? null,
+      post: post ?? null,
+      session: session ? sessionPayload(sess) : { name: '' },
+    })
+      .then(data => {
+        setAdvVia(em);
+        setAdvSent(true);
+        setAdv(false);
+        setAdvBusy(false);
+        onContactSaved?.({
+          email: em,
+          mobile: ph,
+          contactId: data.contactId,
+          planId: data.planId,
+        });
+        onToast?.('An adviser will be in touch');
+      })
+      .catch(e => {
+        setAdvBusy(false);
+        setAdvErr(e instanceof Error && e.message ? e.message : 'Could not reach the adviser CRM');
+      });
   };
 
   return (
@@ -141,13 +184,12 @@ export function Shell({
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              disabled={advBusy}
               onChange={e => setAdvEmail(e.target.value)}
             />
           </div>
           <div className="x-f">
-            <label htmlFor="adv-phone">
-              Mobile <span className="op">optional</span>
-            </label>
+            <label htmlFor="adv-phone">Mobile</label>
             <input
               id="adv-phone"
               className="x-in"
@@ -155,19 +197,21 @@ export function Shell({
               type="tel"
               placeholder="+65 8123 4567"
               autoComplete="tel"
+              disabled={advBusy}
               onChange={e => setAdvPhone(e.target.value)}
             />
           </div>
+          {advErr ? <p className="x-ferr">{advErr}</p> : null}
           <div className="x-foot" style={{ marginTop: 4 }}>
-            <button className="x-btn sm" type="button" onClick={() => setAdv(false)}>
+            <button className="x-btn sm" type="button" onClick={() => setAdv(false)} disabled={advBusy}>
               Not now
             </button>
             <span className="sp" />
-            <button className="x-btn p sm" type="button" onClick={sendAdv}>
-              Ask an adviser to call
+            <button className="x-btn p sm" type="button" onClick={sendAdv} disabled={advBusy}>
+              {advBusy ? 'Saving…' : 'Ask an adviser to call'}
             </button>
           </div>
-          <div className="x-fine">Nothing is sent from this prototype.</div>
+          <div className="x-fine">We save your details and this plan for the adviser.</div>
         </div>
       ) : (
         <div className="x-fabs">
@@ -196,7 +240,12 @@ export function Shell({
             <button
               className="x-fab human"
               type="button"
-              onClick={() => setAdv(true)}
+              onClick={() => {
+                setAdvEmail(session?.reportEmail || advEmail);
+                setAdvPhone(session?.reportMobile || advPhone);
+                setAdvErr('');
+                setAdv(true);
+              }}
               title="Leave a number or email for an adviser"
             >
               {Ico.chat}

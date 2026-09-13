@@ -24,7 +24,7 @@ if str(GP_ROOT) not in sys.path:
 from src.env_bootstrap import load_env_files  # noqa: E402
 from src.heygen.agent import GenerateError, heygen_configured, start_video_generation, wait_for_url  # noqa: E402
 from src.heygen.media_store import DUMMY_VIDEO_ID, dummy_media_url, media_dir, save_mp4  # noqa: E402
-from src.heygen.prompt import build_dummy_spoken_script  # noqa: E402
+from src.heygen.prompt import build_dummy_video_prompt  # noqa: E402
 
 load_env_files()
 
@@ -67,23 +67,23 @@ def _scp_to_lx43(local: Path) -> None:
 
 
 def main() -> int:
-    script = build_dummy_spoken_script()
-    print("Spoken script:", flush=True)
-    print(script, flush=True)
+    prompt = build_dummy_video_prompt()
+    print("Video Agent prompt:", flush=True)
+    print(prompt, flush=True)
     print(flush=True)
     if not heygen_configured():
         print("HEYGEN_API_KEY is not set", file=sys.stderr)
         return 1
     try:
-        video_id = start_video_generation(script)
+        session_id = start_video_generation(prompt)
     except GenerateError as exc:
         print(exc.detail, file=sys.stderr)
         return 1
-    if not video_id:
+    if not session_id:
         print("HeyGen did not start", file=sys.stderr)
         return 1
-    print(f"HeyGen started video_id={video_id}; waiting…")
-    status, heygen_url = wait_for_url(video_id)
+    print(f"HeyGen Video Agent started session_id={session_id}; waiting…")
+    status, heygen_url = wait_for_url(session_id)
     if status != "completed" or not heygen_url:
         print(f"HeyGen ended {status or 'failed'}", file=sys.stderr)
         return 1

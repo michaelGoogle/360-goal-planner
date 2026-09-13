@@ -12,6 +12,9 @@ services:
       HU_UPSTREAM: ${HU_UPSTREAM:-https://mgzh11.synology.me:8463}
       SV_UPSTREAM: ${SV_UPSTREAM:-https://mgzh11.synology.me:8464}
       GP_UPSTREAM_TIMEOUT_S: ${GP_UPSTREAM_TIMEOUT_S:-120}
+      INSAPI_UPSTREAM: ${INSAPI_UPSTREAM:-https://demo-360-ai-prototype.360f.com}
+      INSAPI_USER_NAME: ${INSAPI_USER_NAME:-mira.whatsapp}
+      INSAPI_USER_ID: ${INSAPI_USER_ID:-07e06e98-da76-496c-9ccc-9502ca535b03}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_MODEL: ${OPENAI_API_MODEL:-gpt-4o-mini}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}

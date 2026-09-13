@@ -451,6 +451,18 @@ export default function App() {
       nAssume={nAssume}
       assumeOn={assumeOpen}
       onAssume={() => patch({ tip: assumeOpen ? null : 'panel-assume' })}
+      session={session}
+      pre={pre}
+      post={post}
+      onContactSaved={p =>
+        setSession(s => ({
+          ...s,
+          reportEmail: p.email,
+          reportMobile: p.mobile,
+          insapiContactId: p.contactId || s.insapiContactId,
+          insapiPlanId: p.planId || s.insapiPlanId,
+        }))
+      }
       overlay={
         assumeOpen ? (
           <AssumeModal

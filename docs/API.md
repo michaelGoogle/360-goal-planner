@@ -17,11 +17,30 @@ CORS: allow all origins. No login. `/v1/predict` runs People Like You in-process
 | `POST` | `/v1/predict` | People Like You → Need Profiler → Need Calculator |
 | `POST` | `/v1/score` | HappiU `preHappiU` / `postHappiU` |
 | `POST` | `/v1/project` | Scenario Visualizer wealth path |
+| `POST` | `/v1/crm-sync` | Upsert contact + financial plan on Prototype InsApi |
 | `GET` | `/v1/report-walkthrough` | Public URL of the shared dummy report video |
 | `POST` | `/v1/video-notify` | Queue HeyGen plan video; WhatsApp (and optional email) when ready |
 | `GET` | `/v1/video-notify/{jobId}` | Poll job status and public media URL |
 
 When `frontend/dist` is present, `GET /` serves the React UI.
+
+---
+
+## `POST /v1/crm-sync`
+
+Upsert a Prototype InsApi contact (owned by `mira.whatsapp`) and a Goal Planner
+financial plan. **Email and mobile are required.** See
+[Prototype-insapi.md](Prototype-insapi.md).
+
+### Request
+
+Same shape as video-notify: `{ email, mobile, pre, post, session }`.
+
+**200** `{ success, contactId, planId }`. **400** if email/mobile invalid.
+**503** if InsApi is unset or unreachable. Engine routes (`/v1/predict`,
+`/v1/score`, `/v1/project`) and Share report also refresh this plan in the
+background once contact is on the session; those paths do not fail the
+customer journey if Prototype is down.
 
 ---
 
@@ -179,9 +198,10 @@ every customer. The report plays this until a customised job sets `mediaUrl`.
 
 ## `POST /v1/video-notify`
 
-Queue a HeyGen Avatar III talking-head clip of the current plan report. **Mobile is
+Queue a HeyGen Video Agent clip of the current plan report. **Mobile is
 required** (customer key; Singapore 8-digit numbers are stored as `+65…`).
-Email is optional. The same mobile **overwrites** the previous job and
+The Share report UI also requires email and calls `POST /v1/crm-sync` first.
+The same mobile **overwrites** the previous job and
 `media/gp/{jobId}.mp4` rather than creating a second version.
 
 Returns **202** `{ success, jobId }` immediately; a background thread polls
@@ -190,15 +210,15 @@ lx43 media volume, then sends **the same two text links** (never HeyGen CDN,
 never attached files) over WhatsApp and SMTP when an address was given.
 
 GP also best-effort POSTs the snapshot to FM `POST /v1/public/plan-report`
-(contact, full session JSON, HappiU pre/post, HeyGen id, lx media URL). FM
-down does not block the video.
+and schedules a Prototype InsApi refresh. FM or InsApi down does not block the
+video.
 
 ### Request
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `mobile` | string | **yes** | Customer key. Local 8-digit SG → `+65`. WhatsApp destination. |
-| `email` | string | no | Optional second channel |
+| `email` | string | UI **yes** | Required in Share report / FAB for Prototype; optional on this route |
 | `pre` | number \| null | no | HappiU today |
 | `post` | number \| null | no | HappiU with this plan |
 | `session` | object | yes | Full GP session (prompt + FM snapshot) |
@@ -224,7 +244,7 @@ until `mediaUrl` is set.
 
 | Status | When |
 |--------|------|
-| **400** | Unknown explainer kind / Mira missing route; video-notify missing mobile |
+| **400** | Unknown explainer kind / Mira missing route; video-notify missing mobile; crm-sync missing email/mobile |
 | **422** | Invalid JSON body (Pydantic) |
 | **503** | Upstream unreachable, parse-sentence model failure, or video-notify without HeyGen / media volume |
 

@@ -237,6 +237,8 @@ export interface GpSession {
   cpfMa: number;
   reportMobile?: string;
   reportEmail?: string;
+  insapiContactId?: string;
+  insapiPlanId?: string;
   reportJobId?: string;
   reportMediaUrl?: string;
   reportVideoStatus?: 'idle' | 'pending' | 'completed' | 'failed';

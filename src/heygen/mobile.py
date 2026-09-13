@@ -163,6 +163,19 @@ def country_from_mobile(e164: str | None) -> str:
     return "Singapore"
 
 
+def split_e164(e164: str | None) -> tuple[str, str]:
+    """Split an E.164 number into (`+countryCode`, national number)."""
+    digits = "".join(c for c in str(e164 or "") if c.isdigit())
+    if not digits:
+        return "+65", ""
+    for prefix in _CALLING_PREFIXES:
+        if digits.startswith(prefix) and len(digits) > len(prefix):
+            return f"+{prefix}", digits[len(prefix) :]
+    if len(digits) == 8:
+        return "+65", digits
+    return f"+{digits[:2]}", digits[2:]
+
+
 def normalize_mobile(raw: str | None) -> str:
     """Singapore 8-digit locals become +65; otherwise E.164."""
     s = str(raw or "").strip().replace(" ", "").replace("-", "")

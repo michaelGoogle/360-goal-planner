@@ -19,15 +19,16 @@ The talking-head script is **Python**, not a Markdown file under `src/prompts/`.
 
 | What to change | Where |
 |----------------|--------|
-| Generic dummy walkthrough (no figures) | [`src/heygen/prompt.py`](../src/heygen/prompt.py) → `build_dummy_spoken_script()` then `python scripts/produce_dummy_walkthrough.py` |
+| Generic dummy walkthrough (no figures) | [`src/heygen/prompt.py`](../src/heygen/prompt.py) → `build_dummy_spoken_script()` / `build_dummy_video_prompt()` then `python scripts/produce_dummy_walkthrough.py` |
 | Customised spoken script, figures, close | same file, `build_spoken_script()` / `_speak_money()` — one intro “all numbers presented are in Singapore dollars”; amounts after that with no currency; big figures as 3 significant digits (`4.99 million`, `11 thousand 200`); never `S$` / `SGD` |
-| Avatar look note | same file, `spokesperson_look()` — country from the **mobile** calling code (stored on the job; HeyGen uses a stock Avatar III look) |
+| On-screen digits | same file, `_display_money()` / `_overlay_pairs()` — captions show `8500` while the voice says `8 thousand 500` |
+| Avatar look note | same file, `spokesperson_look()` — country from the **mobile** calling code; Video Agent picks a look from this description unless `HEYGEN_AVATAR_ID` is set |
 | Need-type labels (“retirement”, …) | same file, `NEED_LABEL` |
-| Which avatar / voice | `HEYGEN_AVATAR_ID` (default `Juan_standing_office_front`, June Office Front 2), optional `HEYGEN_VOICE_ID` |
+| Which avatar / voice | optional `HEYGEN_AVATAR_ID` / `HEYGEN_VOICE_ID` — omit so Video Agent chooses from the look note |
 
 `submit_notify()` in [`src/heygen/pipeline.py`](../src/heygen/pipeline.py) stores the look+script
-string on the job and POSTs the spoken script to HeyGen `POST /v3/videos`
-(`type: avatar`, `engine: avatar_iii`).
+string on the job and POSTs it to HeyGen `POST /v3/video-agents`
+(`mode: generate`, `orientation: landscape`).
 
 Trust rule (same as Mira): **only numbers already in the session** (and the
 HappiU pre/post the UI sent). Do not invent premiums, quotes, or product names.
@@ -65,7 +66,8 @@ GP BFF      202 { jobId }     (thread continues)
      │
      ├─ reuse job id + gp/{jobId}.mp4 when this mobile already exists
      ├─ FM POST /v1/public/plan-report  (best-effort: contact, session, HappiU, ids)
-     ├─ HeyGen  POST /v3/videos  Avatar III talking-head { script, avatar_id }
+     ├─ HeyGen  POST /v3/video-agents  Video Agent { prompt, mode: generate }
+     ├─ poll    GET  /v3/video-agents/{session_id}  until video_id
      ├─ poll    GET  /v3/videos/{id}      every 15s, up to 40 min
      ├─ store   {MEDIA_DIR}/gp/{jobId}.mp4     (overwrite)
      ├─ store   {MEDIA_DIR}/gp/{jobId}.html    (hosted report snapshot)
@@ -196,8 +198,8 @@ HeyGen key in git.
 |----------|---------|
 | `HEYGEN_API_KEY` | Required for notify |
 | `HEYGEN_API_BASE_URL` | Default `https://api.heygen.com` |
-| `HEYGEN_AVATAR_ID` | Avatar III look (default `Juan_standing_office_front`, June Office Front 2) |
-| `HEYGEN_VOICE_ID` | Optional; omit to use the look’s default voice |
+| `HEYGEN_AVATAR_ID` | Optional Video Agent avatar pin; omit to let the agent pick from the look note |
+| `HEYGEN_VOICE_ID` | Optional; omit to let the agent pick a voice |
 | `HEYGEN_ALERT_EMAIL` | Ops inbox when wallet &lt; $10 or HeyGen API fails (default `michael.gerber@vitalus.ch`) |
 | `HEYGEN_ALERT_BALANCE_USD` | Wallet alert threshold (default `10`) |
 | `MEDIA_DIR` | Container/host path to write (`/media` in compose) |

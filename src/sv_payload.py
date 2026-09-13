@@ -433,6 +433,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
                     },
                 ],
                 "socialSecurity": {
+                    # R_SGP = CPF engine. R_OTH = no CPF (SV SocialSecurityR_OTH / BaseClass).
                     "region": "R_SGP" if cpf_on else "R_OTH",
                     "ageStartPayout": max(65, ret_age),
                     "cpfInitialBalanceOA": 0,

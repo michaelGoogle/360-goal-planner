@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Ico } from '../../lib/icons';
-import { postJson } from '../../lib/api';
+import { postJson, type CrmSyncResponse } from '../../lib/api';
 import type { GpSession } from '../../lib/types';
 
 export function ReportNotify({
@@ -16,7 +16,13 @@ export function ReportNotify({
   post: number | null;
   onClose: () => void;
   onToast: (msg: string) => void;
-  onShared: (p: { mobile: string; email: string; jobId: string }) => void;
+  onShared: (p: {
+    mobile: string;
+    email: string;
+    jobId: string;
+    contactId?: string;
+    planId?: string;
+  }) => void;
 }) {
   const [email, setEmail] = useState(session.reportEmail || '');
   const [mobile, setMobile] = useState(session.reportMobile || '');
@@ -38,28 +44,34 @@ export function ReportNotify({
       setErr('Enter a mobile number');
       return;
     }
-    if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
-      setErr('Check the email address');
+    if (!em || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+      setErr('Enter an email address');
       return;
     }
     setErr('');
     setBusy(true);
-    void postJson<{ success: boolean; jobId: string }>('/v1/video-notify', {
-      email: em,
-      mobile: ph,
-      pre,
-      post,
-      session,
-    })
-      .then(data => {
-        onShared({ mobile: ph, email: em, jobId: data.jobId });
-        onToast('We will send a link when the report video is ready');
-        onClose();
-      })
-      .catch(e => {
-        setBusy(false);
-        setErr(e instanceof Error && e.message ? e.message : 'Could not start the video');
+    const payload = { email: em, mobile: ph, pre, post, session };
+    void (async () => {
+      let contactId = session.insapiContactId || '';
+      let planId = session.insapiPlanId || '';
+      try {
+        const crm = await postJson<CrmSyncResponse>('/v1/crm-sync', payload);
+        contactId = crm.contactId || contactId;
+        planId = crm.planId || planId;
+      } catch {
+        onToast('Could not save the plan to the adviser CRM. We will still send the report.');
+      }
+      const data = await postJson<{ success: boolean; jobId: string }>('/v1/video-notify', {
+        ...payload,
+        session: { ...session, reportEmail: em, reportMobile: ph, insapiContactId: contactId, insapiPlanId: planId },
       });
+      onShared({ mobile: ph, email: em, jobId: data.jobId, contactId, planId });
+      onToast('We will send a link when the report video is ready');
+      onClose();
+    })().catch(e => {
+      setBusy(false);
+      setErr(e instanceof Error && e.message ? e.message : 'Could not start the video');
+    });
   };
 
   return (
@@ -69,8 +81,8 @@ export function ReportNotify({
       </button>
       <b>Share report</b>
       <p>
-        Enter a mobile number so we can WhatsApp a link and keep one report per customer. Email is
-        optional.
+        Enter a mobile number and email so we can WhatsApp a link, keep one report per customer, and
+        save the plan for an adviser.
       </p>
       <div className="x-f">
         <label htmlFor="rpt-phone">Mobile</label>
@@ -86,9 +98,7 @@ export function ReportNotify({
         />
       </div>
       <div className="x-f">
-        <label htmlFor="rpt-email">
-          Email <span className="op">optional</span>
-        </label>
+        <label htmlFor="rpt-email">Email</label>
         <input
           id="rpt-email"
           className="x-in"

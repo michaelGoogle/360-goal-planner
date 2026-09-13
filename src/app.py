@@ -16,6 +16,8 @@ from src.heygen.jobs import get_job
 from src.heygen.media_store import dummy_media_url
 from src.heygen.pipeline import NotifyError, resume_pending, submit_notify
 from src.hu_payload import build_happiu_payload, need_existing
+from src.insapi_client import InsApiError
+from src.insapi_sync import schedule_insapi_sync, sync_contact_and_plan
 from src.openai_client import llm_configured
 from src.parse_sentence import extract_about_you
 from src.pipeline.run import run_need_calculator, run_need_profiler, run_people_like_you
@@ -108,6 +110,14 @@ class GpSession(BaseModel):
     planLump: dict[str, float] = Field(default_factory=dict)
     planSum: dict[str, float] = Field(default_factory=dict)
     planPrem: dict[str, float] = Field(default_factory=dict)
+    extraNeeds: list[str] = Field(default_factory=list)
+    cpfOa: float = 0
+    cpfSa: float = 0
+    cpfMa: float = 0
+    reportEmail: str = ""
+    reportMobile: str = ""
+    insapiContactId: str = ""
+    insapiPlanId: str = ""
     numSims: int = 200
     svNumSims: int = 20
     persist: bool = False
@@ -225,6 +235,7 @@ def predict(body: GpSession) -> dict[str, Any]:
         logger.warning("Need Calculator unavailable: %s", exc)
         notes.append("Need Calculator unavailable; amounts stay at zero until HU/SV.")
 
+    schedule_insapi_sync(session)
     return {"success": True, "session": session, "notes": notes}
 
 
@@ -238,10 +249,13 @@ def score(body: GpSession) -> dict[str, Any]:
     if status >= 400:
         raise HTTPException(status_code=status, detail=data)
     result = data.get("result") if isinstance(data, dict) else data
+    pre = (result or {}).get("preHappiU") if isinstance(result, dict) else None
+    post = (result or {}).get("postHappiU") if isinstance(result, dict) else None
+    schedule_insapi_sync(session_dict(body.model_dump()), pre=pre, post=post)
     return {
         "success": True,
-        "preHappiU": (result or {}).get("preHappiU") if isinstance(result, dict) else None,
-        "postHappiU": (result or {}).get("postHappiU") if isinstance(result, dict) else None,
+        "preHappiU": pre,
+        "postHappiU": post,
         "result": result,
         "breakdown": data.get("breakdown") if isinstance(data, dict) else None,
     }
@@ -257,6 +271,7 @@ def project(body: GpSession) -> dict[str, Any]:
     if status >= 400:
         raise HTTPException(status_code=status, detail=data)
     inner = data.get("data") if isinstance(data, dict) else data
+    schedule_insapi_sync(session_dict(body.model_dump()))
     return {"success": True, "data": inner, "raw": data, "payload": payload}
 
 
@@ -271,6 +286,16 @@ def sv_payload(body: GpSession) -> dict[str, Any]:
 def report_walkthrough() -> dict[str, Any]:
     """Public URL of the shared dummy report video (same clip for every customer)."""
     return {"success": True, "dummyUrl": dummy_media_url()}
+
+
+@api.post("/v1/crm-sync")
+def crm_sync(body: VideoNotifyBody) -> dict[str, Any]:
+    """Upsert the customer and financial plan on Prototype InsApi (mira.whatsapp)."""
+    try:
+        ids = sync_contact_and_plan(body.email, body.mobile, body.session or {}, body.pre, body.post)
+    except InsApiError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
+    return {"success": True, "contactId": ids.get("contactId") or "", "planId": ids.get("planId") or ""}
 
 
 @api.post("/v1/video-notify", status_code=202)

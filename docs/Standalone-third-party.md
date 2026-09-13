@@ -51,6 +51,8 @@ python deployment/push_gp_standalone.py
 
 That copies `GP/` into `D:\360-goal-planner` (or `GP_STANDALONE_DIR`), applies
 standalone packaging, and pushes `main` to `michaelGoogle/360-goal-planner`.
+If this workspace is dirty, the script commits on `working` first (stash leftovers).
+Dirty files in the standalone checkout are stashed unless you pass `--force`.
 Ordinary commits in this workspace stay on `happiU_SV_portfolio` / `working`.
 
 **Packaging so their clone builds:**
@@ -114,7 +116,7 @@ need the LLM key on **FM** for Estimate until predict is in-process.
 
 | Service | Path / protocol | Env |
 |---------|-----------------|-----|
-| HeyGen | `POST https://api.heygen.com/v3/videos` Avatar III talking-head, poll `GET /v3/videos/{id}` | `HEYGEN_API_KEY`, optional `HEYGEN_AVATAR_ID` / `HEYGEN_VOICE_ID` |
+| HeyGen | `POST https://api.heygen.com/v3/video-agents` Video Agent, poll `GET /v3/video-agents/{session_id}` then `GET /v3/videos/{id}` | `HEYGEN_API_KEY`, optional `HEYGEN_AVATAR_ID` / `HEYGEN_VOICE_ID` |
 | Media host | public MP4 URL | `MEDIA_DIR`, `MEDIA_PUBLIC_BASE_URL` (WAN `:8442/videos`) |
 | SMTP | their or yours | `SMTP_*` |
 | WhatsApp gateway | `POST {WHATSAPP_GATEWAY_URL}/send` | `WHATSAPP_GATEWAY_URL` (compose `wa:8091`) |
