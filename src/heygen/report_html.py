@@ -16,13 +16,14 @@ from src.hu_payload import need_existing
 from src.session_rates import DEFAULTS as ASSUME_DEFAULTS
 from src.session_rates import session_rate
 
-NEED_TYPES = ["N_INC", "N_CRI", "N_TPD", "N_RET", "N_EDU", "N_SAV", "N_PRP"]
-PROTECTION = {"N_INC", "N_CRI", "N_TPD"}
+NEED_TYPES = ["N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP"]
+PROTECTION = {"N_INC", "N_CRI", "N_TPD", "N_HOS"}
 WEALTH = {"N_RET", "N_EDU", "N_SAV", "N_PRP"}
 NEED_LABEL = {
     "N_INC": "Income & family protection",
     "N_CRI": "Critical illness",
     "N_TPD": "Total & permanent disability",
+    "N_HOS": "Hospitalisation",
     "N_RET": "Retirement",
     "N_SAV": "Savings goal",
     "N_EDU": "Child’s university education",
@@ -32,12 +33,13 @@ PLAN_TITLE = {
     "N_INC": "Life cover",
     "N_CRI": "Critical illness cover",
     "N_TPD": "Disability cover",
+    "N_HOS": "Hospitalisation cover",
     "N_RET": "Retirement plan",
     "N_SAV": "Saving plan",
     "N_EDU": "Education plan",
     "N_PRP": "Property plan",
 }
-EXTRA_NEEDS = (("hosp", "Hospitalisation"), ("pa", "Personal accident"))
+EXTRA_NEEDS = (("pa", "Personal accident"),)
 ASSUME_LABEL = {
     "inflationRate": "Inflation",
     "interestRate": "Cash / savings interest",

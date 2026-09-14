@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from src.heygen.mobile import country_from_mobile
 from src.cpf import session_take_home
+from src.heygen.mobile import country_from_mobile
 
 DEFAULT_COUNTRY = "Singapore"
 
@@ -23,6 +23,7 @@ NEED_LABEL = {
     "N_INC": "income and family protection",
     "N_CRI": "critical illness",
     "N_TPD": "disability",
+    "N_HOS": "hospitalisation",
     "N_RET": "retirement",
     "N_EDU": "education",
     "N_SAV": "savings",

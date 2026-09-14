@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
-from src.pipeline.goal_math import compute_need_amounts, remaining_gap
+from src.pipeline.goal_math import (
+    CI_COST,
+    CI_YEARS,
+    compute_need_amounts,
+    life_support_years,
+    pv_annuity,
+    pv_annuity_due,
+    real_return,
+    remaining_gap,
+)
 from src.pipeline.need_calculator import calculate_gaps_for_onboarding
 from src.pipeline.need_profiler import apply_top_needs_to_onboarding, identify_needs
 from src.pipeline.onboarding import AI_NEED_TO_UNIFIED, ensure_needs_map
 from src.pipeline.run import run_need_calculator, run_need_profiler
+from src.session_rates import DEFAULTS
+
+# Onboarding payloads carry no rates, so the calculator falls back to session defaults.
+REAL = real_return(DEFAULTS["investmentReturn"], DEFAULTS["inflationRate"])
 
 
 def test_goal_math_cri_is_five_times_annual_income():
@@ -70,13 +83,23 @@ def test_top_needs_always_enable_retirement():
         {"unifiedType": "N_RET", "weightage_score": 1},
     ]
     assert select_unified_top(ranked) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
+    assert select_unified_top(ranked, has_property=True) == ["N_CRI", "N_INC", "N_RET", "N_PRP"]
+    assert select_unified_top(ranked, has_property=False) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
+    edu_ranked = [
+        {"unifiedType": "N_CRI", "weightage_score": 9},
+        {"unifiedType": "N_EDU", "weightage_score": 8.5},
+        {"unifiedType": "N_SAV", "weightage_score": 8},
+        {"unifiedType": "N_INC", "weightage_score": 7},
+        {"unifiedType": "N_RET", "weightage_score": 1},
+    ]
+    assert select_unified_top(edu_ranked, has_property=True) == ["N_CRI", "N_INC", "N_RET", "N_EDU"]
     needs = ensure_needs_map({})
     apply_top_needs_to_onboarding(needs, ranked)
     enabled = [t for t, row in needs.items() if row.get("enabled")]
     assert set(enabled) == {"N_RET", "N_CRI", "N_SAV", "N_INC"}
 
 
-def test_calculator_only_empty_preserves_manual_amount():
+def test_calculator_sav_keeps_customer_target_cri_recomputes():
     data = {
         "policyOwner": {
             "dateOfBirth": "1985-06-15",
@@ -92,17 +115,20 @@ def test_calculator_only_empty_preserves_manual_amount():
             "N_INC": {"enabled": True, "needAmount": 99999, "existing": 0},
             "N_CRI": {"enabled": True, "needAmount": 0, "existing": 0},
             "N_TPD": {"enabled": False, "needAmount": 0, "existing": 0},
+            "N_HOS": {"enabled": False, "needAmount": 0, "existing": 0},
             "N_RET": {"enabled": True, "needAmount": 0, "existing": 0},
             "N_EDU": {"enabled": False, "needAmount": 0, "existing": 0},
-            "N_SAV": {"enabled": False, "needAmount": 0, "existing": 0},
+            "N_SAV": {"enabled": True, "needAmount": 99999, "existing": 0},
             "N_PRP": {"enabled": False, "needAmount": 0, "existing": 0},
         },
     }
-    calc = calculate_gaps_for_onboarding(data, only_empty=True)
-    assert calc["needs"]["N_INC"]["needAmount"] == 99999
-    assert calc["needs"]["N_CRI"]["needAmount"] == 5 * 10000 * 12
+    calc = calculate_gaps_for_onboarding(data)
+    assert calc["needs"]["N_SAV"]["needAmount"] == 99999
+    assert calc["needs"]["N_CRI"]["needAmount"] == round(pv_annuity_due(10000 * 12, REAL, CI_YEARS) + CI_COST)
+    # Life cover is now spend-based: PV of S$6,000/mo over the age-derived support years.
+    assert calc["needs"]["N_INC"]["needAmount"] == round(pv_annuity(6000 * 12, REAL, life_support_years(41)))
     assert "N_CRI" in calc["calculatedTypes"]
-    assert "N_INC" not in calc["calculatedTypes"]
+    assert "N_SAV" in calc["calculatedTypes"]
 
 
 def test_run_profiler_then_calculator():
@@ -122,4 +148,4 @@ def test_run_profiler_then_calculator():
 
     calc = run_need_calculator(po, fin, prof["onboarding"]["data"]["needs"], only_empty=True)
     assert calc["success"] is True
-    assert calc["amounts"]["N_CRI"] == 5 * 10000 * 12
+    assert calc["amounts"]["N_CRI"] == round(pv_annuity_due(10000 * 12, REAL, CI_YEARS) + CI_COST)

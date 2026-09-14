@@ -102,7 +102,12 @@ def run_need_profiler(
     n = max(1, min(int(top_n or 4), 12))
     result = identify_needs(profile, top_n=n, preferred_needs=preferred_needs)
     needs_map = ensure_needs_map(data)
-    apply_top_needs_to_onboarding(needs_map, result["rankedNeeds"], top_n=n)
+    has_property = bool(profile.get("HomeOwnership")) or float(
+        (finance or {}).get("property") or 0
+    ) > 0
+    apply_top_needs_to_onboarding(
+        needs_map, result["rankedNeeds"], top_n=n, has_property=has_property
+    )
     data["needs"] = needs_map
     return {
         "success": True,

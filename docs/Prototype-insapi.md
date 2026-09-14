@@ -40,6 +40,6 @@ Duplicate email returns `existingContactId` (HTTP 400); GP then updates.
 
 Contact: name split, DOB, gender, E.164 → `+countryCode` / national number, occupation as `jobTitle`, dependents.
 
-Plan: SGD totals (`SALARY`, `MISCELLANEOUS_EXPENSES`, `CASH` / `MUTUAL_FUNDS` / `REAL_ESTATE`, `HOME_LOAN`). Needs `N_INC→lifeProtection`, `N_CRI→criticalIllness`, `N_TPD→disability`, `N_RET→retirement`, `N_EDU→education`, `N_SAV→generalSavings`, `N_PRP→home`, extra `hosp→hospitalization`. HappiU scores and suggested premiums go in `notes`. InsApi rejects liabilities above assets and income below ~USD 1,000/month — those groups are omitted, and a notes-only plan is retried on 400.
+Plan: SGD totals (`SALARY`, `MISCELLANEOUS_EXPENSES`, `CASH` / `MUTUAL_FUNDS` / `REAL_ESTATE`, `HOME_LOAN`). Needs `N_INC→lifeProtection`, `N_CRI→criticalIllness`, `N_TPD→disability`, `N_HOS→hospitalization`, `N_RET→retirement`, `N_EDU→education`, `N_SAV→generalSavings`, `N_PRP→home`. HappiU scores and suggested premiums go in `notes`. InsApi rejects liabilities above assets and income below ~USD 1,000/month — those groups are omitted, and a notes-only plan is retried on 400.
 
 Product recommendations are not sent (catalog `productId`s are unknown).

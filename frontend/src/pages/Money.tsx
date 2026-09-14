@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { EDIT_HINT, TIPS } from '../lib/catalog';
-import { MONEY_EDIT_TIP, MONEY_FIELD_SLIDER, moneyMax } from '../lib/needEdit';
+import { MIN_EXPENSE_MONTHLY, MONEY_EDIT_TIP, MONEY_FIELD_SLIDER, moneyMax } from '../lib/needEdit';
 import { assets, availableBudget, chartMoneyOut, employeeCpfMonthly, money, netWealth, takeHomeMonthly, type GpSession } from '../lib/types';
 import { EqPie, Foot, GroupTag, NarrBtn, Tip } from '../components/ui';
 import { Ico } from '../lib/icons';
@@ -62,9 +62,9 @@ export function Money({
     const moneyTouched = { ...session.moneyTouched, [key]: true as const };
     const provenance = { ...session.provenance, [key === 'budget' ? 'expense' : key]: 'you' as const };
     const patch: Partial<GpSession> = { moneyTouched, provenance };
-    if (key === 'budget') patch.expenseMonthly = Math.max(0, takeHome - v);
+    if (key === 'budget') patch.expenseMonthly = Math.max(MIN_EXPENSE_MONTHLY, takeHome - v);
     if (key === 'income') patch.incomeMonthly = v;
-    if (key === 'expense') patch.expenseMonthly = Math.max(0, v - cpf);
+    if (key === 'expense') patch.expenseMonthly = Math.max(MIN_EXPENSE_MONTHLY, v - cpf);
     if (key === 'cash') patch.cash = v;
     if (key === 'investments') patch.investments = v;
     if (key === 'property') patch.property = v;
@@ -79,7 +79,7 @@ export function Money({
     const computed = moneyMax(val, spec.floor);
     if (openEditKey === key && !sliderCap.current) sliderCap.current = { key, max: computed };
     const hi = openEditKey === key && sliderCap.current ? sliderCap.current.max : computed;
-    const lo = key === 'expense' ? cpf : 0;
+    const lo = key === 'expense' ? cpf + MIN_EXPENSE_MONTHLY : 0;
     const clamped = Math.min(hi, Math.max(lo, val));
     const shown = spec.perMonth ? `${money(clamped)}/mo` : money(clamped);
     const capLabel = spec.perMonth ? `${money(hi)}/mo` : money(hi);
@@ -328,7 +328,12 @@ export function Money({
           Re-estimate
         </button>
         <span className="sp" />
-        <button className="x-btn p" type="button" onClick={onScore} disabled={busy}>
+        <button
+          className="x-btn p"
+          type="button"
+          onClick={onScore}
+          disabled={busy || session.expenseMonthly < MIN_EXPENSE_MONTHLY}
+        >
           {busy ? 'Scoring…' : 'Understand my goals and needs →'}
         </button>
       </Foot>

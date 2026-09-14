@@ -31,8 +31,9 @@ Config: `pyproject.toml` → `testpaths = ["tests"]`, `pythonpath = ["."]`.
 | `test_explain.py` | Prompt files load; fallback without key; mocked LLM; unknown kind **400** |
 | `test_predict.py` | PLU down → **503**; mocked PLU + in-process profiler/calculator; assumed life cover |
 | `test_pipeline.py` | Need Profiler scoring + Need Calculator amounts |
+| `test_needs.py` | `evaluate_session` (later retirement lowers gap) + `POST /v1/needs` |
 | `test_people_like_you.py` | Income clamp, anchors, CPF/spend (LLM mocked) |
-| `test_payloads.py` | HappiU / SV bodies include needs, events, assumption rates |
+| `test_payloads.py` | HappiU / SV bodies include needs, events, assumption rates ([payload map](HU-and-SV-payloads.md)) |
 
 ## Manual checks
 

@@ -92,11 +92,11 @@ export function extractSessionMarkers(session: GpSession): ChartMarker[] {
     markers.push({
       kind: 'need',
       id: 'retirement',
-      label: 'Retirement',
+      label: 'Private Retirement',
       icon: '🏖️',
       x: ret,
       draggable: true,
-      hoverLines: ['Retirement', `Retirement age: ${ret}`],
+      hoverLines: ['Private Retirement', `Retirement age: ${ret}`],
     });
   }
 

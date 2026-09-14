@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import {
-  EDU_REGIONS,
   LIFESTYLE,
   moneyMax,
   nowYear,
@@ -84,18 +83,6 @@ function SegRow({
   );
 }
 
-function ReadRow({ label, display, note }: { label: string; display: string; note?: ReactNode }) {
-  return (
-    <div className="gsl gsl-out">
-      <div className="gsl-h">
-        <label>{label}</label>
-        <b>{display}</b>
-      </div>
-      {note ? <div className="gsl-note">{note}</div> : null}
-    </div>
-  );
-}
-
 export function GoalEditor({
   session,
   type,
@@ -112,7 +99,6 @@ export function GoalEditor({
   const age = sessionAge(session) || 40;
   const y = nowYear();
   const inc = session.incomeMonthly || 0;
-  const pct = inc > 0 ? Math.round((e.retIncomeMonthly / inc) * 100) : 0;
   const liq = (session.cash || 0) + (session.investments || 0);
 
   if (type === 'N_RET') {
@@ -133,13 +119,8 @@ export function GoalEditor({
           value={e.lifestyle}
           onChange={v => onPatch({ lifestyle: Number(v) })}
         />
-        <ReadRow
-          label="Monthly income in retirement"
-          display={money(e.retIncomeMonthly)}
-          note={`${pct}% of the ${money(inc)} coming in today · in today's money`}
-        />
         <SliderRow
-          label="Funds set aside for retirement"
+          label="Amount already set aside"
           display={money(e.existing)}
           min={0}
           max={moneyMax(liq, 500000)}
@@ -147,39 +128,31 @@ export function GoalEditor({
           value={e.existing}
           onChange={v => onPatch({ existing: v })}
         />
+        <SliderRow
+          label="Existing monthly contribution"
+          display={`${money(e.monthlyContribution)}/mo`}
+          min={0}
+          max={moneyMax(Math.max(inc - (session.expenseMonthly || 0), 2000), 5000)}
+          step={50}
+          value={e.monthlyContribution}
+          onChange={v => onPatch({ monthlyContribution: v })}
+        />
       </>
     );
   }
 
-  if (type === 'N_INC' || type === 'N_TPD') {
+  if (type === 'N_INC') {
     return (
       <>
         <SliderRow
-          label="Monthly income to replace"
-          display={`${money(e.incomeReplaceMonthly)}/mo`}
-          min={0}
-          max={moneyMax(inc, 20000)}
-          step={100}
-          value={e.incomeReplaceMonthly}
-          onChange={v => onPatch({ incomeReplaceMonthly: v })}
-        />
-        <SliderRow
-          label="Years of financial dependency"
+          label="Years of support for the family"
           display={yearsWord(e.dependYears)}
           min={1}
           max={40}
           step={1}
           value={e.dependYears}
           onChange={v => onPatch({ dependYears: v })}
-        />
-        <SliderRow
-          label="Financial dependants"
-          display={String(e.dependants)}
-          min={0}
-          max={6}
-          step={1}
-          value={e.dependants}
-          onChange={v => onPatch({ dependants: v })}
+          note={`Covers ${money(session.expenseMonthly || 0)}/mo of household spending`}
         />
         <SliderRow
           label="Liabilities to settle"
@@ -189,6 +162,15 @@ export function GoalEditor({
           step={1000}
           value={e.liabilities}
           onChange={v => onPatch({ liabilities: v })}
+        />
+        <SliderRow
+          label="Legacy to leave behind"
+          display={money(e.bequest)}
+          min={0}
+          max={moneyMax(e.bequest, 500000)}
+          step={5000}
+          value={e.bequest}
+          onChange={v => onPatch({ bequest: v })}
         />
         <SliderRow
           label="Existing cover in force"
@@ -203,7 +185,22 @@ export function GoalEditor({
     );
   }
 
-  if (type === 'N_CRI') {
+  if (type === 'N_HOS') {
+    return (
+      <SliderRow
+        label="Existing cover in force"
+        display={money(e.existing)}
+        min={0}
+        max={moneyMax(n.needAmount || 0, 500000)}
+        step={5000}
+        value={e.existing}
+        onChange={v => onPatch({ existing: v })}
+        note={`Six months of income at ${money(inc)}/mo`}
+      />
+    );
+  }
+
+  if (type === 'N_CRI' || type === 'N_TPD') {
     return (
       <>
         <SliderRow
@@ -239,30 +236,7 @@ export function GoalEditor({
           step={1}
           value={e.targetYear}
           onChange={v => onPatch({ targetYear: v, fundsNeededYear: v })}
-        />
-        <SegRow
-          label="Country of study"
-          options={EDU_REGIONS.map(x => ({ v: x.k, label: x.label }))}
-          value={e.region}
-          onChange={v => onPatch({ region: String(v) })}
-        />
-        <SliderRow
-          label="Length of the course"
-          display={yearsWord(e.courseYears)}
-          min={1}
-          max={8}
-          step={1}
-          value={e.courseYears}
-          onChange={v => onPatch({ courseYears: v })}
-        />
-        <SliderRow
-          label="Children to fund"
-          display={String(e.childrenToFund)}
-          min={1}
-          max={5}
-          step={1}
-          value={e.childrenToFund}
-          onChange={v => onPatch({ childrenToFund: v })}
+          note="A Singapore degree, grown with inflation to that year"
         />
         <SliderRow
           label="Funds set aside for education"
@@ -309,7 +283,7 @@ export function GoalEditor({
         onChange={v => onPatch({ existing: v })}
       />
       <SliderRow
-        label="Monthly contribution"
+        label="Existing monthly contribution"
         display={`${money(e.monthlyContribution)}/mo`}
         min={0}
         max={moneyMax(Math.max(inc - (session.expenseMonthly || 0), 2000), 5000)}

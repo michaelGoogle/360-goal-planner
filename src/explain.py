@@ -36,6 +36,7 @@ NEED_LABELS = {
     "N_INC": "income and family protection",
     "N_CRI": "critical illness",
     "N_TPD": "total and permanent disability",
+    "N_HOS": "hospitalisation",
     "N_RET": "retirement",
     "N_EDU": "child's university education",
     "N_SAV": "savings goal",

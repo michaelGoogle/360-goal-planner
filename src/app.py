@@ -20,10 +20,10 @@ from src.insapi_client import InsApiError
 from src.insapi_sync import schedule_insapi_sync, sync_contact_and_plan
 from src.openai_client import llm_configured
 from src.parse_sentence import extract_about_you
-from src.pipeline.run import run_need_calculator, run_need_profiler, run_people_like_you
+from src.pipeline.need_calculator import evaluate_session
+from src.pipeline.run import run_need_profiler, run_people_like_you
 from src.predict import (
     UNIFIED_TYPES,
-    _apply_calculator,
     _apply_plu,
     _needs_from_profiler,
     session_dict,
@@ -199,6 +199,7 @@ def predict(body: GpSession) -> dict[str, Any]:
         "monthlyIncome": session["incomeMonthly"],
         "monthlyExpense": session["expenseMonthly"],
         "liquidAssetValue": float(session.get("cash") or 0) + float(session.get("investments") or 0),
+        "property": float(session.get("property") or 0),
     }
     try:
         npr = run_need_profiler(
@@ -212,7 +213,8 @@ def predict(body: GpSession) -> dict[str, Any]:
         logger.warning("Need Profiler unavailable: %s", exc)
         notes.append("Need Profiler unavailable; enabled default goals.")
         deps = int(session.get("dependents") or 0)
-        default_on = {"N_INC", "N_CRI", "N_RET", "N_SAV"}
+        has_property = float(session.get("property") or 0) > 0
+        default_on = {"N_INC", "N_CRI", "N_RET", "N_PRP" if has_property else "N_SAV"}
         if deps:
             default_on = {"N_INC", "N_CRI", "N_RET", "N_EDU"}
         session["needs"] = [
@@ -224,19 +226,31 @@ def predict(body: GpSession) -> dict[str, Any]:
         n["existing"] = need_existing(n, session)
 
     try:
-        ncalc = run_need_calculator(
-            policy_owner,
-            finance,
-            {n["type"]: n for n in session.get("needs") or []},
-            only_empty=True,
-        )
-        session = _apply_calculator(session, ncalc)
+        session = evaluate_session(session)
     except Exception as exc:
         logger.warning("Need Calculator unavailable: %s", exc)
         notes.append("Need Calculator unavailable; amounts stay at zero until HU/SV.")
 
     schedule_insapi_sync(session)
     return {"success": True, "session": session, "notes": notes}
+
+
+@api.post("/v1/needs")
+def needs(body: GpSession) -> dict[str, Any]:
+    """Recompute needAmount, projected have, and gap from the current session inputs."""
+    session = session_dict(body.model_dump())
+    try:
+        session = evaluate_session(session)
+    except Exception as exc:
+        logger.warning("Need Calculator unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail="Need Calculator unavailable") from exc
+    return {
+        "success": True,
+        "session": {
+            "needs": session.get("needs") or [],
+            "ageOfRetirement": session.get("ageOfRetirement"),
+        },
+    }
 
 
 @api.post("/v1/score")

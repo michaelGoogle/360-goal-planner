@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_N = 4
 MANDATORY_UNIFIED = ("N_RET",)
-PROTECTION_UNIFIED = ("N_INC", "N_CRI", "N_TPD")
+PROTECTION_UNIFIED = ("N_INC", "N_CRI", "N_TPD", "N_HOS")
 GROWTH_UNIFIED = ("N_RET", "N_EDU", "N_SAV", "N_PRP")
 GROUP_N = 2
 
@@ -31,8 +31,13 @@ def select_unified_top(
     top_n: int = DEFAULT_TOP_N,
     *,
     mandatory: tuple[str, ...] = MANDATORY_UNIFIED,
+    has_property: bool | None = None,
 ) -> list[str]:
-    """Two wealth-protection and two wealth-growth types. Retirement is always one of the growth pair."""
+    """Two wealth-protection and two wealth-growth types. Retirement is always one of the growth pair.
+
+    When ``has_property`` is true, Property purchase (N_PRP) beats Savings (N_SAV)
+    for the second growth slot. When false, Savings is the default instead.
+    """
     _ = (top_n, mandatory)
     ranked_uts: list[str] = []
     for need in ranked:
@@ -53,12 +58,29 @@ def select_unified_top(
             break
         if ut not in prot:
             prot.append(ut)
-    for ut in GROWTH_UNIFIED:
+    growth_fill = ["N_RET", "N_EDU"]
+    if has_property:
+        growth_fill += ["N_PRP", "N_SAV"]
+    else:
+        growth_fill += ["N_SAV", "N_PRP"]
+    for ut in growth_fill:
         if len(grow) >= GROUP_N:
             break
         if ut not in grow:
             grow.append(ut)
-    return prot[:GROUP_N] + grow[:GROUP_N]
+    return prot[:GROUP_N] + _growth_pair(grow, has_property)
+
+
+def _growth_pair(grow: list[str], has_property: bool | None) -> list[str]:
+    grow = grow[:GROUP_N]
+    if has_property is None:
+        return grow
+    want, drop = ("N_PRP", "N_SAV") if has_property else ("N_SAV", "N_PRP")
+    if want in grow:
+        return grow
+    if drop in grow:
+        return [want if t == drop else t for t in grow]
+    return grow
 
 
 def load_needs_config() -> dict[str, Any]:
@@ -329,12 +351,13 @@ def apply_top_needs_to_onboarding(
     ranked: list[dict[str, Any]],
     *,
     top_n: int = DEFAULT_TOP_N,
+    has_property: bool | None = None,
 ) -> dict[str, dict[str, Any]]:
     """
     Enable UNIFIED needs corresponding to the top-N ranked AI needs (mapped only).
     Disable other UNIFIED types. Preserve existing needAmount values.
     """
-    enable_set = set(select_unified_top(ranked, top_n))
+    enable_set = set(select_unified_top(ranked, top_n, has_property=has_property))
     for ut, row in needs_map.items():
         row = dict(row)
         row["enabled"] = ut in enable_set

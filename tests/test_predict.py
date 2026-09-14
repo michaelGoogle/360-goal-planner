@@ -3,7 +3,9 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from src.app import api
 from src.cpf import expenses_from_gross
+from src.pipeline.goal_math import CI_COST, CI_YEARS, pv_annuity_due, real_return
 from src.predict import _apply_plu, _assumed_life_policy, seed_property_value
+from src.session_rates import DEFAULTS
 
 
 def _plu_ok(income=9000, expenses=5000, assets=100000, *, own=False):
@@ -51,15 +53,42 @@ def test_predict_runs_in_process_profiler_and_calculator():
     enabled = [t for t, n in by_type.items() if n["enabled"]]
     assert 1 <= len(enabled) <= 4
     assert by_type["N_RET"]["enabled"] is True
-    prot = [t for t in enabled if t in ("N_INC", "N_CRI", "N_TPD")]
+    prot = [t for t in enabled if t in ("N_INC", "N_CRI", "N_TPD", "N_HOS")]
     grow = [t for t in enabled if t in ("N_RET", "N_EDU", "N_SAV", "N_PRP")]
     assert len(prot) == 2
     assert len(grow) == 2
+    real = real_return(DEFAULTS["investmentReturn"], DEFAULTS["inflationRate"])
     for t, n in by_type.items():
         if n["enabled"]:
             assert n["needAmount"] > 0
             if t == "N_CRI":
-                assert n["needAmount"] == 5 * 9000 * 12
+                assert n["needAmount"] == round(pv_annuity_due(9000 * 12, real, CI_YEARS) + CI_COST)
+
+
+def test_predict_property_owner_defaults_to_property_purchase_not_savings():
+    client = TestClient(api)
+    with patch("src.app.run_people_like_you", return_value=_plu_ok(own=True)):
+        r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer", "dependents": 0})
+    assert r.status_code == 200
+    session = r.json()["session"]
+    assert session["property"] > 0
+    by_type = {n["type"]: n for n in session["needs"]}
+    assert by_type["N_RET"]["enabled"] is True
+    assert by_type["N_PRP"]["enabled"] is True
+    assert by_type["N_SAV"]["enabled"] is False
+
+
+def test_predict_renter_defaults_to_savings_not_property_purchase():
+    client = TestClient(api)
+    with patch("src.app.run_people_like_you", return_value=_plu_ok(own=False)):
+        r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer", "dependents": 0})
+    assert r.status_code == 200
+    session = r.json()["session"]
+    assert session["property"] == 0
+    by_type = {n["type"]: n for n in session["needs"]}
+    assert by_type["N_RET"]["enabled"] is True
+    assert by_type["N_SAV"]["enabled"] is True
+    assert by_type["N_PRP"]["enabled"] is False
 
 
 

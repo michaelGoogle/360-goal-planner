@@ -150,7 +150,7 @@ export function NeedShortfallBar({
   req,
   lo = 'Projected savings',
   hi = 'Amount needed',
-  planLabel = 'Retirement plan contribution',
+  planLabel = 'Private retirement plan contribution',
 }: {
   have: number;
   extra: number;

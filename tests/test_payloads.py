@@ -33,11 +33,65 @@ def test_happiu_payload_includes_retirement_horizon():
     ret = body["needCalculatorOutput"]["N_RET"]["primaryOutput"]
     primary = next(iter(ret.values()))[0]
     assert primary["numYearsToRetirement"] == 23
+    assert primary["durationOfRetirement"] == 20
+    assert primary["livingExpenses"] == 5500 * 12
     assert primary["expectedLivingExpenseInTheCountry"] == 5500 * 12 * 0.75
     assert primary["taggedFundValue"] == 80000
     inc_needs = [n for n in body["personalDetails"][0]["needs"] if n["type"] == "N_INC"]
     assert inc_needs[0]["existingSumAssured"] == 400000
     assert body["preHappiURequired"] is True
+
+
+def test_happiu_duration_shortens_when_retiring_later():
+    session = _session()
+    session["ageOfRetirement"] = 70
+    session["needs"][0]["lifestyle"] = 2
+    body = build_happiu_payload(session)
+    ret = body["needCalculatorOutput"]["N_RET"]["primaryOutput"]
+    primary = next(iter(ret.values()))[0]
+    assert primary["durationOfRetirement"] == 15
+    assert primary["numYearsToRetirement"] == 28
+
+
+def test_happiu_payload_renames_hospitalisation_to_hu_code():
+    """GP calls the need N_HOS; HappiU only knows N_HSP."""
+    session = _session()
+    session["needs"].append({"type": "N_HOS", "enabled": True, "needAmount": 54_000, "existingSumAssured": 0})
+    body = build_happiu_payload(session)
+    types = {n["type"] for n in body["personalDetails"][0]["needs"]}
+    assert "N_HSP" in types
+    assert "N_HOS" not in types
+    assert "N_HOS" not in body["needCalculatorOutput"]
+    primary = next(iter(body["needCalculatorOutput"]["N_HSP"]["primaryOutput"].values()))[0]
+    assert primary["needId"] == "N_HSP"
+    assert primary["medicalCost"] == 54_000
+    assert {b["goalType"] for b in body["solutionOptimizerOutput"]["segregatedBudget"]} >= {"N_HSP"}
+
+
+def test_sv_payload_sends_every_enabled_goal():
+    session = _session()
+    session["needs"] = [
+        {"type": "N_INC", "enabled": True, "needAmount": 500_000, "dependYears": 12},
+        {"type": "N_CRI", "enabled": True, "needAmount": 200_000},
+        {"type": "N_TPD", "enabled": True, "needAmount": 300_000},
+        {"type": "N_HOS", "enabled": True, "needAmount": 54_000},
+        {"type": "N_RET", "enabled": True, "needAmount": 1_200_000},
+        {"type": "N_EDU", "enabled": True, "needAmount": 90_000, "fundsNeededYear": 2036},
+        {"type": "N_SAV", "enabled": True, "needAmount": 80_000, "fundsNeededYear": 2034},
+        {"type": "N_PRP", "enabled": True, "needAmount": 400_000, "fundsNeededYear": 2038},
+    ]
+    body = build_sv_payload(session)
+    types = {n["type"] for n in body["personalDetails"][0]["needs"]}
+    calc = {n["type"] for n in body["needCalculatorOutput"]}
+    assert types == {"N_INC", "N_CRI", "N_TPD", "N_HSP", "N_RET", "N_EDU", "N_SAV", "N_PRP"}
+    assert calc == types
+    assert "N_HOS" not in types
+    hos = next(n for n in body["needCalculatorOutput"] if n["type"] == "N_HSP")
+    assert hos["result"]["medicalCost"] == 54_000
+    inc = next(n for n in body["personalDetails"][0]["needs"] if n["type"] == "N_INC")
+    assert inc["numYearDependents"] == 12
+    ret = next(n for n in body["needCalculatorOutput"] if n["type"] == "N_RET")
+    assert ret["result"]["ageOfRetirement"] == 65
 
 
 def test_sv_payload_has_wealth_and_events():
@@ -47,6 +101,8 @@ def test_sv_payload_has_wealth_and_events():
     assert body["manualEvents"][0]["year"] == 2
     assert body["manualEvents"][0]["config"]["oneTimeCost"] == 150000
     assert body["needCalculatorOutput"]
+    ret = next(x for x in body["needCalculatorOutput"] if x["type"] == "N_RET")
+    assert ret["result"]["durationOfRetirement"] == 20
     assets = body["personalDetails"][0]["assets"]
     assert any(a["isLiquid"] for a in assets)
 
@@ -248,6 +304,8 @@ def test_sv_payload_foreigner_uses_non_cpf_region():
     assert body["personalDetails"][0]["socialSecurity"]["region"] == "R_OTH"
     citizen = build_sv_payload(_session())
     assert citizen["personalDetails"][0]["socialSecurity"]["region"] == "R_SGP"
+    assert citizen["modelParameters"]["subtractLoanBalances"] is True
+    assert citizen["modelParameters"]["ignoreIlliquidAssets"] is False
 
 
 def test_sv_payload_plans_off_skips_bvo_product():

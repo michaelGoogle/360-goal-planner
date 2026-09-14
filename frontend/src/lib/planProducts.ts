@@ -5,7 +5,8 @@ export const PLAN_FOR_NEED: Record<NeedType, string> = {
   N_INC: 'Life cover',
   N_CRI: 'Critical illness cover',
   N_TPD: 'Disability cover',
-  N_RET: 'Retirement plan',
+  N_HOS: 'Hospitalisation cover',
+  N_RET: 'Private retirement plan',
   N_SAV: 'Saving plan',
   N_EDU: 'Education plan',
   N_PRP: 'Property plan',
@@ -196,7 +197,7 @@ export function clampAllWealthToCaps(session: GpSession): Partial<GpSession> {
   return patch;
 }
 
-/** Future value of this plan's lump + monthly contributions, in today's money. */
+/** Future value of this plan's lump + monthly contributions at the goal date. */
 export function planGrowthFvAt(session: GpSession, type: NeedType, lump: number, mth: number): number {
   const yrs = planHorizonYears(session, type);
   const r = planRealRate(session);

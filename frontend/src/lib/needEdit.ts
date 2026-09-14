@@ -1,7 +1,7 @@
 import {
   NEED_META,
+  POLICY_FOR_NEED,
   availableBudget,
-  needHave,
   sessionAge,
   type GpSession,
   type NeedRow,
@@ -16,7 +16,7 @@ function byNeedWeight(a: NeedRow, b: NeedRow): number {
   return (b.gap || 0) - (a.gap || 0) || (b.needAmount || 0) - (a.needAmount || 0);
 }
 
-export function capEnabledNeeds(needs: NeedRow[]): NeedRow[] {
+export function capEnabledNeeds(needs: NeedRow[], opts?: { hasProperty?: boolean }): NeedRow[] {
   const withMand = needs.map(n => (n.type === 'N_RET' ? { ...n, enabled: true } : n));
   const pick = (group: 'p' | 'w', must: NeedType[]) => {
     const pool = withMand.filter(n => NEED_META[n.type].group === group).sort(byNeedWeight);
@@ -29,29 +29,32 @@ export function capEnabledNeeds(needs: NeedRow[]): NeedRow[] {
     }
     return keep.slice(0, GROUP_N);
   };
-  const keep = new Set<NeedType>([...pick('p', []), ...pick('w', ['N_RET'])]);
+  const picked = [...pick('p', []), ...pick('w', ['N_RET'])];
+  const hasProperty = opts?.hasProperty;
+  const keep = new Set<NeedType>(
+    picked.map(t => {
+      if (hasProperty === true && t === 'N_SAV' && !picked.includes('N_PRP')) return 'N_PRP';
+      if (hasProperty === false && t === 'N_PRP' && !picked.includes('N_SAV')) return 'N_SAV';
+      return t;
+    }),
+  );
   return withMand.map(n => ({ ...n, enabled: keep.has(n.type) }));
 }
 
+/** User toggle: any catalog goal can be on together. Retirement stays on. */
+export function toggleNeedEnabled(needs: NeedRow[], type: NeedType): NeedRow[] {
+  return needs.map(n => {
+    if (n.type === 'N_RET') return { ...n, enabled: true };
+    if (n.type === type) return { ...n, enabled: !n.enabled };
+    return n;
+  });
+}
+
 export const LIFESTYLE: { v: number; label: string; rate: number }[] = [
-  { v: 1, label: 'Frugal', rate: 0.5 },
-  { v: 2, label: 'Stress free', rate: 0.67 },
-  { v: 3, label: 'Only the best', rate: 1 },
+  { v: 1, label: 'Frugal', rate: 0.75 },
+  { v: 2, label: 'Stress free', rate: 1 },
+  { v: 3, label: 'Only the best', rate: 1.25 },
 ];
-
-export const EDU_REGIONS: { k: string; label: string; yearCost: number }[] = [
-  { k: 'R_SGP', label: 'Singapore', yearCost: 18000 },
-  { k: 'R_AUS', label: 'Australia', yearCost: 12270 },
-  { k: 'R_UK', label: 'UK', yearCost: 32000 },
-  { k: 'R_CAN', label: 'Canada', yearCost: 22000 },
-  { k: 'R_USA', label: 'USA', yearCost: 48000 },
-];
-
-const POLICY_FOR: Partial<Record<NeedType, string>> = {
-  N_INC: 'Life Protection',
-  N_CRI: 'Critical Illness',
-  N_TPD: 'Permanent Disability',
-};
 
 export interface NeedEdit {
   retAge: number;
@@ -61,24 +64,12 @@ export interface NeedEdit {
   dependYears: number;
   dependants: number;
   liabilities: number;
+  bequest: number;
   existing: number;
   targetYear: number;
   amountRequired: number;
   monthlyContribution: number;
   contributeYears: number;
-  region: string;
-  courseYears: number;
-  childrenToFund: number;
-}
-
-function roundTo(n: number, step: number): number {
-  return Math.max(0, Math.round(n / step) * step);
-}
-
-function pvAnnuity(pmt: number, rate: number, periods: number): number {
-  if (periods <= 0 || pmt <= 0) return 0;
-  if (Math.abs(rate) < 1e-12) return pmt * periods;
-  return (pmt * (1 - Math.pow(1 + rate, -periods))) / rate;
 }
 
 export function fv(pv: number, rate: number, periods: number): number {
@@ -102,20 +93,19 @@ export function nowYear(): number {
   return new Date().getFullYear();
 }
 
+/** Years of support behind the life cover need. Mirrors goal_math.life_support_years. */
+export function lifeSupportYears(age: number): number {
+  return Math.min(Math.max(10, 50 - (age || 0)), 25);
+}
+
+/** Read stored editor fields. Amounts / have / gap come from POST /v1/needs. */
 export function fillNeedEdit(s: GpSession, n: NeedRow): NeedEdit {
   const retAge = n.retAge || s.ageOfRetirement || 65;
   const lifestyle = n.lifestyle === 1 || n.lifestyle === 3 ? n.lifestyle : 2;
-  const rate = LIFESTYLE.find(x => x.v === lifestyle)?.rate ?? 0.67;
   const y = nowYear();
   const targetYear = n.targetYear || n.fundsNeededYear || y + 10;
   const yearsTo = Math.max(1, targetYear - y);
-  const stored = n.existing ?? n.existingInvestment ?? n.existingSumAssured ?? null;
-  const existingRaw =
-    stored != null && Number(stored) > 0
-      ? Number(stored)
-      : n.type === 'N_RET' || NEED_META[n.type].group === 'p'
-        ? needHave(s, n)
-        : 0;
+  const stored = n.existing ?? n.existingInvestment ?? n.existingSumAssured ?? 0;
   const surplus = Math.max(0, availableBudget(s));
   const inc = s.incomeMonthly || 0;
   const liq = (s.cash || 0) + (s.investments || 0);
@@ -126,12 +116,13 @@ export function fillNeedEdit(s: GpSession, n: NeedRow): NeedEdit {
   return {
     retAge,
     lifestyle,
-    retIncomeMonthly: n.retIncomeMonthly ?? roundTo(inc * rate, 50),
+    retIncomeMonthly: n.retIncomeMonthly ?? 0,
     incomeReplaceMonthly: Math.min(n.incomeReplaceMonthly ?? inc, moneyMax(inc, 20000)),
-    dependYears: n.dependYears ?? (s.dependents > 0 ? 20 : 10),
+    dependYears: n.dependYears ?? lifeSupportYears(sessionAge(s) ?? 40),
     dependants: Math.min(6, n.dependants ?? s.dependents ?? 0),
     liabilities: Math.min(n.liabilities ?? s.mortgage ?? 0, moneyMax(s.mortgage || 0, 200000)),
-    existing: Math.min(existingRaw, existingCap),
+    bequest: Math.max(0, n.bequest ?? 0),
+    existing: Math.min(Number(stored) || 0, existingCap),
     targetYear,
     amountRequired:
       n.type === 'N_SAV' || n.type === 'N_PRP'
@@ -139,89 +130,38 @@ export function fillNeedEdit(s: GpSession, n: NeedRow): NeedEdit {
         : n.needAmount || 0,
     monthlyContribution: Math.min(n.monthlyContribution ?? 0, moneyMax(Math.max(surplus, 2000), 5000)),
     contributeYears: n.contributeYears ?? yearsTo,
-    region: n.region || (n.type === 'N_EDU' ? 'R_AUS' : 'R_SGP'),
-    courseYears: n.courseYears ?? 4,
-    childrenToFund: n.childrenToFund ?? Math.max(1, s.dependents || 1),
   };
 }
 
-export function computeNeedAmount(s: GpSession, n: NeedRow, e = fillNeedEdit(s, n)): number {
-  const age = sessionAge(s) || 40;
-  const inf = s.inflationRate || 0.023;
-  if (n.type === 'N_RET') {
-    const yrs = Math.max(0, e.retAge - age);
-    const annual = e.retIncomeMonthly * 12;
-    const atRet = annual * Math.pow(1 + inf, yrs);
-    return Math.round(pvAnnuity(atRet, inf, 20));
-  }
-  if (n.type === 'N_INC' || n.type === 'N_TPD') {
-    return Math.round(e.incomeReplaceMonthly * 12 * e.dependYears + e.liabilities);
-  }
-  if (n.type === 'N_CRI') {
-    return Math.round(e.incomeReplaceMonthly * 12 * 5);
-  }
-  if (n.type === 'N_EDU') {
-    const cost = EDU_REGIONS.find(x => x.k === e.region)?.yearCost ?? 18000;
-    return Math.round(cost * e.courseYears * e.childrenToFund);
-  }
-  return Math.round(e.amountRequired || n.needAmount || 0);
+export function needCardHave(_s: GpSession, n: NeedRow): number {
+  return Math.round(n.have ?? 0);
 }
 
-export function needProjected(s: GpSession, n: NeedRow, e = fillNeedEdit(s, n)): number {
-  const r = realReturn(s);
-  const age = sessionAge(s) || 40;
-  if (NEED_META[n.type].group !== 'w') return Math.round(e.existing);
-  if (n.type === 'N_RET') return Math.round(fv(e.existing, r, Math.max(0, e.retAge - age)));
-  const yrs = Math.max(0, e.targetYear - nowYear());
-  const grown = fv(e.existing, r, yrs);
-  if (n.type === 'N_EDU') return Math.round(grown);
-  return Math.round(grown + fvAnnuity(e.monthlyContribution * 12, r, e.contributeYears));
+export function needCardGap(_s: GpSession, n: NeedRow): number {
+  if (n.gap != null) return Math.max(0, n.gap);
+  return Math.max(0, (n.needAmount || 0) - (n.have || 0));
 }
 
-export function needCardHave(s: GpSession, n: NeedRow): number {
-  return NEED_META[n.type].group === 'w' ? needProjected(s, n) : needHave(s, n);
-}
-
-export function needCardGap(s: GpSession, n: NeedRow): number {
-  return Math.max(0, (n.needAmount || 0) - needCardHave(s, n));
-}
-
-export function applyNeedPatch(
+/** Write slider inputs onto the need row. Does not compute amount / have / gap. */
+export function patchNeedInputs(
   s: GpSession,
   type: NeedType,
   p: Partial<NeedRow>,
-): { needs: NeedRow[]; extra: Partial<GpSession> } {
+): Partial<GpSession> {
   const n = s.needs.find(x => x.type === type);
-  if (!n) return { needs: s.needs, extra: {} };
+  if (!n) return {};
   const next: NeedRow = { ...n, ...p };
-  if (p.lifestyle != null && p.retIncomeMonthly == null) {
-    const rate = LIFESTYLE.find(x => x.v === p.lifestyle)?.rate ?? 0.67;
-    next.retIncomeMonthly = roundTo((s.incomeMonthly || 0) * rate, 50);
+  if (p.targetYear != null) next.fundsNeededYear = p.targetYear;
+  if (p.existing != null) {
+    if (NEED_META[type].group === 'p') next.existingSumAssured = p.existing;
+    else next.existingInvestment = p.existing;
   }
-  const filled = fillNeedEdit(s, next);
-  next.needAmount = computeNeedAmount(s, next, filled);
-  next.retAge = filled.retAge;
-  next.lifestyle = filled.lifestyle;
-  next.retIncomeMonthly = filled.retIncomeMonthly;
-  next.incomeReplaceMonthly = filled.incomeReplaceMonthly;
-  next.dependYears = filled.dependYears;
-  next.dependants = filled.dependants;
-  next.liabilities = filled.liabilities;
-  next.targetYear = filled.targetYear;
-  next.fundsNeededYear = filled.targetYear;
-  next.monthlyContribution = filled.monthlyContribution;
-  next.contributeYears = filled.contributeYears;
-  next.region = filled.region;
-  next.courseYears = filled.courseYears;
-  next.childrenToFund = filled.childrenToFund;
-  next.existing = p.existing != null ? p.existing : filled.existing;
-  if (NEED_META[type].group === 'p') next.existingSumAssured = next.existing;
-  else next.existingInvestment = next.existing;
+  const extra: Partial<GpSession> = {
+    needs: s.needs.map(x => (x.type === type ? next : x)),
+  };
+  if (type === 'N_RET' && next.retAge) extra.ageOfRetirement = next.retAge;
 
-  const extra: Partial<GpSession> = {};
-  if (type === 'N_RET') extra.ageOfRetirement = next.retAge;
-
-  const want = POLICY_FOR[type];
+  const want = POLICY_FOR_NEED[type];
   if (want && p.existing != null) {
     const rest = s.policies.filter(x => x.type !== want);
     const prev = s.policies.find(x => x.type === want);
@@ -230,15 +170,13 @@ export function applyNeedPatch(
         ? [{ type: want, insurer: prev?.insurer || 'Existing insurer', sum: p.existing, premium: prev?.premium || 0 }, ...rest]
         : rest;
   }
-
-  return {
-    needs: s.needs.map(x => (x.type === type ? next : x)),
-    extra,
-  };
+  return extra;
 }
 
 /** Dollar slider ceiling. Stops a drag-to-end from raising max again (value × 1.6 feedback). */
 export const MONEY_SLIDER_CAP = 10_000_000;
+
+export const MIN_EXPENSE_MONTHLY = 100;
 
 export function moneyMax(base: number, floor: number): number {
   const stretched = Math.ceil((Math.max(base, 0) * 1.6) / 1000) * 1000;

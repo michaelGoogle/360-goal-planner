@@ -14,13 +14,13 @@ export const ROUTE_LABEL: Record<Route, string> = {
   d2cPlan: 'Your plan',
 };
 
-export type NeedType = 'N_INC' | 'N_CRI' | 'N_TPD' | 'N_RET' | 'N_EDU' | 'N_SAV' | 'N_PRP';
-export type ExtraNeed = 'hosp' | 'pa';
+export type NeedType = 'N_INC' | 'N_CRI' | 'N_TPD' | 'N_HOS' | 'N_RET' | 'N_EDU' | 'N_SAV' | 'N_PRP';
+export type ExtraNeed = 'pa';
 export type DepsChoice = '0' | '1' | '2' | '3' | '4+';
 export type Prov = 'doc' | 'you';
 export type DocKind = 'cpf' | 'bank' | 'pol';
 
-export const NEED_TYPES: NeedType[] = ['N_INC', 'N_CRI', 'N_TPD', 'N_RET', 'N_EDU', 'N_SAV', 'N_PRP'];
+export const NEED_TYPES: NeedType[] = ['N_INC', 'N_CRI', 'N_TPD', 'N_HOS', 'N_RET', 'N_EDU', 'N_SAV', 'N_PRP'];
 
 export function isNeedType(t: unknown): t is NeedType {
   return typeof t === 'string' && (NEED_TYPES as string[]).includes(t);
@@ -51,7 +51,7 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
   N_RET: {
     type: 'N_RET',
     k: 'ret',
-    label: 'Retirement',
+    label: 'Private Retirement',
     color: '#F0952E',
     lo: 'Projected savings',
     hi: 'Amount needed',
@@ -108,12 +108,23 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
     group: 'p',
     icon: 'wheel',
   },
+  N_HOS: {
+    type: 'N_HOS',
+    k: 'hosp',
+    label: 'Hospitalisation',
+    color: '#4BB6C4',
+    lo: 'Existing cover',
+    hi: 'Cover needed',
+    group: 'p',
+    icon: 'hospital',
+  },
 };
 
 export const NEED_ICONS: Record<NeedType, string> = {
   N_INC: '🛡️',
   N_CRI: '❤️',
   N_TPD: '♿',
+  N_HOS: '🏨',
   N_RET: '🏖️',
   N_EDU: '🎓',
   N_SAV: '🎯',
@@ -121,12 +132,10 @@ export const NEED_ICONS: Record<NeedType, string> = {
 };
 
 export const EXTRA_NEED_ICONS: Record<ExtraNeed, string> = {
-  hosp: '🏨',
   pa: '🩹',
 };
 
 export const EXTRA_NEEDS: { k: ExtraNeed; label: string; color: string; icon: string }[] = [
-  { k: 'hosp', label: 'Hospitalisation', color: '#4BB6C4', icon: 'hospital' },
   { k: 'pa', label: 'Personal accident', color: '#B07CC6', icon: 'bandage' },
 ];
 
@@ -135,6 +144,8 @@ export interface NeedRow {
   enabled: boolean;
   needAmount: number;
   existing?: number;
+  /** Projected savings / cover at the goal date. Filled by POST /v1/needs. */
+  have?: number;
   gap?: number;
   priority?: number;
   weightageScore?: number;
@@ -144,14 +155,13 @@ export interface NeedRow {
   fundsNeededYear?: number;
   retAge?: number;
   lifestyle?: number;
-  region?: string;
   retIncomeMonthly?: number;
   incomeReplaceMonthly?: number;
   dependYears?: number;
   dependants?: number;
   liabilities?: number;
-  courseYears?: number;
-  childrenToFund?: number;
+  /** Optional legacy left behind on death. Adds to the life cover need. */
+  bequest?: number;
   monthlyContribution?: number;
   contributeYears?: number;
 }
@@ -358,6 +368,14 @@ export const POLICY_TYPES = [
   'Personal Accident',
 ] as const;
 
+/** Protection needs backed by a policy on Your money. */
+export const POLICY_FOR_NEED: Partial<Record<NeedType, string>> = {
+  N_INC: 'Life Protection',
+  N_CRI: 'Critical Illness',
+  N_TPD: 'Permanent Disability',
+  N_HOS: 'Hospitalisation',
+};
+
 export const POLICY_COL: Record<string, string> = {
   'Life Protection': '#7086FD',
   'Critical Illness': '#E8636C',
@@ -461,11 +479,8 @@ export function needHave(s: GpSession, n: NeedRow): number {
   if (n.existing != null && n.existing > 0) return n.existing;
   if (n.existingSumAssured != null && n.existingSumAssured > 0) return n.existingSumAssured;
   if (n.existingInvestment != null && n.existingInvestment > 0) return n.existingInvestment;
-  if (n.type === 'N_INC' || n.type === 'N_CRI' || n.type === 'N_TPD') {
-    const want =
-      n.type === 'N_INC' ? 'Life Protection' : n.type === 'N_CRI' ? 'Critical Illness' : 'Permanent Disability';
-    return s.policies.filter(p => p.type === want).reduce((t, p) => t + p.sum, 0);
-  }
+  const want = POLICY_FOR_NEED[n.type];
+  if (want) return s.policies.filter(p => p.type === want).reduce((t, p) => t + p.sum, 0);
   return liquid(s);
 }
 

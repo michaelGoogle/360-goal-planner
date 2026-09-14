@@ -18,7 +18,7 @@ import {
   type Route,
 } from './lib/types';
 import { loadAuthSession } from './lib/auth';
-import { postJson, sessionPayload, type PredictResponse, type ProjectResponse, type ScoreResponse } from './lib/api';
+import { postJson, sessionPayload, type NeedsResponse, type PredictResponse, type ProjectResponse, type ScoreResponse } from './lib/api';
 import { ASSUME_DEFAULTS, assumeChangedCount, investRetFromReturn } from './lib/assumptions';
 import { clampAllWealthToCaps, productFlags } from './lib/planProducts';
 import { buildExplainContext, type ExplainKind, type ExplainResponse } from './lib/explain';
@@ -27,7 +27,7 @@ import { applyDocs, seedProducts } from './lib/local';
 import { riskSessionPatch } from './lib/riskCapacity';
 import { isSvData, type ChartView, type SvData } from './lib/sv';
 import { pauseSpeak, resumeSpeak, speak, stopSpeak } from './lib/speech';
-import { capEnabledNeeds } from './lib/needEdit';
+import { capEnabledNeeds, MIN_EXPENSE_MONTHLY, toggleNeedEnabled } from './lib/needEdit';
 import { readGtTt, writeGtTt } from './lib/gtTt';
 
 const PLU_UNAVAILABLE =
@@ -55,15 +55,18 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
       ...n,
       needAmount,
       existing: existing || 0,
-      gap: n.gap ?? Math.max(0, needAmount - existing),
+      have: n.have ?? prev?.have ?? 0,
+      gap: n.gap ?? Math.max(0, needAmount - (n.have ?? (existing || 0))),
       enabled: n.type === 'N_RET' ? true : prev ? prev.enabled : (n.enabled ?? false),
       retAge: n.retAge ?? prev?.retAge,
       targetYear: n.targetYear ?? prev?.targetYear,
     };
   });
   const seen = new Set(mapped.map(n => n.type));
+  const property = skip.property ? s.property : Number(p.property ?? s.property);
   const needs = capEnabledNeeds(
     mapped.concat(NEED_TYPES.filter(t => !seen.has(t)).map(t => skeletonNeed(t, s.needs.find(n => n.type === t)))),
+    { hasProperty: property > 0 },
   );
   return {
     ...s,
@@ -71,10 +74,11 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
     expenseMonthly: skip.expense ? s.expenseMonthly : Number(p.expenseMonthly ?? s.expenseMonthly),
     cash: skip.cash || skip.savings ? s.cash : Number(p.cash ?? s.cash),
     investments: skip.investments || skip.savings ? s.investments : Number(p.investments ?? s.investments),
-    property: skip.property ? s.property : Number(p.property ?? s.property),
+    property,
     mortgage: skip.loans ? s.mortgage : Number(p.mortgage ?? s.mortgage),
     policies: skip.cover ? s.policies : ((p.policies as GpSession['policies']) ?? s.policies),
     needs,
+    ageOfRetirement: Number(p.ageOfRetirement ?? s.ageOfRetirement),
     source: p.source ?? s.source,
     note: p.note ?? s.note,
   };
@@ -102,6 +106,44 @@ function withRisk(s: GpSession, p: Partial<GpSession> = {}): GpSession {
 }
 
 const MONEY_PROV = ['income', 'expense', 'savings', 'cash', 'investments', 'property', 'loans', 'cover'] as const;
+
+const NEED_INPUT_KEYS: (keyof GpSession)[] = [
+  'needs',
+  'incomeMonthly',
+  'expenseMonthly',
+  'cash',
+  'investments',
+  'policies',
+  'mortgage',
+  'dependents',
+  'inflationRate',
+  'investmentReturn',
+  'ageOfRetirement',
+  'age',
+];
+
+function needsInputChanged(p: Partial<GpSession>): boolean {
+  return NEED_INPUT_KEYS.some(k => k in p);
+}
+
+function mergeNeedsFromApi(s: GpSession, incoming: NeedRow[], ageOfRetirement?: number): GpSession {
+  const byType = new Map(incoming.filter(n => isNeedType(n.type)).map(n => [n.type, n]));
+  const needs = s.needs.map(local => {
+    const n = byType.get(local.type);
+    if (!n) return local;
+    return { ...local, ...n, enabled: local.enabled };
+  });
+  const seen = new Set(needs.map(n => n.type));
+  for (const n of incoming) {
+    if (!isNeedType(n.type) || seen.has(n.type)) continue;
+    needs.push(n);
+  }
+  return {
+    ...s,
+    needs,
+    ageOfRetirement: ageOfRetirement ?? s.ageOfRetirement,
+  };
+}
 
 function resetPredictedMoney(s: GpSession): GpSession {
   const provenance = { ...s.provenance };
@@ -152,6 +194,8 @@ export default function App() {
   const token = loadAuthSession()?.access_token ?? null;
   const projectTimer = useRef<number | null>(null);
   const scoreTimer = useRef<number | null>(null);
+  const needsTimer = useRef<number | null>(null);
+  const needsAbort = useRef<AbortController | null>(null);
   const sessionRef = useRef(session);
   const toastTimer = useRef<number | null>(null);
   const narrAbort = useRef<AbortController | null>(null);
@@ -162,6 +206,7 @@ export default function App() {
   const patch = (p: Partial<GpSession>) => {
     setSession(s => {
       const next = withRisk(s, p);
+      if (needsInputChanged(p)) scheduleNeeds(next);
       if (
         route === 'd2cPlan' &&
         [
@@ -189,6 +234,41 @@ export default function App() {
     });
   };
 
+  const applyNeedsResponse = useCallback(
+    (s: GpSession, res: NeedsResponse): GpSession => {
+      const next = mergeNeedsFromApi(s, res.session.needs || [], res.session.ageOfRetirement);
+      setSession(next);
+      sessionRef.current = next;
+      return next;
+    },
+    [],
+  );
+
+  const scheduleNeeds = useCallback(
+    (s: GpSession) => {
+      if (!s.needs.length) return;
+      if (needsTimer.current) window.clearTimeout(needsTimer.current);
+      needsTimer.current = window.setTimeout(() => {
+        const latest = sessionRef.current;
+        needsAbort.current?.abort();
+        const ac = new AbortController();
+        needsAbort.current = ac;
+        void (async () => {
+          try {
+            const res = await postJson<NeedsResponse>('/v1/needs', sessionPayload(latest), token, ac.signal);
+            if (ac.signal.aborted) return;
+            const merged = applyNeedsResponse(sessionRef.current, res);
+            if (route === 'd2cScore') scheduleScore(merged);
+            if (route === 'd2cPlan') scheduleProject(merged);
+          } catch (err) {
+            if (ac.signal.aborted || (err instanceof Error && err.name === 'AbortError')) return;
+          }
+        })();
+      }, 200);
+    },
+    [applyNeedsResponse, route, token],
+  );
+
   const scheduleScore = useCallback(
     (s: GpSession) => {
       if (scoreTimer.current) window.clearTimeout(scoreTimer.current);
@@ -211,7 +291,8 @@ export default function App() {
   const patchScore = (p: Partial<GpSession>) => {
     setSession(s => {
       const next = withRisk(s, p);
-      if (p.needs || next.riskProfile !== s.riskProfile) scheduleScore(next);
+      if (needsInputChanged(p)) scheduleNeeds(next);
+      else if (next.riskProfile !== s.riskProfile) scheduleScore(next);
       return next;
     });
   };
@@ -257,11 +338,18 @@ export default function App() {
   const score = async () => {
     setBusy(true);
     setScoreError(null);
-    const current = withRisk(sessionRef.current);
-    sessionRef.current = current;
-    setSession(current);
-    go('d2cScore');
+    let current = withRisk(sessionRef.current);
     try {
+      if ((current.expenseMonthly || 0) < MIN_EXPENSE_MONTHLY) {
+        current = { ...current, expenseMonthly: MIN_EXPENSE_MONTHLY };
+      }
+      if (current.needs.length) {
+        const needsRes = await postJson<NeedsResponse>('/v1/needs', sessionPayload(current), token);
+        current = mergeNeedsFromApi(current, needsRes.session.needs || [], needsRes.session.ageOfRetirement);
+      }
+      sessionRef.current = current;
+      setSession(current);
+      go('d2cScore');
       const res = await postJson<ScoreResponse>('/v1/score', sessionPayload(current), token);
       setPre(res.preHappiU);
       setPost(res.postHappiU);
@@ -295,17 +383,26 @@ export default function App() {
   );
 
   const openPlan = async (need?: NeedType) => {
-    const synced = withRisk(sessionRef.current);
+    let synced = withRisk(sessionRef.current);
+    try {
+      if (synced.needs.length) {
+        const needsRes = await postJson<NeedsResponse>('/v1/needs', sessionPayload(synced), token);
+        synced = mergeNeedsFromApi(synced, needsRes.session.needs || [], needsRes.session.ageOfRetirement);
+      }
+    } catch {
+      /* keep last need amounts */
+    }
     const seeded = { ...synced, ...seedProducts(synced) };
     const next = need ? { ...seeded, tip: `panel-plans:${need}` } : seeded;
     setSession(next);
+    sessionRef.current = next;
     go('d2cPlan');
     await runProject(next);
   };
 
   const toggleNeed = (t: NeedType) => {
     setSession(s => {
-      const needs = capEnabledNeeds(s.needs.map(n => (n.type === t ? { ...n, enabled: !n.enabled } : n)));
+      const needs = toggleNeedEnabled(s.needs, t);
       const next = { ...s, needs, ...productFlags({ ...s, needs }) };
       if (route === 'd2cPlan') scheduleProject(next);
       return next;
@@ -345,6 +442,7 @@ export default function App() {
       const next = withRisk(s, marked);
       const caps = marked.investmentReturn != null ? clampAllWealthToCaps(next) : {};
       const out = { ...next, ...caps };
+      if (needsInputChanged(marked)) scheduleNeeds(out);
       if (route === 'd2cPlan') scheduleProject(out);
       return out;
     });
@@ -355,6 +453,7 @@ export default function App() {
   const moveMarker = (marker: ChartMarker, newX: number) => {
     setSession(s => {
       const next = applyMarkerMoveToSession(s, marker, newX);
+      if (marker.kind === 'need') scheduleNeeds(next);
       scheduleProject(next);
       return next;
     });
@@ -445,6 +544,9 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (projectTimer.current) window.clearTimeout(projectTimer.current);
+      if (scoreTimer.current) window.clearTimeout(scoreTimer.current);
+      if (needsTimer.current) window.clearTimeout(needsTimer.current);
+      needsAbort.current?.abort();
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
       narrAbort.current?.abort();
       stopSpeak();

@@ -46,7 +46,7 @@ current screen. Scripts come from `POST /v1/explain`.
 - **Money:** monthly income and expense, cash, investments, property, mortgage,
   existing policies. Pencil edits stick; provenance is tagged (estimate / you /
   document).
-- **Needs:** unified types `N_INC`, `N_CRI`, `N_TPD`, `N_RET`, `N_EDU`, `N_SAV`,
+- **Needs:** unified types `N_INC`, `N_CRI`, `N_TPD`, `N_HOS`, `N_RET`, `N_EDU`, `N_SAV`,
   `N_PRP` — enabled flag, need amount, existing cover/savings, gap.
 - **Plan knobs:** life cover and investment plan on/off, stress events, rates
   (inflation, income growth, net expected return, …). Net expected return is
@@ -82,6 +82,8 @@ current screen. Scripts come from `POST /v1/explain`.
 How People Like You, Need Profiler, and Need Calculator are called and
 calculated is in [People-like-you-and-needs.md](People-like-you-and-needs.md).
 The rest of the formula trail (goal-card edits, suggested plan, budget) is in
-[Calculations.md](Calculations.md). Risk capacity, tolerance, and the mapping
-to net expected returns are in [Risk.md](Risk.md). Product decisions and the
-build sequence are in [risk-mgmt.md](risk-mgmt.md).
+[Calculations.md](Calculations.md). What the same session sends to HappiU vs
+Scenario Visualizer is in [HU-and-SV-payloads.md](HU-and-SV-payloads.md).
+Risk capacity, tolerance, and the mapping to net expected returns are in
+[Risk.md](Risk.md). Product decisions and the build sequence are in
+[risk-mgmt.md](risk-mgmt.md).

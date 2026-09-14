@@ -6,6 +6,7 @@ import type { ExplainKind } from '../../lib/explain';
 import { Ico } from '../../lib/icons';
 import { PLAN_FOR_NEED, allPlansOn, planAfford, planRemain, suggestedInGroup, suggestedNeeds, toggleAllPlansPatch } from '../../lib/planProducts';
 import {
+  EXTRA_NEED_ICONS,
   EXTRA_NEEDS,
   HAPPI_COL,
   happiBand,
@@ -142,7 +143,7 @@ export function SuggestedPlan({
             <div key={x.k} className="gc on">
               <div className="gc-h">
                 <span className="gc-ic" style={{ borderColor: x.color }}>
-                  <span className="need-ico">{x.k === 'hosp' ? '🏨' : '🩹'}</span>
+                  <span className="need-ico">{EXTRA_NEED_ICONS[x.k]}</span>
                 </span>
                 <b>{x.label}</b>
                 <Switch on label={x.label} onClick={() => onToggleExtra(x.k)} />

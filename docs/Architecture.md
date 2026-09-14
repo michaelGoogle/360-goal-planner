@@ -11,13 +11,15 @@ GP BFF  (FastAPI)
         ├── POST /v1/explain         → OpenAI + src/prompts/*.md
         ├── POST /v1/predict         → People Like You / Need Profiler / Need Calculator
         │                            (in-process; 503 if People Like You cannot run)
+        ├── POST /v1/needs           → Need Calculator (same evaluate_session)
         ├── POST /v1/score           → HU POST /v1/happi-u
         └── POST /v1/project         → SV POST /api/v2/scenario-visualizer
 ```
 
 GP is a **customer UI + BFF**. People Like You / Need Profiler / Need Calculator
 run in-process. HappiU and the chart stay in HU / SV. Mapping to those engines
-lives in `hu_payload.py` / `sv_payload.py`. Prompts instruct the model to use
+lives in `hu_payload.py` / `sv_payload.py` — what each field becomes is in
+[HU-and-SV-payloads.md](HU-and-SV-payloads.md). Prompts instruct the model to use
 only the JSON context the UI already displayed.
 
 ## Stack
@@ -35,8 +37,8 @@ only the JSON context the UI already displayed.
 | [`src/predict.py`](../src/predict.py) | People Like You / profiler / calculator session mapping |
 | [`src/upstream.py`](../src/upstream.py) | FM / HU / SV HTTP helpers and timeouts |
 | [`src/openai_client.py`](../src/openai_client.py) | Shared OpenAI chat helper |
-| [`src/hu_payload.py`](../src/hu_payload.py) | Session → HappiU `POST /v1/happi-u` body |
-| [`src/sv_payload.py`](../src/sv_payload.py) | Session → SV scenario-visualizer body |
+| [`src/hu_payload.py`](../src/hu_payload.py) | Session → HappiU `POST /v1/happi-u` body ([payload map](HU-and-SV-payloads.md)) |
+| [`src/sv_payload.py`](../src/sv_payload.py) | Session → SV scenario-visualizer body ([payload map](HU-and-SV-payloads.md)) |
 | [`src/parse_sentence.py`](../src/parse_sentence.py) | OpenAI extract of About You fields |
 | [`src/explain.py`](../src/explain.py) | Load prompts, call OpenAI, deterministic fallback |
 | [`src/prompts/*.md`](../src/prompts/) | Mira / page explainer prompts |
@@ -53,17 +55,19 @@ only the JSON context the UI already displayed.
    S$100k, or 5× annual income when there is at least one dependant).
 4. On People Like You failure, return **503** (no occupation-band fallback).
 5. Need Profiler (`topN=5`, including the PLU lifestyle blob) then Need
-   Calculator (`onlyEmpty=true`), also in-process.
+   Calculator (`evaluate_session`), also in-process.
 6. Return `{ success, session, notes }`. Notes list which steps were skipped.
 
+Goal-card and money edits call **`POST /v1/needs`**, the same calculator.
 How People Like You, Need Profiler, and Need Calculator work is in
-[People-like-you-and-needs.md](People-like-you-and-needs.md). Goal-card
-recalc, suggested plan, and budget are in [Calculations.md](Calculations.md).
+[People-like-you-and-needs.md](People-like-you-and-needs.md). Suggested plan
+and budget stay in [Calculations.md](Calculations.md).
 
 ### Score / project
 
 `build_happiu_payload` / `build_sv_payload` turn the same session into engine
-JSON. HU/SV errors surface as **503** (unreachable) or the upstream status.
+JSON. Field-by-field map: [HU-and-SV-payloads.md](HU-and-SV-payloads.md).
+HU/SV errors surface as **503** (unreachable) or the upstream status.
 SV is called with `tenant_id=helium`.
 
 ### Explain (`POST /v1/explain`)

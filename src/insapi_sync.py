@@ -31,13 +31,11 @@ NEED_MAP = {
     "N_INC": ("lifeProtection", "Life Protection"),
     "N_CRI": ("criticalIllness", "Critical Illness"),
     "N_TPD": ("disability", "Disability"),
+    "N_HOS": ("hospitalization", "Hospitalization"),
     "N_RET": ("retirement", "Retirement"),
     "N_EDU": ("education", "Education"),
     "N_SAV": ("generalSavings", "General Savings"),
     "N_PRP": ("home", "Home"),
-}
-EXTRA_NEED_MAP = {
-    "hosp": ("hospitalization", "Hospitalization"),
 }
 CURRENCY = "SGD"
 
@@ -271,16 +269,6 @@ def _needs(session: dict[str, Any]) -> list[dict[str, Any]]:
         if gap > 0:
             item["gapAmount"] = round(gap, 2)
         out.append(item)
-    extras = session.get("extraNeeds") or []
-    if isinstance(extras, list):
-        for extra in extras:
-            mapped = EXTRA_NEED_MAP.get(str(extra))
-            if not mapped:
-                continue
-            key, label = mapped
-            if any(n.get("needKey") == key for n in out):
-                continue
-            out.append({"needKey": key, "needLabel": label, "ranking": "medium", "selected": True})
     return out
 
 

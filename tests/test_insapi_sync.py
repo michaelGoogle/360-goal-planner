@@ -36,9 +36,17 @@ def _session(**extra):
                 "existing": 100000,
                 "gap": 400000,
                 "priority": 1,
-            }
+            },
+            {
+                "type": "N_HOS",
+                "enabled": True,
+                "needAmount": 48000,
+                "existing": 0,
+                "gap": 48000,
+                "priority": 3,
+            },
         ],
-        "extraNeeds": ["hosp"],
+        "extraNeeds": ["pa"],
         "planSum": {"N_INC": 400000},
         "planPrem": {"N_INC": 120},
     }

@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:lib": "npx --yes tsx --test src/lib/riskCapacity.test.ts"
+    "test:lib": "npx --yes tsx --test src/lib/riskCapacity.test.ts src/lib/needEdit.test.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",

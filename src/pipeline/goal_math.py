@@ -9,13 +9,29 @@ from datetime import date
 from typing import Any
 
 RETIREMENT_AGE = 65
+LIFE_EXPECTANCY = 85
 INC_PROTECTION_MAX_AGE = 85
 INC_PROTECTION_MAX_YEARS = 30
-RETIREMENT_DURATION_YEARS = 20
+RETIREMENT_DURATION_YEARS = 20  # 65 → 85; live N_RET uses years_in_retirement()
 DEFAULT_INFLATION_RATE = 0.03
 
 ACCUMULATION_TYPES = frozenset({"N_RET", "N_EDU", "N_SAV", "N_PRP"})
-UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_RET", "N_EDU", "N_SAV", "N_PRP")
+PROTECTION_TYPES = frozenset({"N_INC", "N_CRI", "N_TPD", "N_HOS"})
+UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP")
+
+LIFESTYLE_RATES = {1: 0.75, 2: 1.0, 3: 1.25}
+
+# Singapore constants (SGD) for the Excel Needs Calculator shapes. The workbook
+# reads these per country from Table3; GP is Singapore-only.
+LIFE_SUPPORT_MIN_YEARS = 10
+LIFE_SUPPORT_MAX_YEARS = 25
+LIFE_SUPPORT_PIVOT_AGE = 50
+CI_YEARS = 3
+CI_COST = 200_000.0
+TPD_YEARS = 5
+TPD_COST = 200_000.0
+HOSP_MONTHS = 6
+EDU_TOTAL_COST = 75_000.0
 
 
 def age_from_dob(dob: str, as_of: date | None = None) -> int:
@@ -46,8 +62,65 @@ def pv_annuity(pmt: float, rate: float, periods: int) -> float:
     return (pmt * (1 - (1 + rate) ** (-periods))) / rate
 
 
+def pv_annuity_due(pmt: float, rate: float, periods: int) -> float:
+    """Annuity with the first payment undiscounted (Excel CI / disability shape)."""
+    if periods <= 0 or pmt <= 0:
+        return 0.0
+    if abs(rate) < 1e-12:
+        return pmt * periods
+    v = 1.0 / (1.0 + rate)
+    return pmt * (1 - v**periods) / (1 - v)
+
+
+def life_support_years(age: int) -> int:
+    """Years of financial support for life cover (Excel: MIN(MAX(10, 50 - age), 25))."""
+    return min(
+        max(LIFE_SUPPORT_MIN_YEARS, LIFE_SUPPORT_PIVOT_AGE - int(age or 0)),
+        LIFE_SUPPORT_MAX_YEARS,
+    )
+
+
 def remaining_gap(need_amount: float, existing_cover: float | None) -> float:
     return max(0.0, float(need_amount or 0) - float(existing_cover or 0))
+
+
+def round_to(n: float, step: float) -> float:
+    if step <= 0:
+        return max(0.0, n)
+    return max(0.0, round(n / step) * step)
+
+
+def fv(present: float, rate: float, periods: int) -> float:
+    if periods <= 0:
+        return max(0.0, float(present or 0))
+    return float(present or 0) * ((1 + rate) ** periods)
+
+
+def fv_annuity(pmt: float, rate: float, periods: int) -> float:
+    if periods <= 0 or pmt <= 0:
+        return 0.0
+    if abs(rate) < 1e-12:
+        return pmt * periods
+    return (pmt * ((1 + rate) ** periods - 1)) / rate
+
+
+def real_return(nominal: float, inflation: float) -> float:
+    inf = float(inflation or 0)
+    nom = float(nominal or 0)
+    return max(0.0, (1 + nom) / (1 + inf) - 1)
+
+
+def lifestyle_rate(lifestyle: int) -> float:
+    return LIFESTYLE_RATES.get(int(lifestyle or 2), 1.0)
+
+
+def years_in_retirement(ret_age: int, life_expectancy: int = LIFE_EXPECTANCY) -> int:
+    """Years from retirement age through life expectancy (Excel: LE − retAge)."""
+    return max(0, int(life_expectancy) - int(ret_age or RETIREMENT_AGE))
+
+
+def years_to_retirement(ret_age: int, age: int) -> int:
+    return max(0, int(ret_age or RETIREMENT_AGE) - int(age or 0))
 
 
 def compute_need_amounts(

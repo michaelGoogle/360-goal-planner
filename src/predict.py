@@ -7,8 +7,8 @@ from src.cpf import expenses_from_gross, take_home_income
 from src.hu_payload import dob_from_age
 from src.pipeline.need_profiler import select_unified_top
 
-UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_RET", "N_EDU", "N_SAV", "N_PRP")
-PROTECTION = ("N_INC", "N_CRI", "N_TPD")
+UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP")
+PROTECTION = ("N_INC", "N_CRI", "N_TPD", "N_HOS")
 PROPERTY_LTV = 0.55
 # SV pots: cash/savings vs investments. GP labels these Cash & Savings / Investments.
 CASH_SAVINGS_SHARE = 0.15
@@ -138,7 +138,9 @@ def _needs_from_profiler(session: dict[str, Any], result: dict[str, Any]) -> dic
                 }
             )
     else:
-        enable = set(select_unified_top(ranked))
+        enable = set(
+            select_unified_top(ranked, has_property=float(session.get("property") or 0) > 0)
+        )
         for t in UNIFIED_TYPES:
             rows.append({"type": t, "enabled": t in enable, "needAmount": 0, "priority": 3})
     session["needs"] = [r for r in rows if r.get("type") in UNIFIED_TYPES]
@@ -147,29 +149,34 @@ def _needs_from_profiler(session: dict[str, Any], result: dict[str, Any]) -> dic
 
 
 def _apply_calculator(session: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    """Merge calculator rows onto the session, keeping derived fields (have, lifestyle, …)."""
     needs_map = (result.get("onboarding") or {}).get("data", {}).get("needs") or result.get("needs") or {}
     amounts = result.get("amounts") or (result.get("result") or {}).get("amounts") or {}
-    rows = []
     existing_by_type = {n["type"]: n for n in session.get("needs") or []}
     types = list(needs_map.keys()) if needs_map else list(existing_by_type.keys())
+    rows = []
     for t in types:
-        row = dict(needs_map.get(t) or existing_by_type.get(t) or {"type": t, "enabled": True})
+        prev = existing_by_type.get(t) or {}
+        row = {**prev, **(needs_map.get(t) or {}), "type": t}
         amt = float(row.get("needAmount") or amounts.get(t) or 0)
         existing = float(row.get("existing") or 0)
-        rows.append(
-            {
-                "type": t,
-                "enabled": bool(row.get("enabled", True)),
-                "needAmount": amt,
-                "existing": existing,
-                "gap": float(row.get("gap") or max(0, amt - existing)),
-                "priority": existing_by_type.get(t, {}).get("priority") or 3,
-                "weightageScore": row.get("weightageScore") or existing_by_type.get(t, {}).get("weightageScore"),
-                "existingSumAssured": existing if t in PROTECTION else None,
-                "existingInvestment": existing if t not in PROTECTION else None,
-            }
-        )
+        have = float(row["have"]) if row.get("have") is not None else existing
+        row["needAmount"] = amt
+        row["existing"] = existing
+        row["have"] = have
+        row["gap"] = float(row["gap"]) if row.get("gap") is not None else max(0.0, amt - have)
+        row["enabled"] = bool(row.get("enabled", True))
+        row["priority"] = row.get("priority") or prev.get("priority") or 3
+        if t in PROTECTION:
+            row["existingSumAssured"] = existing
+            row["existingInvestment"] = None
+        else:
+            row["existingInvestment"] = existing
+            row["existingSumAssured"] = None
+        rows.append(row)
     if rows:
         session["needs"] = [r for r in rows if r.get("type") in UNIFIED_TYPES]
+    if result.get("ageOfRetirement"):
+        session["ageOfRetirement"] = result["ageOfRetirement"]
     session["needCalculator"] = result
     return session

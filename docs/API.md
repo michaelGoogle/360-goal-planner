@@ -15,8 +15,10 @@ CORS: allow all origins. No login. `/v1/predict` runs People Like You in-process
 | `POST` | `/v1/parse-sentence` | Extract About You fields from free text |
 | `POST` | `/v1/explain` | Spoken explainer script (LLM or fallback) |
 | `POST` | `/v1/predict` | People Like You → Need Profiler → Need Calculator |
+| `POST` | `/v1/needs` | Recompute needAmount, projected have, and gap |
 | `POST` | `/v1/score` | HappiU `preHappiU` / `postHappiU` |
 | `POST` | `/v1/project` | Scenario Visualizer wealth path |
+| `POST` | `/v1/sv-payload` | SV body only (debug; no projection) |
 | `POST` | `/v1/crm-sync` | Upsert contact + financial plan on Prototype InsApi |
 | `GET` | `/v1/report-walkthrough` | Public URL of the shared dummy report video |
 | `POST` | `/v1/video-notify` | Queue HeyGen plan video; WhatsApp (and optional email) when ready |
@@ -144,6 +146,52 @@ dependants): max of mortgage rounded to S$100,000 and 5× annual income.
 
 ---
 
+## `POST /v1/needs`
+
+Recompute `needAmount`, projected `have`, and `gap` for every UNIFIED need.
+Same session body as predict. The UI calls this (debounced) whenever goal,
+money, or assumption inputs that feed the calculator change. `/v1/predict`
+uses the same engine (`evaluate_session`).
+
+Formulas: [Calculations.md](Calculations.md) §4–5 and
+[People-like-you-and-needs.md](People-like-you-and-needs.md) §5.
+
+UNIFIED types: `N_INC`, `N_CRI`, `N_TPD`, `N_HOS`, `N_RET`, `N_EDU`, `N_SAV`,
+`N_PRP`. Every non-retirement amount follows the TFM_2604 Needs Calculator
+workbook with Singapore-only SGD constants. Per-row inputs the calculator
+reads: `enabled`, `existing`, `retAge`, `lifestyle`, `incomeReplaceMonthly`,
+`dependYears`, `liabilities`, `bequest`, `targetYear`, `monthlyContribution`,
+`contributeYears`. `region`, `courseYears` and `childrenToFund` are **gone** —
+education is one Singapore course total inflated to `targetYear`.
+
+### Success **200**
+
+```json
+{
+  "success": true,
+  "session": {
+    "ageOfRetirement": 65,
+    "needs": [
+      {
+        "type": "N_RET",
+        "enabled": true,
+        "needAmount": 867000,
+        "have": 211000,
+        "existing": 154224,
+        "gap": 656000,
+        "retAge": 65,
+        "lifestyle": 2,
+        "monthlyContribution": 0
+      }
+    ]
+  }
+}
+```
+
+**503** if the calculator raises.
+
+---
+
 ## `POST /v1/score`
 
 Same session body as predict.
@@ -160,8 +208,9 @@ Same session body as predict.
 }
 ```
 
-Upstream mapping: [`src/hu_payload.py`](../src/hu_payload.py). Unreachable HU →
-**503**. Other HU errors pass through the status and `detail`.
+Upstream mapping: [`src/hu_payload.py`](../src/hu_payload.py). Side-by-side with
+SV: [HU-and-SV-payloads.md](HU-and-SV-payloads.md). Unreachable HU → **503**.
+Other HU errors pass through the status and `detail`.
 
 ---
 
@@ -185,8 +234,16 @@ Same session body.
 ```
 
 `data` is the inner SV envelope the Plan chart plots. Mapping:
-[`src/sv_payload.py`](../src/sv_payload.py). Query on SV: `tenant_id=helium`.
+[`src/sv_payload.py`](../src/sv_payload.py). Side-by-side with HU:
+[HU-and-SV-payloads.md](HU-and-SV-payloads.md). Query on SV: `tenant_id=helium`.
 Unreachable SV → **503**.
+
+---
+
+## `POST /v1/sv-payload`
+
+Same session body as project. Returns `{ success, payload }` — the SV JSON only,
+no upstream call. Use this to inspect mapping without running Monte Carlo.
 
 ---
 

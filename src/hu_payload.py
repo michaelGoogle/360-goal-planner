@@ -5,6 +5,7 @@ import uuid
 from datetime import date
 from typing import Any
 
+from src.pipeline.goal_math import lifestyle_rate, years_in_retirement
 from src.session_rates import session_rate
 
 PARTNER_ID = "2807cba0-5698-11ec-855c-b5536ab81d64"
@@ -14,9 +15,14 @@ PRODUCT_CODES = {
     "N_INC": "GPP",
     "N_CRI": "CEJ",
     "N_TPD": "TPD",
+    "N_HOS": "HSP",
     "N_SAV": "SAV",
     "N_PRP": "PRP",
 }
+
+# HappiU calls hospitalisation N_HSP (src/data_handling/input_mapping/handler.py
+# needsMapping); GP calls it N_HOS. Every need code leaving GP goes through this.
+HU_NEED_CODE = {"N_HOS": "N_HSP"}
 
 NEED_BASE: dict[str, dict[str, Any]] = {
     "N_EDU": {"region": "R_CAN", "lifestyle": 2, "numYearDependents": None},
@@ -26,15 +32,21 @@ NEED_BASE: dict[str, dict[str, Any]] = {
     "N_INC": {"region": "R_ASI", "lifestyle": 1, "numYearDependents": 10},
     "N_TPD": {"region": "R_ASI", "lifestyle": 1, "numYearDependents": 10},
     "N_CRI": {"region": "R_ASI", "lifestyle": 1, "numYearDependents": None},
+    "N_HOS": {"region": "R_ASI", "lifestyle": 1, "numYearDependents": None},
 }
 
 ACCUMULATION = {"N_RET", "N_EDU", "N_SAV", "N_PRP"}
-PROTECTION = {"N_INC", "N_CRI", "N_TPD"}
+PROTECTION = {"N_INC", "N_CRI", "N_TPD", "N_HOS"}
 POLICY_TYPE = {
     "N_INC": "Life Protection",
     "N_CRI": "Critical Illness",
     "N_TPD": "Permanent Disability",
+    "N_HOS": "Hospitalisation",
 }
+
+
+def hu_need_code(need_type: str) -> str:
+    return HU_NEED_CODE.get(need_type, need_type)
 
 
 def need_existing(need: dict[str, Any], session: dict[str, Any]) -> float:
@@ -62,9 +74,10 @@ def _need_row(need: dict[str, Any], age_of_retirement: int, session: dict[str, A
     tagged = {"id": None, "type": None, "partner": None}
     funds_year = need.get("fundsNeededYear") or need.get("targetYear")
     existing_sa = need_existing(need, session) if t in PROTECTION else need.get("existingSumAssured")
+    code = hu_need_code(t)
     return {
-        "needId": t,
-        "type": t,
+        "needId": code,
+        "type": code,
         "value": None,
         "priority": int(need.get("priority") or 3),
         "existingSumAssured": existing_sa,
@@ -97,7 +110,7 @@ def _calc_entry(
     annual_expense = monthly_expense * 12
     funds_year = int(need.get("fundsNeededYear") or need.get("targetYear") or now_year + 10)
     primary: dict[str, Any] = {
-        "needId": t,
+        "needId": hu_need_code(t),
         "totalNeed": total_need,
         "totalShortfall": shortfall,
         "taggedFundValue": tagged,
@@ -106,14 +119,13 @@ def _calc_entry(
     }
     meta: dict[str, Any] = {}
     if t == "N_RET":
-        ret_m = need.get("retIncomeMonthly")
-        living = (float(ret_m) if ret_m not in (None, "") else monthly_expense) * 12
+        living = monthly_expense * lifestyle_rate(int(need.get("lifestyle") or 2)) * 12
         primary.update(
             {
                 "retirementAge": age_of_retirement,
                 "livingExpenses": living,
                 "expectedLivingExpenseInTheCountry": living * 0.75,
-                "durationOfRetirement": 20,
+                "durationOfRetirement": years_in_retirement(age_of_retirement),
                 "numYearsToRetirement": max(0, age_of_retirement - age),
                 "socialSecurityValue": 0,
             }
@@ -136,6 +148,9 @@ def _calc_entry(
             }
         )
         meta = {"livingExpenses": {PARTNER_ID: {}}}
+    elif t == "N_HOS":
+        # HappiU reads medicalCost off the hospitalisation need; 6 months of income.
+        primary.update({"medicalCost": total_need, "proportionOfExpenses": 1})
     elif t in ("N_INC", "N_TPD"):
         primary.update({"funeralExpense": 10000, "lumpSumNeeded": total_need, "existingLifeCover": existing or None})
         meta = {"lumpSumNeeded": {PARTNER_ID: {}}}
@@ -167,10 +182,11 @@ def _session_assets(session: dict[str, Any]) -> list[dict[str, Any]]:
 def _budget_line(need: dict[str, Any], inv_ret: float) -> dict[str, Any]:
     t = need["type"]
     rec_benefit = max(0, round(float(need.get("needAmount") or 0) / 50000) * 50000)
+    code = hu_need_code(t)
     return {
         "partnerId": PARTNER_ID,
-        "goalId": t,
-        "goalType": t,
+        "goalId": code,
+        "goalType": code,
         "productCode": PRODUCT_CODES.get(t, t),
         "paymentFrequency": "Monthly",
         "riders": [],
@@ -203,7 +219,7 @@ def build_happiu_payload(session: dict[str, Any]) -> dict[str, Any]:
             {
                 "type": "N_RET",
                 "enabled": True,
-                "needAmount": expense * 12 * 20,
+                "needAmount": expense * 12 * years_in_retirement(ret_age),
                 "priority": 5,
                 "existingInvestment": liquid,
             }
@@ -212,10 +228,10 @@ def build_happiu_payload(session: dict[str, Any]) -> dict[str, Any]:
     calc: dict[str, Any] = {}
     by_type = {n["type"]: n for n in needs}
     for t, n in by_type.items():
-        calc[t] = _calc_entry(n, expense, ret_age, age, session)
+        calc[hu_need_code(t)] = _calc_entry(n, expense, ret_age, age, session)
     if "N_RET" not in calc:
         calc["N_RET"] = _calc_entry(
-            {"type": "N_RET", "needAmount": expense * 12 * 20, "existingInvestment": liquid},
+            {"type": "N_RET", "needAmount": expense * 12 * years_in_retirement(ret_age), "existingInvestment": liquid},
             expense,
             ret_age,
             age,

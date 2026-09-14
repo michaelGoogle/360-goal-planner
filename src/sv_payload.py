@@ -6,7 +6,8 @@ from datetime import date
 from typing import Any
 
 from src.cpf import session_take_home
-from src.hu_payload import ACCUMULATION, PROTECTION, dob_from_age
+from src.hu_payload import ACCUMULATION, PROTECTION, dob_from_age, hu_need_code
+from src.pipeline.goal_math import years_in_retirement
 from src.session_rates import session_rate
 
 ASSET_CASH = "7c3a91e2-4b8f-4d21-9e6a-2f5c8b1d0a44"
@@ -155,6 +156,7 @@ _PLAN_PRODUCT = {
     "N_INC": ("GPP", "Life cover", "TermLife"),
     "N_CRI": ("CEJ", "Critical illness cover", "TermLife"),
     "N_TPD": ("TPD", "Disability cover", "TermLife"),
+    "N_HOS": ("HSP", "Hospitalisation cover", "TermLife"),
     "N_RET": ("AIARS", "Retirement plan", "Savings"),
     "N_EDU": ("ERX", "Education plan", "Savings"),
     "N_SAV": ("SAV", "Saving plan", "Savings"),
@@ -296,34 +298,44 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
     now_year = date.today().year
     needs = [n for n in (session.get("needs") or []) if n.get("enabled")]
     if not needs:
-        needs = [{"type": "N_RET", "enabled": True, "needAmount": expense * 12 * 20, "priority": 5}]
+        needs = [{"type": "N_RET", "enabled": True, "needAmount": expense * 12 * years_in_retirement(ret_age), "priority": 5}]
 
     pd_needs = []
     nco = []
     for n in needs:
-        t = n["type"]
-        nid = _need_id(t)
+        t = str(n.get("type") or "")
+        code = hu_need_code(t)
+        nid = _need_id(code)
         funds_year = int(n.get("fundsNeededYear") or now_year + (ret_age - age if t == "N_RET" else 10))
         amount = float(n.get("needAmount") or 0)
         tagged = [] if t in ACCUMULATION else [ASSET_PROPERTY]
         pd_needs.append(
             {
                 "needId": nid,
-                "type": t,
+                "type": code,
                 "targetYear": funds_year if t in ACCUMULATION else None,
                 "taggedAsset": tagged,
                 "existingSumAssured": 0 if t in ACCUMULATION else int(n.get("existingSumAssured") or 0),
                 "existingAnnualPremium": 0 if t in ACCUMULATION else int(n.get("existingAnnualPremium") or 0),
+                "ageOfRetirement": ret_age,
+                "numYearDependents": _as_int(n.get("dependYears"), 10),
             }
         )
-        result: dict[str, Any] = {"capitalSumRequired": amount, "totalNeed": amount}
+        result: dict[str, Any] = {
+            "capitalSumRequired": amount,
+            "totalNeed": amount,
+            "ageOfRetirement": ret_age,
+            "targetYear": funds_year if t in ACCUMULATION else None,
+        }
         if t == "N_RET":
             result["retirementAge"] = ret_age
-            result["durationOfRetirement"] = 20
+            result["durationOfRetirement"] = years_in_retirement(ret_age)
             result["fundsNeededYear"] = now_year + max(0, ret_age - age)
         elif t in ("N_SAV", "N_PRP", "N_EDU"):
             result["fundsNeededYear"] = funds_year
-        nco.append({"type": t, "needId": nid, "result": result})
+        elif t == "N_HOS":
+            result["medicalCost"] = amount
+        nco.append({"type": code, "needId": nid, "result": result})
 
     events = session_manual_events(session)
 
@@ -355,6 +367,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
         "modelParameters": {
             "ignoreIlliquidAssets": False,
             "showExpenseFunding": True,
+            "subtractLoanBalances": True,
             "inflationRate": inflation,
             "incomeGrowthRate": income_grow,
         },

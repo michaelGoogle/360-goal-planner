@@ -33,6 +33,7 @@ See [docs/API.md](docs/API.md). How People Like You / Need Profiler / Need Calcu
 |--------|------|------|
 | `POST` | `/v1/parse-sentence` | About You extract (OpenAI) |
 | `POST` | `/v1/predict` | In-process PLU → profiler → calculator (503 if PLU cannot run) |
+| `POST` | `/v1/needs` | Recompute needAmount / have / gap |
 | `POST` | `/v1/score` | HU HappiU |
 | `POST` | `/v1/project` | SV wealth path |
 | `POST` | `/v1/explain` | Spoken Mira / page explainers |

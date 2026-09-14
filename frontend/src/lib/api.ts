@@ -128,6 +128,11 @@ export interface PredictResponse {
   session: Partial<GpSession> & { needs?: NeedRow[]; note?: string; source?: string };
 }
 
+export interface NeedsResponse {
+  success: boolean;
+  session: { needs: NeedRow[]; ageOfRetirement?: number };
+}
+
 export interface CrmSyncResponse {
   success: boolean;
   contactId?: string;

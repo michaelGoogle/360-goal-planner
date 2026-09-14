@@ -7,7 +7,7 @@ import { Foot, GroupTag, NarrBtn } from '../components/ui';
 import { X_RATIO_WHY } from '../lib/catalog';
 import type { ExplainKind } from '../lib/explain';
 import { Ico } from '../lib/icons';
-import { applyNeedPatch, capEnabledNeeds, needCardGap } from '../lib/needEdit';
+import { needCardGap, patchNeedInputs } from '../lib/needEdit';
 import { moneyRatios, rnum, type Ratio } from '../lib/ratios';
 import {
   RISK_ABILITY_TIP,
@@ -127,12 +127,6 @@ export function Score({
   const riskTip = `The plan uses ${suitable.label} (${suitable.volLabel} annual volatility) — the lower of risk ability and risk tolerance.`;
 
   useEffect(() => {
-    const next = capEnabledNeeds(session.needs.map(n => ({ ...n, gap: needCardGap(session, n) })));
-    const changed = next.some(n => session.needs.find(x => x.type === n.type)?.enabled !== n.enabled);
-    if (changed) onChange({ needs: next });
-  }, [session.needs, onChange]);
-
-  useEffect(() => {
     if (!editNeed) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeModal();
@@ -142,8 +136,7 @@ export function Score({
   }, [editNeed]);
 
   const openNeed = (t: NeedType) => {
-    const { needs, extra } = applyNeedPatch(session, t, {});
-    onChange({ needs, ...extra });
+    onChange(patchNeedInputs(session, t, {}));
     setEditNeed(t);
   };
 
@@ -228,7 +221,12 @@ export function Score({
           </button>
           {needsOpen ? (
             <>
-              <NeedGroups session={session} onChange={onChange} onToggleNeed={onToggleNeed} />
+              <NeedGroups
+                session={session}
+                onChange={onChange}
+                onToggleNeed={onToggleNeed}
+                onToggleExtra={onToggleExtra}
+              />
               {offNeeds.length || offExtra.length ? (
                 <div className="x-add">
                   <span className="x-sm">Also worth looking at</span>

@@ -22,7 +22,7 @@ If a formula here drifts, the file named in each section is the source of truth.
 |------|---------------------|------|
 | **People Like You** | What does someone like this typically earn, spend, own, and prefer? | Yes (income + lifestyle). Spend, cash, and loans are closed-form. |
 | **Need Profiler** | Which of twelve life needs matter most, so which UNIFIED goals should be on? | No. Weighted scores from a spreadsheet (`Need_profiler.json`). |
-| **Need Calculator** | For each **enabled** goal, what lump (`needAmount`) and what gap vs existing cover/savings? | No. Present-value / multiple-of-income rules in `goal_math.py`. |
+| **Need Calculator** | For each UNIFIED goal, what lump (`needAmount`), projected have, and gap vs existing? | No. Excel-aligned formulas with session real returns in `evaluate_session`. |
 
 GP then:
 
@@ -31,7 +31,7 @@ GP then:
 - Sets `existing` on each need (policies vs cash+investments).
 - Shows the customer **Your money**, where pencil edits stick (`moneyTouched`).
 
-UNIFIED types GP shows as goals: `N_INC`, `N_CRI`, `N_TPD`, `N_RET`, `N_EDU`,
+UNIFIED types GP shows as goals: `N_INC`, `N_CRI`, `N_TPD`, `N_HOS`, `N_RET`, `N_EDU`,
 `N_SAV`, `N_PRP`.
 
 ---
@@ -54,9 +54,11 @@ GP  POST /v1/predict
     │
     ├─ 3. need_existing(need, session)        policies for protection; cash+investments for wealth
     │
-    └─ 4. run_need_calculator     onlyEmpty = true
-           copies needAmount / gap            (_apply_calculator)
+    └─ 4. evaluate_session        needAmount, have, gap
+           (`src/pipeline/need_calculator.py`)
            If this raises → amounts stay 0; note in the response.
+
+Later slider / money / rate edits: POST /v1/needs → same evaluate_session.
 ```
 
 **Code:** `GP/src/app.py` `predict`, `GP/src/pipeline/run.py`, `GP/src/predict.py`.
@@ -222,20 +224,20 @@ skipped (they add 0). Because the PLU blob is in-process, home/car ownership
 now affect ranking (Home Protection ranks higher when People Like You said
 they own a flat).
 
-### 4.2 Twelve AI labels, seven UNIFIED cards
+### 4.2 Twelve AI labels, eight UNIFIED cards
 
-Every run scores **twelve** labels. Only seven map onto goal cards:
+Every run scores **twelve** labels. Only eight map onto goal cards:
 
 | Profiler label | `needKey` | UNIFIED | Shown on Score / Plan? |
 |----------------|-----------|---------|------------------------|
 | Life Protection | `lifeProtection` | `N_INC` | Yes |
 | Critical Illness | `criticalIllness` | `N_CRI` | Yes |
 | Disability | `disability` | `N_TPD` | Yes |
-| Retirement | `retirement` | `N_RET` | Yes |
+| Retirement | `retirement` | `N_RET` | Yes (card title **Private Retirement**) |
 | Education | `education` | `N_EDU` | Yes **if enabled** |
 | General Savings | `generalSavings` | `N_SAV` | Yes |
 | Home Protection | `home` | `N_PRP` | Yes |
-| Hospitalization | `hospitalization` | — | Scored only |
+| Hospitalization | `hospitalization` | `N_HOS` | Yes |
 | Farewell | `farewell` | — | Scored only |
 | Personal Accident | `personalAccident` | — | Scored only |
 | Car Protection | `motor` | — | Scored only |
@@ -322,51 +324,43 @@ GP does not fail the whole predict. It enables `N_INC` and `N_RET`, plus
 
 ## 5. Need Calculator
 
-**Code:** `GP/src/pipeline/need_calculator.py` →
-`GP/src/pipeline/goal_math.py` (`compute_need_amounts`)  
-**TS twin (same formulas):** `shared/input_model/src/goalMath.ts`
+**Code:** `GP/src/pipeline/need_calculator.py` (`evaluate_session`)  
+**HTTP:** `POST /v1/predict` and `POST /v1/needs`
 
-The calculator does **not** rank needs. It fills **dollars** for rows that are
-already enabled.
+The calculator does **not** rank needs. It fills **dollars** (`needAmount`,
+projected `have`, `gap`) for every UNIFIED type from the current session.
 
 ### 5.1 Inputs
 
-GP sends the same `policyOwner` + `finance` as the profiler, plus:
+The session body (same as predict): money, rates, `ageOfRetirement`, and
+`needs[]` slider fields (`retAge`, `lifestyle`, `existing`, `bequest`, …).
 
-```text
-onlyEmpty: true
-needs: { N_INC: { enabled, needAmount, existing, … }, … }
-```
+`dateOfBirth` or `age` is required for horizons. Retirement age defaults to
+**65**. Inflation is the session rate (default **2.3%**), not a fixed 3%.
+Investment return defaults to **4.2%**.
 
-`dateOfBirth` is required. At least one of monthly income or expense must be
-`> 0`. Retirement age defaults to **65**.
+### 5.2 Existing cover / savings
 
-Inflation / discount rate in this engine is fixed at **3%**
-(`DEFAULT_INFLATION_RATE`). That is **not** the session inflation on the Plan
-slider (default 2.3%), and not the investment-return slider.
-
-### 5.2 Existing cover / savings (GP, before the call)
-
-For each need, GP sets `existing` (`need_existing` in `hu_payload.py`):
+For each need, `existing` is the slider amount if already set; otherwise
+`need_existing` in `hu_payload.py`:
 
 | Kind | Types | `existing` |
 |------|-------|------------|
-| Protection | `N_INC`, `N_CRI`, `N_TPD` | Sum of matching policy `sum` (Life / CI / TPD) |
-| Wealth | `N_RET`, `N_EDU`, `N_SAV`, `N_PRP` | `cash + investments` |
+| Protection | `N_INC`, `N_CRI`, `N_TPD`, `N_HOS` | Sum of matching policy `sum` (Life / CI / TPD / Hospitalisation) |
+| Wealth | `N_RET`, `N_EDU`, `N_SAV`, `N_PRP` | `cash + investments` (private; not CPF) |
 
 The assumed life policy from People Like You therefore reduces the **life**
 gap. It does not reduce critical-illness or TPD.
 
-### 5.3 Amount formulas (`r = 0.03`)
+### 5.3 Amount formulas
 
-Let  
-`income = monthlyIncome × 12`,  
-`expense = monthlyExpense × 12`,  
-`age` from DOB,  
-`ret_age` default 65.
+Lifestyle (share of **today’s expenses**): Frugal **75%**, Stress free
+**100%**, Only the best **125%** (default Stress free).
+`retIncomeMonthly` stored on the row is `round_to(expenseMonthly × rate, 50)`
+(not shown on the card). Retirement age defaults to **65**. Years in
+retirement `n = 85 − retAge`. Your Money blocks expense at 0.
 
-Present-value annuity (level payment at the start of each year in the usual
-closed form used here):
+Two annuity conventions, mirroring the workbook: retirement and life use an **ordinary** annuity `a(r, n)`, critical illness and disability an **annuity-due** `aDue(r, n) = (1 − vⁿ)/(1 − v)` with `v = 1/(1+r)`.
 
 ```
 PV(PMT, r, n) = PMT × (1 − (1+r)^(−n)) / r     if r ≉ 0
@@ -374,57 +368,66 @@ PV(PMT, r, n) = PMT × (1 − (1+r)^(−n)) / r     if r ≉ 0
 n ≤ 0 or PMT ≤ 0 → 0
 ```
 
+```
+realReturn = (1 + investmentReturn) / (1 + inflation) − 1    (floored at 0)
+T = retAge − age
+annualSpend = expenseMonthly × 12 × lifestyleRate
+```
+
 Amounts are rounded to whole currency units (`round_money`).
 
 | Type | `needAmount` | Meaning |
 |------|----------------|---------|
-| **N_INC** | `PV(0.5 × expense, r, min(30, max(0, 85 − age)))` | Replace **half of annual spend** until age 85, capped at 30 years |
-| **N_CRI** | `5 × income` | Five years of gross annual pay |
-| **N_TPD** | `0.5 × N_INC` | Half of the income-protection lump |
-| **N_RET** | Inflate today’s **annual spend** to retirement: `expense × (1+r)^(ret_age − age)`, then `PV(that, r, 20)` | 20 years of inflated living cost from retirement |
-| **N_EDU** | `3 × income` | Three years of annual pay |
-| **N_SAV** | `1 × income` | One year of annual pay |
-| **N_PRP** | `5 × income` | Five years of annual pay (a stand-in for a home goal, not the seeded property value) |
+| **N_RET** | `annualSpend × (1+realReturn)^T × a(realReturn, n)` | Lump **at retirement** (Excel Needs Calculator shape; no PPP) |
+| **N_INC** | `bequest + liabilities + expenseMonthly × 12 × a(realReturn, dependYears)` | Excel `C64`: settle debts, leave any legacy, and fund household **spend** for the support years |
+| **N_CRI** | `incomeReplaceMonthly × 12 × aDue(realReturn, 3) + 200,000` | Excel `C73`: three years of income plus Singapore treatment cost |
+| **N_TPD** | `incomeReplaceMonthly × 12 × aDue(realReturn, 5) + 200,000` | Excel `C82`: five years of income plus Singapore treatment cost |
+| **N_HOS** | `incomeMonthly × 6` | Excel `C91`: six months to recover |
+| **N_EDU** | `75,000 × (1 + inflation)^(targetYear − thisYear)` | Excel `F73`: one Singapore course total, inflated to the start year (no course-years or children multiplier) |
+| **N_SAV** | customer `needAmount` if `> 0`, else `1 ×` annual income | Savings target |
+| **N_PRP** | customer `needAmount` if `> 0`, else `5 ×` annual income | Property target |
 
-Worked sketch (age 42, gross S$9,500/month, spend S$6,122.50/month, retire 65):
+Non-retirement formulas follow the **TFM_2604 Needs Calculator** workbook (`Input Output` rows 62–95) with GP session rates. Constants are **Singapore-only, SGD**: critical illness 3 years + **S$200,000**, disability 5 years + **S$200,000**, hospitalisation **6 months**, education **S$75,000** total; `supportYears(age) = min(max(10, 50 − age), 25)` (Excel `E12`). The costs are Singapore-realistic equivalents of the workbook's USD figures and are **pending business sign-off**. Farewell (funeral cost) and the workbook's ward / private-factor columns are not implemented.
 
-- Annual income S$114,000; annual spend ≈ S$73,470.
-- **N_INC** ≈ PV of S$36,735 for 30 years at 3%.
-- **N_CRI** = S$570,000; **N_PRP** = S$570,000; **N_EDU** = S$342,000; **N_SAV** = S$114,000.
-- **N_RET** = PV of spend grown 23 years at 3%, paid for 20 years.
+Worked sketch (age 42, expense S$4,000/month, Stress free, retire 65, inflation 2.3%, investment return 3.5%):
 
-### 5.4 `onlyEmpty` and gap
+- Annual spend in retirement = S$48,000 (100% of expenses).
+- `T = 23`, `n = 20`, `realReturn ≈ 1.17%`.
+- **N_RET** `needAmount` grows that spend at real return to retirement, then takes the 20-year annuity. Retiring later shortens `n` and usually **lowers** the lump.
+- With income S$6,800/month and a S$200,000 mortgage, the Excel-aligned amounts are **N_INC 634,401**, **N_CRI 440,363**, **N_TPD 593,390**, **N_HOS 40,800**, and **N_EDU 94,149** ten years out.
 
-For each **enabled** UNIFIED type:
+### 5.4 Have and gap
 
 ```
-if onlyEmpty and needAmount already > 0: keep that needAmount
-else: needAmount = computed
-gap = max(0, needAmount − existing)
+N_RET have   = FV(privateRetirement, realReturn, T)
+               + FV of (monthlyContribution × 12) for T years
+               (default contribution 0; CPF excluded)
+other wealth = existing grown to targetYear at realReturn
+               (+ contribution annuity for N_SAV / N_PRP)
+protection   = existing
+gap          = max(0, needAmount − have)
 ```
 
-Disabled rows are left unchanged (still typically 0). GP’s first predict always
-sends `needAmount = 0`, so the calculator fills every enabled type.
-
-GP then copies `existing` onto `existingSumAssured` (protection) or
+Disabled rows are still computed so toggling them on does not need a second
+formula. GP copies `existing` onto `existingSumAssured` (protection) or
 `existingInvestment` (wealth).
+
+Later retirement **lowers** the retirement gap: years in retirement shrink
+and the private pot (plus any contribution) has more years to grow.
 
 ### 5.5 If the calculator is down
 
-Predict still succeeds. Amounts stay 0 until the customer edits a goal card or
-later engines run. A note is returned (`Need Calculator unavailable…`).
+Predict still succeeds. Amounts stay 0 until `/v1/needs` or later engines run.
+A note is returned (`Need Calculator unavailable…`). `/v1/needs` itself
+returns **503**.
 
 ---
 
-## 6. After predict — two different need-amount models
+## 6. After predict
 
-The first fill is **GP `goal_math.py`** (§5), `r = 3%`.
-
-If the customer opens a goal card on Score or Plan and edits it, the browser
-recomputes `needAmount` with **`frontend/src/lib/needEdit.ts`**: session
-inflation (default **2.3%**), lifestyle share of pay, education region, and so
-on. That is intentional and documented in [Calculations.md](Calculations.md)
-§5 and §9. It is **not** a second Need Calculator call.
+The customer can still toggle which goals are on; that does not re-call the
+profiler. Amounts refresh through **`POST /v1/needs`** (debounced) when
+goal sliders, money figures, or assumption rates change.
 
 Suggested plan products and the half-surplus budget check are D2C UI
 (`planProducts.ts`). There is no FM “plan calculator”.
@@ -436,16 +439,16 @@ Suggested plan products and the half-surplus budget check are D2C UI
 | Concern | Path |
 |---------|------|
 | Predict orchestration | `src/app.py` `predict` |
+| Live need calculator | `src/app.py` `needs` (`POST /v1/needs`) |
 | Local engines | `src/pipeline/run.py` |
 | Session mapping | `src/predict.py` |
 | CPF / spend (recompute) | `src/cpf.py` |
-| Existing cover before calculator | `src/hu_payload.py` `need_existing` |
+| Existing cover | `src/hu_payload.py` `need_existing` |
 | People Like You | `src/pipeline/people_like_you.py` |
 | PLU prompt + income bands | `src/pipeline/prompts/` |
 | Need Profiler | `src/pipeline/need_profiler.py` |
 | Profiler weights | `src/pipeline/prompts/Need_profiler.json` |
 | Profile flatten | `src/pipeline/onboarding.py` `build_profiler_profile` |
-| Need Calculator | `src/pipeline/need_calculator.py` |
-| Amount math | `src/pipeline/goal_math.py` |
-| Shared TS twin | `shared/input_model/src/goalMath.ts` |
-| Goal-card recalc (after predict) | `frontend/src/lib/needEdit.ts` |
+| Need Calculator | `src/pipeline/need_calculator.py` `evaluate_session` |
+| Amount helpers | `src/pipeline/goal_math.py` |
+| Goal-card inputs | `frontend/src/lib/needEdit.ts` |
