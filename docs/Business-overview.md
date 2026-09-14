@@ -29,7 +29,7 @@ Portal card: suite landing page → compose **8069** / WAN **8469**.
 | Start | Intro | Hear what they get, then start | No engine call |
 | 1 | About you | One sentence (speak/type) or a classic form; optional statements | `POST /v1/parse-sentence` fills fields |
 | 2 | Your money | Correct estimated income, spend, balances, cover | `POST /v1/predict` (People Like You in-process) |
-| 3 | Your score | See HappiU, gaps, money-health ratios; toggle needs | `POST /v1/score` → HU |
+| 3 | Your score | See HappiU, gaps, money-health ratios; risk ability chip (spec) | `POST /v1/score` → HU |
 | Plan | Your plan | Switch goals, products, stress events, assumptions | `POST /v1/project` → SV; score again |
 
 Guides on every screen: **Mira** (AI adviser, spoken) and **talk to a human
@@ -49,7 +49,10 @@ current screen. Scripts come from `POST /v1/explain`.
 - **Needs:** unified types `N_INC`, `N_CRI`, `N_TPD`, `N_RET`, `N_EDU`, `N_SAV`,
   `N_PRP` — enabled flag, need amount, existing cover/savings, gap.
 - **Plan knobs:** life cover and investment plan on/off, stress events, rates
-  (inflation, income growth, investment return, …).
+  (inflation, income growth, net expected return, …). Net expected return is
+  after product costs, seeded from `min(capacity, tolerance)` unless overridden.
+- **Risk:** **capacity** from Your money (not People Like You); **tolerance**
+  from a 1–5 slider. See [Risk.md](Risk.md).
 
 ## 5. Outputs
 
@@ -79,4 +82,6 @@ current screen. Scripts come from `POST /v1/explain`.
 How People Like You, Need Profiler, and Need Calculator are called and
 calculated is in [People-like-you-and-needs.md](People-like-you-and-needs.md).
 The rest of the formula trail (goal-card edits, suggested plan, budget) is in
-[Calculations.md](Calculations.md).
+[Calculations.md](Calculations.md). Risk capacity, tolerance, and the mapping
+to net expected returns are in [Risk.md](Risk.md). Product decisions and the
+build sequence are in [risk-mgmt.md](risk-mgmt.md).

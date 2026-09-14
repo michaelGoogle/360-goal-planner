@@ -10,6 +10,15 @@ import { Ico } from '../lib/icons';
 import { applyNeedPatch, capEnabledNeeds, needCardGap } from '../lib/needEdit';
 import { moneyRatios, rnum, type Ratio } from '../lib/ratios';
 import {
+  RISK_ABILITY_TIP,
+  RISK_LEVELS,
+  RISK_TRACK_GRADIENT,
+  clampRiskProfile,
+  riskCapacity,
+  riskLevel,
+  suitableRisk,
+} from '../lib/riskCapacity';
+import {
   EXTRA_NEEDS,
   HAPPI_COL,
   firstName,
@@ -73,16 +82,24 @@ export function Score({
   const okRatios = R.filter(r => r.ok).length;
   const badRatios = R.length - okRatios;
   const ratioTone = badRatios === 0 ? 'ok' : badRatios <= 3 ? 'warn' : 'no';
-  const ratioShape =
+  const ratioStatus =
     badRatios === 0
-      ? `All ${R.length} financial health ratios are in good shape`
-      : `${badRatios} financial health ${badRatios === 1 ? 'ratio needs' : 'ratios need'} attention`;
+      ? 'All in good shape'
+      : `${badRatios} ${badRatios === 1 ? 'needs' : 'need'} attention`;
   const [needsOpen, setNeedsOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
+  const [riskOpen, setRiskOpen] = useState(false);
   const [editNeed, setEditNeed] = useState<NeedType | null>(null);
   const scoreRef = useRef<HTMLDivElement>(null);
   const needsRef = useRef<HTMLDivElement>(null);
-  const ratiosRef = useRef<HTMLSpanElement>(null);
+  const ratiosRef = useRef<HTMLButtonElement>(null);
+  const riskRef = useRef<HTMLButtonElement>(null);
+  const cap = riskCapacity(session);
+  const ability = riskLevel(cap.capacity);
+  const tolerance = clampRiskProfile(session.riskTolerance ?? 3);
+  const comfort = riskLevel(tolerance);
+  const suitable = riskLevel(suitableRisk(cap.capacity, tolerance));
+  const riskChip = `Risk: ${suitable.label}`;
   const closeModal = () => setEditNeed(null);
   const who = firstName(session);
   const chipNeeds = (() => {
@@ -105,8 +122,9 @@ export function Score({
       : '');
   const ratiosTip =
     badRatios === 0
-      ? `All ${R.length} ratios are in good shape. Click the icon to open the checks.`
-      : `${ratioShape}. Click the icon to open the checks.`;
+      ? `All ${R.length} ratios are in good shape.`
+      : `Financial health ratios: ${ratioStatus}.`;
+  const riskTip = `The plan uses ${suitable.label} (${suitable.volLabel} annual volatility) — the lower of risk ability and risk tolerance.`;
 
   useEffect(() => {
     const next = capEnabledNeeds(session.needs.map(n => ({ ...n, gap: needCardGap(session, n) })));
@@ -127,13 +145,6 @@ export function Score({
     const { needs, extra } = applyNeedPatch(session, t, {});
     onChange({ needs, ...extra });
     setEditNeed(t);
-  };
-
-  const openHealth = () => {
-    setHealthOpen(true);
-    window.requestAnimationFrame(() => {
-      document.getElementById('x-money-health')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
   };
 
   return (
@@ -199,16 +210,6 @@ export function Score({
               paused={narrPaused}
               onClick={() => onNarr('needs')}
             />
-            <button
-              className={`x-chip ${ratioTone}`}
-              type="button"
-              onClick={openHealth}
-            >
-              <span>{ratioShape}</span>
-              <span ref={ratiosRef} className="x-coach-hit">
-                {Ico.eye}
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -249,15 +250,76 @@ export function Score({
       </div>
 
       <div className="x-sec">
+        <div id="x-risk" className={`x-needs${riskOpen ? ' open' : ''}`}>
+          <button
+            ref={riskRef}
+            className="x-needsh"
+            type="button"
+            aria-expanded={riskOpen}
+            onClick={() => setRiskOpen(open => !open)}
+          >
+            <b>How much market risk this plan should take</b>
+            <span className={`x-chip ${suitable.chipClass}`}>{riskChip}</span>
+            <span className="cv">{Ico.chev}</span>
+          </button>
+          {riskOpen ? (
+            <>
+              <p className="x-sm" style={{ margin: '0 0 16px' }}>
+                How much market swing your balance sheet can carry, and how much you say you can sit with. The plan
+                uses the lower of the two.{' '}
+                <InfoTip className="x-r-info" text={RISK_ABILITY_TIP} label="how much market risk this plan should take" wide />
+              </p>
+              <div className="x-risk">
+                <div className="x-risk-cap">
+                  <div className="x-r-h">
+                    <b>Risk ability</b>
+                    <span className={`x-chip ${ability.chipClass}`}>{ability.label}</span>
+                  </div>
+                  <p>
+                    Calculated from cash cover, debt, the share of income you save, years to retirement, and
+                    dependants. Raise it by changing those figures on Your money.
+                  </p>
+                  <RiskBandTrack value={cap.capacity} readOnly ariaLabel="Risk ability" />
+                  {cap.capReason ? <div className="rec">{cap.capReason}</div> : null}
+                </div>
+                <div className="x-risk-tol">
+                  <div className="x-r-h">
+                    <b>Risk tolerance</b>
+                    <span className={`x-chip ${comfort.chipClass}`}>{comfort.label}</span>
+                  </div>
+                  <p>
+                    How much your investments can rise and fall before you would want to sell. Drag the slider to
+                    set this — it is the one you can change.
+                  </p>
+                  <RiskBandTrack
+                    value={tolerance}
+                    onChange={v => onChange({ riskTolerance: v, riskToleranceTouched: true })}
+                    ariaLabel="Risk tolerance"
+                  />
+                </div>
+              </div>
+              {tolerance > cap.capacity ? (
+                <p className="x-note" style={{ marginTop: 14 }}>
+                  Your comfort is above what your balance sheet can carry. The plan uses risk ability
+                  ({ability.label}) as the cap.
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="x-sec">
         <div id="x-money-health" className={`x-needs${healthOpen ? ' open' : ''}`}>
           <button
+            ref={ratiosRef}
             className="x-needsh"
             type="button"
             aria-expanded={healthOpen}
             onClick={() => setHealthOpen(open => !open)}
           >
             <b>Your financial health ratios</b>
-            <span className={`x-chip ${ratioTone}`}>{ratioShape}</span>
+            <span className={`x-chip ${ratioTone}`}>{ratioStatus}</span>
             <span className="cv">{Ico.chev}</span>
           </button>
           {healthOpen ? (
@@ -308,6 +370,11 @@ export function Score({
             anchorRef: needsRef,
           },
           {
+            title: 'How much market risk this plan should take',
+            body: riskTip,
+            anchorRef: riskRef,
+          },
+          {
             title: 'Money-health ratios',
             body: ratiosTip,
             anchorRef: ratiosRef,
@@ -325,6 +392,75 @@ export function Score({
         </button>
       </Foot>
     </>
+  );
+}
+
+function RiskBandTrack({
+  value,
+  onChange,
+  readOnly = false,
+  ariaLabel,
+}: {
+  value: number;
+  onChange?: (profile: number) => void;
+  readOnly?: boolean;
+  ariaLabel: string;
+}) {
+  const profile = clampRiskProfile(value);
+  const selected = riskLevel(profile);
+  const markLeft = `${((profile - 0.5) / 5) * 100}%`;
+  return (
+    <div
+      className={`x-risk-slider${readOnly ? ' ro' : ''}`}
+      style={{ ['--risk-accent' as string]: selected.accent, ['--risk-track' as string]: RISK_TRACK_GRADIENT }}
+    >
+      {readOnly ? (
+        <div
+          className="x-risk-rail"
+          role="img"
+          aria-label={`${ariaLabel}: ${selected.label}, annual volatility ${selected.volLabel}`}
+        >
+          <i className="x-risk-mark" style={{ left: markLeft }} />
+        </div>
+      ) : (
+        <input
+          type="range"
+          min={1}
+          max={5}
+          step={1}
+          value={profile}
+          aria-label={ariaLabel}
+          aria-valuetext={`${selected.label}, annual volatility ${selected.volLabel}`}
+          onChange={e => onChange?.(Number(e.target.value))}
+        />
+      )}
+      <div className="x-risk-labs">
+        {RISK_LEVELS.map(level => {
+          const on = level.profile === profile;
+          if (readOnly || !onChange) {
+            return (
+              <span key={level.profile} className={on ? 'on' : ''}>
+                {level.label}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={level.profile}
+              type="button"
+              className={on ? 'on' : ''}
+              onClick={() => onChange(level.profile)}
+            >
+              {level.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="x-sm" style={{ margin: '8px 0 0' }}>
+        Annual volatility {selected.volLabel}
+      </p>
+      <p className="x-risk-edit">{readOnly ? '\u00a0' : 'Drag to set'}</p>
+    </div>
   );
 }
 

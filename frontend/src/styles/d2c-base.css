@@ -163,7 +163,11 @@ button.x-chip:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .x-chip.ok{background:var(--ok-t);color:#0B7A3B}
 .x-chip.warn{background:var(--warn-t);color:#9A4E0A}
 .x-chip.no{background:var(--no-t);color:#B4242A}
-.x-chip.n{background:#F0F2F5;color:var(--ink1)}
+.x-chip.r1{background:#ecfdf5;color:#047857}
+.x-chip.r2{background:#f7fee7;color:#4d7c0f}
+.x-chip.r3{background:#fffbeb;color:#b45309}
+.x-chip.r4{background:#fff7ed;color:#c2410c}
+.x-chip.r5{background:#fff1f2;color:#e11d48}
 .x-score-tags{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:4px}
 .x-need-rows{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .x-need-rows .x-chip,.x-score-tags>.x-chip{gap:8px}

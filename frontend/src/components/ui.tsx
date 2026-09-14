@@ -1,6 +1,11 @@
 import { type ReactNode } from 'react';
+import { InfoTip } from './InfoTip';
 import { Ico } from '../lib/icons';
-import { pctAn } from '../lib/assumptions';
+import {
+  NET_RETURN_TRACK_GRADIENT,
+  netExpectedReturnColor,
+  pctAn,
+} from '../lib/assumptions';
 import { firstName, money, type GpSession, type Prov } from '../lib/types';
 
 export function SecHead({
@@ -275,6 +280,11 @@ export function RateSlider({
   step,
   value,
   onChange,
+  tip,
+  tipWide,
+  tone,
+  ceiling,
+  note,
 }: {
   label: string;
   min: number;
@@ -282,23 +292,58 @@ export function RateSlider({
   step: number;
   value: number;
   onChange: (v: number) => void;
+  tip?: string;
+  tipWide?: boolean;
+  tone?: 'net-return';
+  ceiling?: number;
+  note?: string | null;
 }) {
+  const net = tone === 'net-return';
+  const accent = net ? netExpectedReturnColor(value * 100) : undefined;
+  const span = max - min;
+  const ceilT =
+    ceiling != null && span > 0 ? Math.min(100, Math.max(0, ((ceiling - min) / span) * 100)) : null;
   return (
-    <div className="gsl">
+    <div
+      className={net ? 'gsl gsl-net' : 'gsl'}
+      style={
+        accent
+          ? {
+              ['--net-accent' as string]: accent,
+              ['--net-track' as string]: NET_RETURN_TRACK_GRADIENT,
+            }
+          : undefined
+      }
+    >
       <div className="gsl-h">
-        <label>{label}</label>
+        <span className="gsl-lab">
+          <label>{label}</label>
+          {tip ? <InfoTip text={tip} label={label} wide={tipWide} /> : null}
+        </span>
         <b>{pctAn(value)}</b>
       </div>
-      <input
-        type="range"
-        className="objrange"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        aria-label={label}
-        onChange={e => onChange(Number(e.target.value))}
-      />
+      <div className="gsl-railwrap">
+        <input
+          type="range"
+          className="objrange"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-label={label}
+          onChange={e => onChange(Number(e.target.value))}
+        />
+        {ceilT != null ? (
+          <i className="gsl-ceil" style={{ left: `${ceilT}%` }} aria-hidden="true" />
+        ) : null}
+      </div>
+      {net ? (
+        <div className="gsl-ends" aria-hidden="true">
+          <span>More likely</span>
+          <span>Less likely</span>
+        </div>
+      ) : null}
+      {note ? <p className="gsl-note">{note}</p> : null}
     </div>
   );
 }

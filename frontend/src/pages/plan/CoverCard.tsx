@@ -23,8 +23,26 @@ import {
   sizedCover,
   togglePlanPatch,
 } from '../../lib/planProducts';
-import { investRetFromReturn, returnFromInvestRet } from '../../lib/assumptions';
+import { InfoTip } from '../../components/InfoTip';
+import {
+  NET_RETURN_PCT_MAX,
+  NET_RETURN_PCT_MIN,
+  NET_RETURN_TIP,
+  NET_RETURN_TRACK_GRADIENT,
+  investRetFromReturn,
+  netExpectedReturnColor,
+  returnFromInvestRet,
+} from '../../lib/assumptions';
+import { netReturnCeiling, netReturnCeilingNote } from '../../lib/riskCapacity';
 import { money, NEED_META, type GpSession, type NeedType } from '../../lib/types';
+
+const SLIDER_TIPS = {
+  sum: 'The lump this cover would pay if the insured event happens. Raise it to close more of the gap; lower it to cut the premium.',
+  prem: 'What you would pay each year for this cover at the sum assured above. This is an illustration, not a quote from an insurer.',
+  lump: 'A one-off amount from your investments put into this plan today. It then grows at the net expected return until the target year.',
+  mth: 'How much of your free monthly budget this plan would take. It compounds at the net expected return until the target year.',
+  net: NET_RETURN_TIP,
+} as const;
 
 export { sizedCover } from '../../lib/planProducts';
 
@@ -55,6 +73,11 @@ export function AmountSlider({
   step,
   value,
   onChange,
+  tip,
+  tipWide,
+  tone,
+  ceiling,
+  note,
 }: {
   label: string;
   display: string;
@@ -63,24 +86,60 @@ export function AmountSlider({
   step: number;
   value: number;
   onChange: (v: number) => void;
+  tip?: string;
+  tipWide?: boolean;
+  tone?: 'net-return';
+  /** Soft ceiling in the same units as min/max. Not clamped. */
+  ceiling?: number;
+  note?: string | null;
 }) {
   const hi = Math.max(min, max);
   const clamped = Math.min(hi, Math.max(min, value));
+  const net = tone === 'net-return';
+  const accent = net ? netExpectedReturnColor(clamped) : undefined;
+  const span = hi - min;
+  const ceilT =
+    ceiling != null && span > 0 ? Math.min(100, Math.max(0, ((ceiling - min) / span) * 100)) : null;
   return (
-    <div className="gsl">
+    <div
+      className={net ? 'gsl gsl-net' : 'gsl'}
+      style={
+        accent
+          ? {
+              ['--net-accent' as string]: accent,
+              ['--net-track' as string]: NET_RETURN_TRACK_GRADIENT,
+            }
+          : undefined
+      }
+    >
       <div className="gsl-h">
-        <label>{label}</label>
+        <span className="gsl-lab">
+          <label>{label}</label>
+          {tip ? <InfoTip text={tip} label={label} wide={tipWide} /> : null}
+        </span>
         <b>{display}</b>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={hi}
-        step={step}
-        value={clamped}
-        aria-label={label}
-        onChange={e => onChange(Number(e.target.value))}
-      />
+      <div className="gsl-railwrap">
+        <input
+          type="range"
+          min={min}
+          max={hi}
+          step={step}
+          value={clamped}
+          aria-label={label}
+          onChange={e => onChange(Number(e.target.value))}
+        />
+        {ceilT != null ? (
+          <i className="gsl-ceil" style={{ left: `${ceilT}%` }} aria-hidden="true" />
+        ) : null}
+      </div>
+      {net ? (
+        <div className="gsl-ends" aria-hidden="true">
+          <span>More likely</span>
+          <span>Less likely</span>
+        </div>
+      ) : null}
+      {note ? <p className="gsl-note">{note}</p> : null}
     </div>
   );
 }
@@ -238,6 +297,7 @@ export function ProtectPlanCard({
         <div className="gc-e">
           <AmountSlider
             label="Sum assured"
+            tip={SLIDER_TIPS.sum}
             display={money(sum)}
             min={0}
             max={caps.sum}
@@ -247,6 +307,7 @@ export function ProtectPlanCard({
           />
           <AmountSlider
             label="Annual premium"
+            tip={SLIDER_TIPS.prem}
             display={money(prem)}
             min={0}
             max={caps.prem}
@@ -328,6 +389,7 @@ export function GrowthPlanCard({
         <div className="gc-e">
           <AmountSlider
             label="Lump sum to invest"
+            tip={SLIDER_TIPS.lump}
             display={money(lump)}
             min={0}
             max={caps.lump}
@@ -337,6 +399,7 @@ export function GrowthPlanCard({
           />
           <AmountSlider
             label="Monthly contribution"
+            tip={SLIDER_TIPS.mth}
             display={money(mth)}
             min={0}
             max={caps.monthly}
@@ -345,18 +408,24 @@ export function GrowthPlanCard({
             onChange={v => onChange(setPlanMthPatch(session, type, v))}
           />
           <AmountSlider
-            label="Expected returns"
+            label="Net expected returns"
+            tip={SLIDER_TIPS.net}
+            tipWide
+            tone="net-return"
             display={`${investRetFromReturn(session.investmentReturn).toFixed(1)}% p.a.`}
-            min={2.2}
-            max={10}
+            min={NET_RETURN_PCT_MIN}
+            max={NET_RETURN_PCT_MAX}
             step={0.1}
             value={investRetFromReturn(session.investmentReturn)}
+            ceiling={netReturnCeiling(session.riskProfile) * 100}
+            note={netReturnCeilingNote(session.investmentReturn, session.riskProfile)}
             onChange={v => {
               const investmentReturn = returnFromInvestRet(v);
               const investRet = investRetFromReturn(investmentReturn);
               onChange({
                 investRet,
                 investmentReturn,
+                investmentReturnTouched: true,
                 ...clampAllWealthToCaps({ ...session, investRet, investmentReturn }),
               });
             }}

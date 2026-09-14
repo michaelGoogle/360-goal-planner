@@ -23,6 +23,7 @@ in the workspace.
 | 8 | No GP numeric golden | Low | HU/SV goldens stay in those repos. GP does not re-assert engine numbers. |
 | 9 | Document parse | Med | Statement upload is simulated / local in the UI; it is not FM’s holdings LLM pipeline. |
 | 10 | Own git remote | Low | Unlike HU/PA/PG/SV, GP is not a standalone GitHub repo yet. Plan: [Standalone-third-party.md](Standalone-third-party.md). |
+| 11 | Score risk card + return mapping | Done | Capacity from Your money, tolerance slider, `min()` cap on net expected returns. Spec: [Risk.md](Risk.md). Plan: [risk-mgmt.md](risk-mgmt.md). |
 
 ## Deferred / nice-to-have
 

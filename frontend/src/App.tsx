@@ -24,6 +24,7 @@ import { clampAllWealthToCaps, productFlags } from './lib/planProducts';
 import { buildExplainContext, type ExplainKind, type ExplainResponse } from './lib/explain';
 import { applyMarkerMoveToSession, type ChartMarker } from './lib/chartMarkers';
 import { applyDocs, seedProducts } from './lib/local';
+import { riskSessionPatch } from './lib/riskCapacity';
 import { isSvData, type ChartView, type SvData } from './lib/sv';
 import { pauseSpeak, resumeSpeak, speak, stopSpeak } from './lib/speech';
 import { capEnabledNeeds } from './lib/needEdit';
@@ -79,6 +80,27 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
   };
 }
 
+function mergePartial(s: GpSession, p: Partial<GpSession>): GpSession {
+  return {
+    ...s,
+    ...p,
+    ...(p.planPrem ? { planPrem: { ...s.planPrem, ...p.planPrem } } : {}),
+    ...(p.planSum ? { planSum: { ...s.planSum, ...p.planSum } } : {}),
+    ...(p.planMth ? { planMth: { ...s.planMth, ...p.planMth } } : {}),
+    ...(p.planLump ? { planLump: { ...s.planLump, ...p.planLump } } : {}),
+  };
+}
+
+function withRisk(s: GpSession, p: Partial<GpSession> = {}): GpSession {
+  const merged = mergePartial(s, p);
+  const risk = riskSessionPatch(merged);
+  let out = { ...merged, ...risk };
+  if (risk.investmentReturn != null && out.prodSeeded) {
+    out = { ...out, ...clampAllWealthToCaps(out) };
+  }
+  return out;
+}
+
 const MONEY_PROV = ['income', 'expense', 'savings', 'cash', 'investments', 'property', 'loans', 'cover'] as const;
 
 function resetPredictedMoney(s: GpSession): GpSession {
@@ -104,6 +126,7 @@ function resetPredictedMoney(s: GpSession): GpSession {
     planLump: {},
     planSum: {},
     planPrem: {},
+    investmentReturnTouched: false,
   };
 }
 
@@ -138,14 +161,7 @@ export default function App() {
 
   const patch = (p: Partial<GpSession>) => {
     setSession(s => {
-      const next = {
-        ...s,
-        ...p,
-        ...(p.planPrem ? { planPrem: { ...s.planPrem, ...p.planPrem } } : {}),
-        ...(p.planSum ? { planSum: { ...s.planSum, ...p.planSum } } : {}),
-        ...(p.planMth ? { planMth: { ...s.planMth, ...p.planMth } } : {}),
-        ...(p.planLump ? { planLump: { ...s.planLump, ...p.planLump } } : {}),
-      };
+      const next = withRisk(s, p);
       if (
         route === 'd2cPlan' &&
         [
@@ -164,6 +180,7 @@ export default function App() {
           'tpdOn',
           'investOn',
           'investmentReturn',
+          'riskTolerance',
         ].some(k => k in p)
       ) {
         scheduleProject(next);
@@ -193,8 +210,8 @@ export default function App() {
 
   const patchScore = (p: Partial<GpSession>) => {
     setSession(s => {
-      const next = { ...s, ...p };
-      if (p.needs) scheduleScore(next);
+      const next = withRisk(s, p);
+      if (p.needs || next.riskProfile !== s.riskProfile) scheduleScore(next);
       return next;
     });
   };
@@ -228,7 +245,7 @@ export default function App() {
     setSession(current);
     try {
       const res = await postJson<PredictResponse>('/v1/predict', sessionPayload(current), token);
-      setSession(s => applyDocs(applyPredict(s, res.session)));
+      setSession(s => withRisk(applyDocs(applyPredict(s, res.session))));
       go('d2cMoney');
     } catch (err) {
       setPredictError(err instanceof Error && err.message ? err.message : PLU_UNAVAILABLE);
@@ -240,9 +257,12 @@ export default function App() {
   const score = async () => {
     setBusy(true);
     setScoreError(null);
+    const current = withRisk(sessionRef.current);
+    sessionRef.current = current;
+    setSession(current);
     go('d2cScore');
     try {
-      const res = await postJson<ScoreResponse>('/v1/score', sessionPayload(sessionRef.current), token);
+      const res = await postJson<ScoreResponse>('/v1/score', sessionPayload(current), token);
       setPre(res.preHappiU);
       setPost(res.postHappiU);
     } catch {
@@ -275,7 +295,8 @@ export default function App() {
   );
 
   const openPlan = async (need?: NeedType) => {
-    const seeded = { ...sessionRef.current, ...seedProducts(sessionRef.current) };
+    const synced = withRisk(sessionRef.current);
+    const seeded = { ...synced, ...seedProducts(synced) };
     const next = need ? { ...seeded, tip: `panel-plans:${need}` } : seeded;
     setSession(next);
     go('d2cPlan');
@@ -317,10 +338,12 @@ export default function App() {
 
   const setAssume = (p: Partial<GpSession>) => {
     setSession(s => {
-      const synced =
-        p.investmentReturn != null ? { ...p, investRet: investRetFromReturn(p.investmentReturn) } : p;
-      const next = { ...s, ...synced };
-      const caps = synced.investmentReturn != null ? clampAllWealthToCaps(next) : {};
+      const marked =
+        p.investmentReturn != null
+          ? { ...p, investRet: investRetFromReturn(p.investmentReturn), investmentReturnTouched: true }
+          : p;
+      const next = withRisk(s, marked);
+      const caps = marked.investmentReturn != null ? clampAllWealthToCaps(next) : {};
       const out = { ...next, ...caps };
       if (route === 'd2cPlan') scheduleProject(out);
       return out;

@@ -1,6 +1,7 @@
 import { depsFromChoice, type DepsChoice, type DocKind, type GpSession, type NeedType } from './types';
 import type { ParsedSentence } from './parse';
 import { investRetFromReturn } from './assumptions';
+import { riskSessionPatch } from './riskCapacity';
 import { coverSliderCaps, defaultWealthMth, investLumpFromPlans, investMthFromPlans, planSliderCaps, productFlags, suggestedInGroup } from './planProducts';
 
 const OCC_PATTERNS: [RegExp, number][] = [
@@ -200,12 +201,15 @@ export function seedProducts(session: GpSession): Partial<GpSession> {
         : {}),
     };
   }
-  const investRet = investRetFromReturn(session.investmentReturn || 0.042);
+  const seededReturn = session.investmentReturnTouched
+    ? session.investmentReturn || 0.042
+    : (riskSessionPatch(session).investmentReturn ?? session.investmentReturn ?? 0.042);
+  const investRet = investRetFromReturn(seededReturn);
   const { planSum, planPrem, lifePrem } = cover;
   const share = defaultWealthMth({ ...session, ...flags, planSum, planPrem });
   const planMth: Partial<Record<NeedType, number>> = { ...session.planMth };
   const planLump: Partial<Record<NeedType, number>> = { ...session.planLump };
-  const sized = { ...session, ...flags, investRet, planMth, planLump };
+  const sized = { ...session, ...flags, investRet, investmentReturn: seededReturn, planMth, planLump };
   for (const n of suggestedInGroup(session, 'w')) {
     const monthlyCap = planSliderCaps(sized, n.type).monthly;
     if (planMth[n.type] == null) planMth[n.type] = Math.min(share, monthlyCap);
@@ -220,6 +224,7 @@ export function seedProducts(session: GpSession): Partial<GpSession> {
     investLump: investLumpFromPlans(next),
     investMth: investMthFromPlans(next),
     investRet,
+    investmentReturn: seededReturn,
     planMth,
     planLump,
     planSum,

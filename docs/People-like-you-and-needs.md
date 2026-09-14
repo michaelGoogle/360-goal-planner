@@ -8,7 +8,8 @@ routes for the portal; GP no longer calls them for Estimate.
 
 The product story is in [Business-overview.md](Business-overview.md). The rest
 of the formula trail (goal-card edits, suggested plan, HappiU budget) stays in
-[Calculations.md](Calculations.md). HTTP wiring is in
+[Calculations.md](Calculations.md). Risk capacity vs People Like You
+`risk_ability` is in [Risk.md](Risk.md). HTTP wiring is in
 [Architecture.md](Architecture.md).
 
 If a formula here drifts, the file named in each section is the source of truth.
@@ -82,7 +83,7 @@ object, no markdown.
 |-------|--------|
 | `income` (monthly gross, local currency) | LLM, then **clamped** to occupation × country bands when the title matches `income_anchors.json` |
 | `currency` | LLM (ISO code; GP is SGD) |
-| `risk_ability` | LLM: conservative / moderate / aggressive |
+| `risk_ability` | LLM: conservative / moderate / aggressive. GP Estimate **does not** use this as the Score risk chip; capacity is calculated from Your money ([Risk.md](Risk.md)). |
 | `price_sensitivity` | LLM: low / medium / high |
 | `property`, `car`, `travelling`, `is_smoker` | LLM booleans |
 | `ward_type`, `hospitalization_type` | LLM (Single/Double/Ward, Public/Private) |

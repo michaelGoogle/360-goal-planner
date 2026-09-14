@@ -95,7 +95,7 @@ const ASSUME_LABEL: Record<AssumeKey, string> = {
   inflationRate: 'Inflation',
   interestRate: 'Cash / savings interest',
   incomeGrowthRate: 'Income growth',
-  investmentReturn: 'Investment return',
+  investmentReturn: 'Net expected returns',
   assetReturn: 'Asset return',
 };
 

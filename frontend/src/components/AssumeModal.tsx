@@ -1,5 +1,7 @@
 import { RateSlider } from './ui';
 import { Ico } from '../lib/icons';
+import { NET_RETURN_PCT_MAX, NET_RETURN_PCT_MIN, NET_RETURN_TIP } from '../lib/assumptions';
+import { netReturnCeiling, netReturnCeilingNote } from '../lib/riskCapacity';
 import type { GpSession } from '../lib/types';
 
 export function AssumeModal({
@@ -68,11 +70,16 @@ export function AssumeModal({
                     onChange={v => onAssume({ incomeGrowthRate: v })}
                   />
                   <RateSlider
-                    label="Investment return"
-                    min={0.022}
-                    max={0.1}
+                    label="Net expected returns"
+                    tip={NET_RETURN_TIP}
+                    tipWide
+                    tone="net-return"
+                    min={NET_RETURN_PCT_MIN / 100}
+                    max={NET_RETURN_PCT_MAX / 100}
                     step={0.001}
                     value={session.investmentReturn}
+                    ceiling={netReturnCeiling(session.riskProfile)}
+                    note={netReturnCeilingNote(session.investmentReturn, session.riskProfile)}
                     onChange={v => onAssume({ investmentReturn: v })}
                   />
                   <RateSlider

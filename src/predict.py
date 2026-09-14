@@ -114,6 +114,8 @@ def _apply_plu(session: dict[str, Any], result: dict[str, Any]) -> dict[str, Any
     session["policies"] = ([life] if life else []) + others
     session["plu"] = mapped
     session["source"] = "people-like-you"
+    # Do not copy People Like You risk_ability onto the session. Score capacity
+    # is calculated in the UI from Your money (frontend/src/lib/riskCapacity.ts).
     return session
 
 

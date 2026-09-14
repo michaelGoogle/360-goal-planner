@@ -2,7 +2,9 @@
 
 This document is the **data and formula trail** for FinPlan360. The product
 story stays in [Business-overview.md](Business-overview.md). HTTP and modules
-stay in [Architecture.md](Architecture.md) and [API.md](API.md).
+stay in [Architecture.md](Architecture.md) and [API.md](API.md). Risk capacity,
+tolerance, and how they cap net expected returns are in [Risk.md](Risk.md).
+The product decisions are in [risk-mgmt.md](risk-mgmt.md).
 
 GP **runs** People Like You, Need Profiler, and Need Calculator in-process
 (`src/pipeline/`). How they work is in
@@ -35,6 +37,8 @@ Your money  (customer may overwrite figures; edits stick)
 Your score  POST /v1/score → HU
     │   Goal cards: if the customer edits a need, GP recomputes needAmount
     │   in the browser (needEdit.ts) — not a second FM call.
+    │   Risk card: capacity from Your money; tolerance slider;
+    │   `riskProfile = min(capacity, tolerance)` → HU. See [Risk.md](Risk.md).
     ▼
 Your plan   seedProducts + planProducts.ts
     ├── protection plans  (sum assured / premium to close the gap)
@@ -244,7 +248,9 @@ needAmount       = round( PV(at_retirement, inflation, 20) )
 ```
 
 “Have” on the card is **projected savings**, not cash today. The card uses
-session `investmentReturn` (default **4.2%**), not the Plan slider `investRet`:
+session `investmentReturn` (seeded from `min(capacity, tolerance)` unless the
+customer overrode it; workbook fallback **4.2%**), not the Plan slider `investRet`.
+See [Risk.md](Risk.md) §6:
 
 ```
 realReturn = (1 + investmentReturn) / (1 + inflation) − 1    (floored at 0)
@@ -291,8 +297,10 @@ That **0.00078** factor is a D2C placeholder, not a quoted tariff.
 ### Wealth (N_RET, N_EDU, N_SAV, N_PRP)
 
 Horizon: years to retirement age, or `targetYear − this year`.  
-Rate: Plan slider `investRet` (default **7.2%** p.a.), deflated by session inflation.
-That is a different field from `investmentReturn` on the goal cards (§5).
+Rate: session `investmentReturn` on the Plan **net expected returns** slider
+(seeded from the suitable risk band; workbook fallback **4.2%** p.a. after
+product costs), deflated by session inflation. (`investRet` is the same rate
+in percent.) Mapping: [Risk.md](Risk.md) §6.
 
 Lump and monthly caps are the amounts that, **alone**, grow to the remaining gap:
 
@@ -392,6 +400,7 @@ The Score page can therefore show a different retirement lump after a pencil edi
 | Need Calculator math | `src/pipeline/goal_math.py` |
 | Shared TS twin of amounts | `shared/input_model/src/goalMath.ts` |
 | Goal-card recalc | `frontend/src/lib/needEdit.ts` |
+| Risk capacity / return map | `frontend/src/lib/riskCapacity.ts` ([Risk.md](Risk.md)) |
 | Suggested plan + `planAfford` | `GP/frontend/src/lib/planProducts.ts` |
 | First product seed | `GP/frontend/src/lib/local.ts` `seedProducts` |
 | HU payload / budget lines | `GP/src/hu_payload.py` |

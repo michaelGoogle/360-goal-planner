@@ -181,7 +181,13 @@ export interface GpSession {
   depsChoice: DepsChoice;
   dateOfBirth?: string;
   isSmoker: boolean;
+  /** Suitable band: min(capacity, tolerance). Sent to HappiU. */
   riskProfile: number;
+  /** Customer comfort 1–5. Default 3 Medium. */
+  riskTolerance: number;
+  riskToleranceTouched?: boolean;
+  /** True once the customer (or Reset assumptions) set net expected return. */
+  investmentReturnTouched?: boolean;
   ageOfRetirement: number;
   incomeMonthly: number;
   expenseMonthly: number;
@@ -254,7 +260,8 @@ export const EMPTY_SESSION: GpSession = {
   dependents: 2,
   depsChoice: '2',
   isSmoker: false,
-  riskProfile: 4,
+  riskProfile: 3,
+  riskTolerance: 3,
   ageOfRetirement: 65,
   incomeMonthly: 0,
   expenseMonthly: 0,

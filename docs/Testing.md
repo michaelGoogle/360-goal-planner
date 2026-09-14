@@ -13,6 +13,7 @@ Frontend typecheck (no Jest suite yet):
 ```powershell
 cd GP\frontend
 npx tsc -b
+npm run test:lib   # riskCapacity closed form (Risk.md §4.4 + hard caps)
 ```
 
 No live LLM, HU, or SV is required for the default pytest suite —

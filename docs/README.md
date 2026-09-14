@@ -15,6 +15,8 @@ Branded in the UI as **FinPlan360 · Powered by 360F**.
 | [Business-overview.md](Business-overview.md) | Product / all | Customer journey; what GP is and is not |
 | [People-like-you-and-needs.md](People-like-you-and-needs.md) | Product / engineers | How People Like You, Need Profiler, and Need Calculator are called and calculated |
 | [Calculations.md](Calculations.md) | Product / engineers | Formulas and data flow: PLU → profiler → calculator → plan → budget |
+| [Risk.md](Risk.md) | Product / engineers | Risk capacity vs tolerance; mapping to net expected returns |
+| [risk-mgmt.md](risk-mgmt.md) | Product / engineers | Risk product decisions and build sequence |
 | [Architecture.md](Architecture.md) | Developers | Request flow, modules, prompts, upstreams |
 | [API.md](API.md) | Developers | HTTP contract: predict / score / project / explain |
 | [Testing.md](Testing.md) | Developers | Pytest (upstreams and OpenAI mocked) |

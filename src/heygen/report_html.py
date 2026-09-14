@@ -42,7 +42,7 @@ ASSUME_LABEL = {
     "inflationRate": "Inflation",
     "interestRate": "Cash / savings interest",
     "incomeGrowthRate": "Income growth",
-    "investmentReturn": "Investment return",
+    "investmentReturn": "Net expected returns",
     "assetReturn": "Asset return",
 }
 POLICY_COL = {
