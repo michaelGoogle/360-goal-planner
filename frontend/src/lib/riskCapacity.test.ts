@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  debtServiceRatio,
   netReturnCeiling,
   riskCapacity,
   suitableRisk,
   suggestedNetReturn,
 } from './riskCapacity';
+import { monthlyLoanPayment } from './ratios';
 import type { GpSession } from './types';
 
 /** Risk.md §4.4 — 42, 2 dependants, retire 65, 55% LTV home. */
@@ -20,6 +22,7 @@ const EXAMPLE: Pick<
   | 'investments'
   | 'property'
   | 'mortgage'
+  | 'loanRate'
 > = {
   age: 42,
   ageOfRetirement: 65,
@@ -30,6 +33,7 @@ const EXAMPLE: Pick<
   investments: 805_000,
   property: 850_000,
   mortgage: 468_000,
+  loanRate: 0,
 };
 
 test('Risk.md §4.4 example is Medium-High (4)', () => {
@@ -93,4 +97,14 @@ test('suggested net return and soft ceiling by band', () => {
   assert.equal(suggestedNetReturn(5), 0.055);
   assert.equal(netReturnCeiling(1), 0.042);
   assert.equal(netReturnCeiling(5), 0.065);
+});
+
+test('DSR at 0% is principal over 240 months; 3.5% is about 14.3% from 10.27%', () => {
+  const mortgage = 246_480;
+  const income = 10_000;
+  const zero = debtServiceRatio(mortgage, income, 0);
+  const priced = debtServiceRatio(mortgage, income, 0.035);
+  assert.ok(Math.abs(zero * 100 - 10.27) < 0.01);
+  assert.ok(Math.abs(priced * 100 - 14.32) < 0.05);
+  assert.equal(monthlyLoanPayment(240_000, 0), 1000);
 });

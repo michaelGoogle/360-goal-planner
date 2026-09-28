@@ -8,30 +8,44 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from src.needs import CALCULATOR_NEEDS, PROTECTION_NEEDS, WEALTH_NEEDS
+
 RETIREMENT_AGE = 65
 LIFE_EXPECTANCY = 85
+LIFE_EXPECTANCY_MAX = 99
+MAX_RETIREMENT_AGE = 70
+LOAN_TERM_YEARS = 20
+DEFAULT_LOAN_RATE = 0.035
 INC_PROTECTION_MAX_AGE = 85
 INC_PROTECTION_MAX_YEARS = 30
 RETIREMENT_DURATION_YEARS = 20  # 65 → 85; live N_RET uses years_in_retirement()
 DEFAULT_INFLATION_RATE = 0.03
 
-ACCUMULATION_TYPES = frozenset({"N_RET", "N_EDU", "N_SAV", "N_PRP"})
-PROTECTION_TYPES = frozenset({"N_INC", "N_CRI", "N_TPD", "N_HOS"})
-UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP")
+ACCUMULATION_TYPES = WEALTH_NEEDS
+PROTECTION_TYPES = PROTECTION_NEEDS
+UNIFIED_TYPES = CALCULATOR_NEEDS
 
-LIFESTYLE_RATES = {1: 0.75, 2: 1.0, 3: 1.25}
+# Retirement lifestyle: frugal / stress-free / only the best, as a share of today's spend.
+RET_LIFESTYLE_FRUGAL = 0.75
+RET_LIFESTYLE_STRESSFREE = 1.0
+RET_LIFESTYLE_ONLYTHEBEST = 1.25
+LIFESTYLE_RATES = {
+    1: RET_LIFESTYLE_FRUGAL,
+    2: RET_LIFESTYLE_STRESSFREE,
+    3: RET_LIFESTYLE_ONLYTHEBEST,
+}
 
-# Singapore constants (SGD) for the Excel Needs Calculator shapes. The workbook
-# reads these per country from Table3; GP is Singapore-only.
-LIFE_SUPPORT_MIN_YEARS = 10
-LIFE_SUPPORT_MAX_YEARS = 25
-LIFE_SUPPORT_PIVOT_AGE = 50
-CI_YEARS = 3
-CI_COST = 200_000.0
+# Singapore constants (SGD) for the Excel Needs Calculator shapes. The model holds these
+# in USD; WP8 moves the calculator to USD and reads them from the admin parameters.
+INC_SUPPORT_MIN = 10
+INC_SUPPORT_MAX = 25
+INC_SUPPORT_PIVOT_AGE = 50
+CRI_YEARS = 3
+CRI_COST = 200_000.0
 TPD_YEARS = 5
 TPD_COST = 200_000.0
-HOSP_MONTHS = 6
-EDU_TOTAL_COST = 75_000.0
+HOS_MONTHS = 6
+EDU_COST = 75_000.0
 
 
 def age_from_dob(dob: str, as_of: date | None = None) -> int:
@@ -72,12 +86,16 @@ def pv_annuity_due(pmt: float, rate: float, periods: int) -> float:
     return pmt * (1 - v**periods) / (1 - v)
 
 
-def life_support_years(age: int) -> int:
-    """Years of financial support for life cover (Excel: MIN(MAX(10, 50 - age), 25))."""
+def income_support_years(age: int) -> int:
+    """Years the family is supported by life cover (Excel: MIN(MAX(10, 50 - age), 25))."""
     return min(
-        max(LIFE_SUPPORT_MIN_YEARS, LIFE_SUPPORT_PIVOT_AGE - int(age or 0)),
-        LIFE_SUPPORT_MAX_YEARS,
+        max(INC_SUPPORT_MIN, INC_SUPPORT_PIVOT_AGE - int(age or 0)),
+        INC_SUPPORT_MAX,
     )
+
+
+# Old name, for one release. Removed in WP15.
+life_support_years = income_support_years
 
 
 def remaining_gap(need_amount: float, existing_cover: float | None) -> float:
@@ -119,70 +137,48 @@ def years_in_retirement(ret_age: int, life_expectancy: int = LIFE_EXPECTANCY) ->
     return max(0, int(life_expectancy) - int(ret_age or RETIREMENT_AGE))
 
 
+def session_life_expectancy(session: dict[str, Any] | None, default: int = LIFE_EXPECTANCY) -> int:
+    """Session life expectancy, capped at 99. Missing or ≤ 0 → default (85)."""
+    try:
+        n = int((session or {}).get("lifeExpectancy") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n <= 0:
+        n = int(default)
+    return min(n, LIFE_EXPECTANCY_MAX)
+
+
+def monthly_loan_payment(
+    principal: float,
+    annual_rate: float,
+    years: int = LOAN_TERM_YEARS,
+) -> float:
+    """Level monthly PMT. annual_rate 0 → principal / (years × 12)."""
+    p = float(principal or 0)
+    if p <= 0:
+        return 0.0
+    n = max(1, int(years or LOAN_TERM_YEARS) * 12)
+    r = float(annual_rate or 0) / 12.0
+    if abs(r) < 1e-12:
+        return p / n
+    return p * r / (1.0 - (1.0 + r) ** (-n))
+
+
+def annual_loan_payment(
+    principal: float,
+    annual_rate: float,
+    years: int = LOAN_TERM_YEARS,
+) -> float:
+    """Level annual PMT that clears the loan in `years` yearly steps. annual_rate 0 → principal / years."""
+    p = float(principal or 0)
+    if p <= 0:
+        return 0.0
+    n = max(1, int(years or LOAN_TERM_YEARS))
+    r = float(annual_rate or 0)
+    if abs(r) < 1e-12:
+        return p / n
+    return p * r / (1.0 - (1.0 + r) ** (-n))
+
+
 def years_to_retirement(ret_age: int, age: int) -> int:
     return max(0, int(ret_age or RETIREMENT_AGE) - int(age or 0))
-
-
-def compute_need_amounts(
-    *,
-    date_of_birth: str,
-    monthly_income: float,
-    monthly_expense: float,
-    age_of_retirement: int = RETIREMENT_AGE,
-    inflation_rate: float | None = None,
-) -> dict[str, float]:
-    """Return needAmount per UNIFIED type (same formulas as TS recalculateNeedAmounts)."""
-    age = age_from_dob(date_of_birth)
-    r = DEFAULT_INFLATION_RATE if inflation_rate is None else float(inflation_rate)
-    income = monthly_to_annual(monthly_income)
-    expense = monthly_to_annual(monthly_expense)
-    ret_age = age_of_retirement if age_of_retirement > 0 else RETIREMENT_AGE
-
-    inc_years = min(INC_PROTECTION_MAX_YEARS, max(0, INC_PROTECTION_MAX_AGE - age))
-    income_protection = round_money(pv_annuity(0.5 * expense, r, inc_years))
-    critical_illness = round_money(5 * income)
-    tpd = round_money(0.5 * income_protection)
-
-    years_to_ret = max(0, ret_age - age)
-    expense_at_ret = expense * ((1 + r) ** years_to_ret)
-    retirement = round_money(pv_annuity(expense_at_ret, r, RETIREMENT_DURATION_YEARS))
-
-    return {
-        "N_INC": income_protection,
-        "N_CRI": critical_illness,
-        "N_TPD": tpd,
-        "N_RET": retirement,
-        "N_EDU": round_money(3 * income),
-        "N_SAV": round_money(income),
-        "N_PRP": round_money(5 * income),
-    }
-
-
-def apply_amounts_to_needs(
-    needs_map: dict[str, dict[str, Any]],
-    amounts: dict[str, float],
-    *,
-    only_empty: bool = True,
-) -> dict[str, dict[str, Any]]:
-    """
-    Fill needAmount/gap for enabled UNIFIED needs.
-
-    When ``only_empty`` is True, skip rows whose needAmount is already > 0.
-    """
-    out: dict[str, dict[str, Any]] = {}
-    for ut, row in needs_map.items():
-        row = dict(row)
-        if not row.get("enabled"):
-            out[ut] = row
-            continue
-        existing = float(row.get("existing") or 0)
-        current_amount = float(row.get("needAmount") or 0)
-        computed = float(amounts.get(ut) or 0)
-        if only_empty and current_amount > 0:
-            amount = current_amount
-        else:
-            amount = computed
-        row["needAmount"] = amount
-        row["gap"] = remaining_gap(amount, existing)
-        out[ut] = row
-    return out

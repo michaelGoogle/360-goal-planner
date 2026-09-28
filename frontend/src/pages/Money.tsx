@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { CoachTour } from '../components/CoachTour';
 import { EDIT_HINT, TIPS } from '../lib/catalog';
-import { MIN_EXPENSE_MONTHLY, MONEY_EDIT_TIP, MONEY_FIELD_SLIDER, moneyMax } from '../lib/needEdit';
+import { minExpenseMonthly, MONEY_EDIT_TIP, MONEY_FIELD_SLIDER, moneyMax } from '../lib/needEdit';
 import { assets, availableBudget, chartMoneyOut, employeeCpfMonthly, money, netWealth, takeHomeMonthly, type GpSession } from '../lib/types';
 import { EqPie, Foot, GroupTag, NarrBtn, Tip } from '../components/ui';
 import { Ico } from '../lib/icons';
@@ -36,7 +37,8 @@ export function Money({
   gtTtOn: boolean;
   onGtTtComplete: () => void;
 }) {
-  const [open, setOpen] = useState({ cash: false, wealth: false, cover: false });
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState({ cash: isMobile, wealth: isMobile, cover: isMobile });
   const toggle = (k: keyof typeof open) => setOpen(s => ({ ...s, [k]: !s[k] }));
   const sliderCap = useRef<{ key: string; max: number } | null>(null);
   const cashChevronRef = useRef<HTMLSpanElement>(null);
@@ -44,6 +46,7 @@ export function Money({
   const openEditKey = Object.entries(MONEY_EDIT_TIP).find(([, id]) => id === session.tip)?.[0];
   if (!openEditKey || sliderCap.current?.key !== openEditKey) sliderCap.current = null;
   const age = typeof session.age === 'number' ? session.age : 35;
+  const spendFloor = minExpenseMonthly(session);
   const mInc = session.incomeMonthly;
   const cpf = employeeCpfMonthly(session);
   const takeHome = takeHomeMonthly(session);
@@ -62,9 +65,9 @@ export function Money({
     const moneyTouched = { ...session.moneyTouched, [key]: true as const };
     const provenance = { ...session.provenance, [key === 'budget' ? 'expense' : key]: 'you' as const };
     const patch: Partial<GpSession> = { moneyTouched, provenance };
-    if (key === 'budget') patch.expenseMonthly = Math.max(MIN_EXPENSE_MONTHLY, takeHome - v);
+    if (key === 'budget') patch.expenseMonthly = Math.max(spendFloor, takeHome - v);
     if (key === 'income') patch.incomeMonthly = v;
-    if (key === 'expense') patch.expenseMonthly = Math.max(MIN_EXPENSE_MONTHLY, v - cpf);
+    if (key === 'expense') patch.expenseMonthly = Math.max(spendFloor, v - cpf);
     if (key === 'cash') patch.cash = v;
     if (key === 'investments') patch.investments = v;
     if (key === 'property') patch.property = v;
@@ -79,7 +82,7 @@ export function Money({
     const computed = moneyMax(val, spec.floor);
     if (openEditKey === key && !sliderCap.current) sliderCap.current = { key, max: computed };
     const hi = openEditKey === key && sliderCap.current ? sliderCap.current.max : computed;
-    const lo = key === 'expense' ? cpf + MIN_EXPENSE_MONTHLY : 0;
+    const lo = key === 'expense' ? cpf + spendFloor : 0;
     const clamped = Math.min(hi, Math.max(lo, val));
     const shown = spec.perMonth ? `${money(clamped)}/mo` : money(clamped);
     const capLabel = spec.perMonth ? `${money(hi)}/mo` : money(hi);
@@ -156,14 +159,14 @@ export function Money({
           <div className="t">
             <b>Your financial position</b>
           </div>
-          <NarrBtn label="Explain these figures" on={narrOn} paused={narrPaused} onClick={onNarr} />
+          <NarrBtn label="Explain" on={narrOn} paused={narrPaused} onClick={onNarr} />
         </div>
 
         {session.explain ? <Explain session={session} onChange={onChange} /> : null}
 
         <ChainFold
           title="What comes in and goes out"
-          tag={<GroupTag session={session} keys={['income', 'expense']} verb="earn and spend about this" />}
+          tag={<GroupTag session={session} keys={['income', 'expense']} verb="earn and spend about this" showText />}
           unit="per month"
           open={open.cash}
           onToggle={() => toggle('cash')}
@@ -224,7 +227,7 @@ export function Money({
 
         <ChainFold
           title="What you own and owe"
-          tag={<GroupTag session={session} keys={['cash', 'investments', 'property', 'loans']} verb="own and owe about this" />}
+          tag={<GroupTag session={session} keys={['cash', 'investments', 'property', 'loans']} verb="own and owe about this" showText />}
           unit="today"
           open={open.wealth}
           onToggle={() => toggle('wealth')}
@@ -293,7 +296,7 @@ export function Money({
 
         <ChainFold
           title="What cover you have"
-          tag={<GroupTag session={session} keys={['cover']} verb="hold about this much cover" />}
+          tag={<GroupTag session={session} keys={['cover']} verb="hold about this much cover" showText />}
           unit="sum assured"
           open={open.cover}
           onToggle={() => toggle('cover')}
@@ -309,12 +312,12 @@ export function Money({
         steps={[
           {
             title: 'What comes in and goes out',
-            body: 'These figures are predicted from a demographic cohort like you. Click the arrow to open this card and customise any number.',
+            body: 'These figures are predicted from a demographic cohort like you. Click the pencil to open this card and customise any number.',
             anchorRef: cashChevronRef,
           },
           {
             title: 'What cover you have',
-            body: 'Cover is also predicted from a cohort like you. Click the arrow to open this card and add or change the policies you actually hold.',
+            body: 'Cover is also predicted from a cohort like you. Click the pencil to open this card and add or change the policies you actually hold.',
             anchorRef: coverChevronRef,
           },
         ]}
@@ -332,9 +335,9 @@ export function Money({
           className="x-btn p"
           type="button"
           onClick={onScore}
-          disabled={busy || session.expenseMonthly < MIN_EXPENSE_MONTHLY}
+          disabled={busy || session.expenseMonthly < spendFloor}
         >
-          {busy ? 'Scoring…' : 'Understand my goals and needs →'}
+          {busy ? 'Scoring…' : 'Understand my needs'}
         </button>
       </Foot>
     </>

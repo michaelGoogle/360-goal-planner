@@ -1,6 +1,7 @@
 import { moneyRatios } from './ratios';
-import { anyPlanOn } from './planProducts';
+import { anyPlanOn, planCoverPrem, planCoverSum } from './planProducts';
 import { pickAvailable, type ChartView, type SvData } from './sv';
+import { needCardGap, needCardHave } from './needEdit';
 import {
   availableBudget,
   employeeCpfMonthly,
@@ -9,8 +10,6 @@ import {
   firstName,
   happiBand,
   liquid,
-  needGap,
-  needHave,
   netWealth,
   sessionAge,
   type GpSession,
@@ -75,6 +74,7 @@ export function buildExplainContext(opts: {
     investments: s.investments,
     property: s.property,
     mortgage: s.mortgage,
+    loanRate: s.loanRate,
   });
   const withPlan = svData ? pickAvailable(svData, 'post') : [];
   const without = svData ? pickAvailable(svData, 'pre') : [];
@@ -112,14 +112,22 @@ export function buildExplainContext(opts: {
       coverSum: s.policies.reduce((t, p) => t + (p.sum || 0), 0),
       coverCount: s.policies.length,
     },
-    needs: s.needs.map(n => ({
-      type: n.type,
-      label: NEED_META[n.type]?.label || n.type,
-      enabled: n.enabled,
-      need: n.needAmount,
-      have: needHave(s, n),
-      gap: needGap(s, n),
-    })),
+    needs: s.needs.map(n => {
+      const have = needCardHave(s, n);
+      const gap = needCardGap(s, n);
+      const need = Math.round(n.needAmount || 0);
+      return {
+        type: n.type,
+        label: NEED_META[n.type]?.label || n.type,
+        enabled: n.enabled,
+        need,
+        have,
+        gap,
+        gapSpoken: `${gap.toLocaleString('en-SG')} dollars`,
+        haveSpoken: `${have.toLocaleString('en-SG')} dollars`,
+        needSpoken: `${need.toLocaleString('en-SG')} dollars`,
+      };
+    }),
     score: {
       pre,
       post,
@@ -147,6 +155,12 @@ export function buildExplainContext(opts: {
       lifeOn: s.lifeOn,
       lifeSum: s.lifeSum,
       lifePrem: s.lifePrem,
+      criOn: s.criOn,
+      criSum: planCoverSum(s, 'N_CRI'),
+      criPrem: planCoverPrem(s, 'N_CRI'),
+      tpdOn: s.tpdOn,
+      tpdSum: planCoverSum(s, 'N_TPD'),
+      tpdPrem: planCoverPrem(s, 'N_TPD'),
       investOn: s.investOn,
       investMth: s.investMth,
       investLump: s.investLump,
@@ -155,6 +169,7 @@ export function buildExplainContext(opts: {
     assumptions: {
       inflationRate: s.inflationRate,
       interestRate: s.interestRate,
+      loanRate: s.loanRate,
       incomeGrowthRate: s.incomeGrowthRate,
       investmentReturn: s.investmentReturn,
       assetReturn: s.assetReturn,

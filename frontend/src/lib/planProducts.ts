@@ -6,6 +6,8 @@ export const PLAN_FOR_NEED: Record<NeedType, string> = {
   N_CRI: 'Critical illness cover',
   N_TPD: 'Disability cover',
   N_HOS: 'Hospitalisation cover',
+  N_PAC: 'Personal accident cover',
+  N_LTC: 'Long-term care cover',
   N_RET: 'Private retirement plan',
   N_SAV: 'Saving plan',
   N_EDU: 'Education plan',
@@ -229,8 +231,14 @@ export function planNeedFunding(
   return { have, extra, req, covered: have + extra, remain: req - have - extra };
 }
 
+/** Dummy indicative premium. Replace with the premium-quote calculator API. */
 export function coverPremiumFor(sum: number): number {
   return Math.max(0, Math.round((sum * 0.00078) / 10) * 10);
+}
+
+export function coverSumForPremium(prem: number): number {
+  if (prem <= 0) return 0;
+  return Math.max(0, Math.round(prem / 0.00078));
 }
 
 export function coverSliderCaps(session: GpSession, type: NeedType): { sum: number; prem: number } {
@@ -248,18 +256,35 @@ export function planCoverSum(session: GpSession, type: NeedType): number {
 
 export function planCoverPrem(session: GpSession, type: NeedType): number {
   if (session.planPrem?.[type] != null) return session.planPrem[type] ?? 0;
-  const { prem } = coverSliderCaps(session, type);
-  return Math.round(prem / 2 / 10) * 10;
+  return coverPremiumFor(planCoverSum(session, type));
 }
 
 export function setPlanCoverPatch(
   session: GpSession,
   type: NeedType,
   p: { sum?: number; prem?: number },
+  opts?: { touched?: boolean },
 ): Partial<GpSession> {
-  const planSum = { ...session.planSum, [type]: p.sum ?? planCoverSum(session, type) };
-  const planPrem = { ...session.planPrem, [type]: p.prem ?? planCoverPrem(session, type) };
+  const caps = coverSliderCaps(session, type);
+  let sum: number;
+  let prem: number;
+  if (p.sum != null && p.prem == null) {
+    sum = Math.max(0, Math.min(caps.sum, p.sum));
+    prem = coverPremiumFor(sum);
+  } else if (p.prem != null && p.sum == null) {
+    prem = Math.max(0, Math.min(caps.prem, p.prem));
+    sum = Math.min(caps.sum, coverSumForPremium(prem));
+  } else {
+    sum = p.sum ?? planCoverSum(session, type);
+    prem = p.prem ?? planCoverPrem(session, type);
+  }
+  const planSum = { ...session.planSum, [type]: sum };
+  const planPrem = { ...session.planPrem, [type]: prem };
   const extra: Partial<GpSession> = { planSum, planPrem };
+  if (opts?.touched !== false) {
+    extra.planSumTouched = { ...session.planSumTouched, [type]: true };
+    extra.planPremTouched = { ...session.planPremTouched, [type]: true };
+  }
   if (type === 'N_INC') {
     extra.lifeSum = planSum.N_INC ?? 0;
     extra.lifePrem = planPrem.N_INC ?? 0;
@@ -267,27 +292,42 @@ export function setPlanCoverPatch(
   return extra;
 }
 
+export function refreshUntouchedCover(session: GpSession): Partial<GpSession> {
+  let next = session;
+  const patch: Partial<GpSession> = {};
+  for (const n of suggestedInGroup(session, 'p')) {
+    if (next.planSumTouched?.[n.type] || next.planPremTouched?.[n.type]) continue;
+    const caps = coverSliderCaps(next, n.type);
+    const sum = caps.sum;
+    const prem = coverPremiumFor(sum);
+    if (planCoverSum(next, n.type) === sum && planCoverPrem(next, n.type) === prem) continue;
+    const p = setPlanCoverPatch(next, n.type, { sum, prem }, { touched: false });
+    next = { ...next, ...p };
+    Object.assign(patch, p);
+  }
+  return patch;
+}
+
 export function clampCoverToCaps(session: GpSession, type: NeedType): Partial<GpSession> {
   const caps = coverSliderCaps(session, type);
   const sum = Math.min(planCoverSum(session, type), caps.sum);
-  const prem = Math.min(planCoverPrem(session, type), caps.prem);
-  if (sum === planCoverSum(session, type) && prem === planCoverPrem(session, type)) return {};
-  return setPlanCoverPatch(session, type, { sum, prem });
+  if (sum === planCoverSum(session, type) && coverPremiumFor(sum) === planCoverPrem(session, type)) return {};
+  return setPlanCoverPatch(session, type, { sum }, { touched: false });
 }
 
 export function sizedCover(session: GpSession, type: NeedType) {
   return { sum: planCoverSum(session, type), prem: planCoverPrem(session, type) };
 }
 
+export const FREE_BUDGET_SHARE = 0.5;
+
 export function defaultWealthMth(session: GpSession, prem?: number): number {
   const wealth = suggestedInGroup(session, 'w');
   if (!wealth.length) return 0;
   const bud = Math.max(0, availableBudget(session) * 12);
   const left = Math.max(0, bud - (prem ?? protectionPremAnnual(session)));
-  return Math.max(0, Math.round(left * 0.6 / 12 / wealth.length / 50) * 50);
+  return Math.max(0, Math.round((left * FREE_BUDGET_SHARE) / 12 / wealth.length / 50) * 50);
 }
-
-export const FREE_BUDGET_SHARE = 0.5;
 
 export function planAfford(session: GpSession) {
   const available = Math.max(0, availableBudget(session));

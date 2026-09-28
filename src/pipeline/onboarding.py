@@ -27,7 +27,7 @@ AI_NEED_TO_UNIFIED: dict[str, str] = {
     "retirement": "N_RET",
     "education": "N_EDU",
     "generalSavings": "N_SAV",
-    "home": "N_PRP",
+    "personalAccident": "N_PAC",
 }
 
 AI_NEED_LABELS: dict[str, str] = {
@@ -149,6 +149,13 @@ def build_profiler_profile(data: dict[str, Any]) -> dict[str, Any]:
         "Smoker": bool(po.get("isSmoker", False)),
         "MonthlyIncome": float(fin.get("monthlyIncome") or 0),
         "MonthlyExpense": float(fin.get("monthlyExpense") or 0),
+        "Currency": (
+            fin.get("currency")
+            or data.get("home_currency")
+            or plu.get("currency")
+            or result.get("currency")
+            or "SGD"
+        ),
         "TotalAssets": float(fin.get("liquidAssetValue") or 0),
         "TotalLiabilities": float(plu.get("liabilities") or result.get("liabilities") or 0),
         "ExistingLifeProtection": 0,

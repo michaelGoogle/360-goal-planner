@@ -1,6 +1,10 @@
+import { formatMoney, formatMoneyK } from './currency';
+import { CALCULATOR_NEEDS, needCode, type CalculatorNeed, type ParkedNeed } from './needs';
 import { defaultStressEvents, type GpEvent } from './stressEvents';
 
 export type { GpEvent } from './stressEvents';
+export type { CalculatorNeed, ParkedNeed, RiskCode } from './needs';
+export { PARKED_NEEDS, PARKED_NEED_LABEL, needCode, riskCode } from './needs';
 
 export type Route = 'd2cIntro' | 'd2cAbout' | 'd2cMoney' | 'd2cScore' | 'd2cPlan';
 
@@ -14,16 +18,17 @@ export const ROUTE_LABEL: Record<Route, string> = {
   d2cPlan: 'Your plan',
 };
 
-export type NeedType = 'N_INC' | 'N_CRI' | 'N_TPD' | 'N_HOS' | 'N_RET' | 'N_EDU' | 'N_SAV' | 'N_PRP';
+export type NeedType = CalculatorNeed;
 export type ExtraNeed = 'pa';
 export type DepsChoice = '0' | '1' | '2' | '3' | '4+';
 export type Prov = 'doc' | 'you';
 export type DocKind = 'cpf' | 'bank' | 'pol';
 
-export const NEED_TYPES: NeedType[] = ['N_INC', 'N_CRI', 'N_TPD', 'N_HOS', 'N_RET', 'N_EDU', 'N_SAV', 'N_PRP'];
+export const NEED_TYPES: NeedType[] = CALCULATOR_NEEDS;
 
+/** Accepts the codes a session saved before the V0-24 rename used. */
 export function isNeedType(t: unknown): t is NeedType {
-  return typeof t === 'string' && (NEED_TYPES as string[]).includes(t);
+  return (NEED_TYPES as string[]).includes(needCode(t));
 }
 
 export interface NeedMeta {
@@ -51,7 +56,7 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
   N_RET: {
     type: 'N_RET',
     k: 'ret',
-    label: 'Private Retirement',
+    label: 'Private retirement',
     color: '#F0952E',
     lo: 'Projected savings',
     hi: 'Amount needed',
@@ -81,7 +86,7 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
   N_PRP: {
     type: 'N_PRP',
     k: 'prp',
-    label: 'Property purchase',
+    label: 'Home purchase',
     color: '#27AE60',
     lo: 'Projected savings',
     hi: 'Amount needed',
@@ -101,7 +106,7 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
   N_TPD: {
     type: 'N_TPD',
     k: 'dis',
-    label: 'Total & permanent disability',
+    label: 'Total & permanent disability (TPD)',
     color: '#F5934A',
     lo: 'Existing cover',
     hi: 'Cover needed',
@@ -118,6 +123,26 @@ export const NEED_META: Record<NeedType, NeedMeta> = {
     group: 'p',
     icon: 'hospital',
   },
+  N_PAC: {
+    type: 'N_PAC',
+    k: 'pac',
+    label: 'Personal accident',
+    color: '#B07CC6',
+    lo: 'Existing cover',
+    hi: 'Cover needed',
+    group: 'p',
+    icon: 'bandage',
+  },
+  N_LTC: {
+    type: 'N_LTC',
+    k: 'ltc',
+    label: 'Long-term care',
+    color: '#8E9AAF',
+    lo: 'Existing cover',
+    hi: 'Cover needed',
+    group: 'p',
+    icon: 'care',
+  },
 };
 
 export const NEED_ICONS: Record<NeedType, string> = {
@@ -125,6 +150,8 @@ export const NEED_ICONS: Record<NeedType, string> = {
   N_CRI: '❤️',
   N_TPD: '♿',
   N_HOS: '🏨',
+  N_PAC: '🩹',
+  N_LTC: '🧑‍⚕️',
   N_RET: '🏖️',
   N_EDU: '🎓',
   N_SAV: '🎯',
@@ -135,9 +162,35 @@ export const EXTRA_NEED_ICONS: Record<ExtraNeed, string> = {
   pa: '🩹',
 };
 
+/** @deprecated N_PAC is a calculator need. Kept so a saved session with extraNeeds still types. */
 export const EXTRA_NEEDS: { k: ExtraNeed; label: string; color: string; icon: string }[] = [
   { k: 'pa', label: 'Personal accident', color: '#B07CC6', icon: 'bandage' },
 ];
+
+export interface ParkedNeedRow {
+  type: ParkedNeed;
+  priority?: number;
+  score?: number;
+}
+
+export interface SessionFx {
+  currency: string;
+  country: string;
+  usdPerLocal: number;
+  priceLevel: number;
+  asOf: string;
+  source: string;
+}
+
+export interface SessionBudget {
+  available: number;
+  free: number;
+  monthly: number;
+  monthlyOver: number;
+  lumps: number;
+  lumpOver: number;
+  currency: string;
+}
 
 export interface NeedRow {
   type: NeedType;
@@ -164,6 +217,7 @@ export interface NeedRow {
   bequest?: number;
   monthlyContribution?: number;
   contributeYears?: number;
+  ltcStartAge?: number;
 }
 
 export interface Policy {
@@ -186,6 +240,15 @@ export interface GpSession {
   gender: 'Male' | 'Female';
   residency: 'Singapore Citizen' | 'Permanent Resident' | 'Foreigner';
   nationality: string;
+  /** Where they live. Picks the social-security module and the PPP price level. */
+  country?: string;
+  /** ISO code of the money they hold. Picks the FX rate. */
+  currency?: string;
+  fx?: SessionFx;
+  parkedNeeds?: ParkedNeedRow[];
+  budget?: SessionBudget;
+  ltcStartAge?: number;
+  goalTargetYears?: Partial<Record<NeedType, number>>;
   occupation: string;
   dependents: number;
   depsChoice: DepsChoice;
@@ -211,9 +274,14 @@ export interface GpSession {
   events: GpEvent[];
   inflationRate: number;
   interestRate: number;
+  loanRate: number;
   incomeGrowthRate: number;
   investmentReturn: number;
   assetReturn: number;
+  /** Which parameter version these rates and every constant came from. */
+  parametersVersion?: string;
+  /** People Like You life expectancy (years). Used for N_RET duration. */
+  lifeExpectancy?: number | null;
   source?: string;
   note?: string;
   maxStep: number;
@@ -246,6 +314,10 @@ export interface GpSession {
   planLump: Partial<Record<NeedType, number>>;
   planSum: Partial<Record<NeedType, number>>;
   planPrem: Partial<Record<NeedType, number>>;
+  planSumTouched: Partial<Record<NeedType, true>>;
+  planPremTouched: Partial<Record<NeedType, true>>;
+  planMthTouched: Partial<Record<NeedType, true>>;
+  planLumpTouched: Partial<Record<NeedType, true>>;
   coverMore: boolean;
   prodSeeded: boolean;
   cpfOa: number;
@@ -266,6 +338,9 @@ export const EMPTY_SESSION: GpSession = {
   gender: 'Male',
   residency: 'Singapore Citizen',
   nationality: 'Singapore',
+  country: 'Singapore',
+  currency: 'SGD',
+  parkedNeeds: [],
   occupation: '',
   dependents: 2,
   depsChoice: '2',
@@ -285,6 +360,7 @@ export const EMPTY_SESSION: GpSession = {
   events: defaultStressEvents(),
   inflationRate: 0.023,
   interestRate: 0.012,
+  loanRate: 0.035,
   incomeGrowthRate: 0.028,
   investmentReturn: 0.042,
   assetReturn: 0.03,
@@ -318,6 +394,10 @@ export const EMPTY_SESSION: GpSession = {
   planLump: {},
   planSum: {},
   planPrem: {},
+  planSumTouched: {},
+  planPremTouched: {},
+  planMthTouched: {},
+  planLumpTouched: {},
   coverMore: false,
   prodSeeded: false,
   cpfOa: 0,
@@ -325,22 +405,12 @@ export const EMPTY_SESSION: GpSession = {
   cpfMa: 0,
 };
 
-export function money(n: number): string {
-  const v = Math.round(n);
-  if (!Number.isFinite(v)) return '—';
-  return (v < 0 ? '−S$' : 'S$') + Math.abs(v).toLocaleString('en-SG');
+export function money(n: number, currency = 'SGD'): string {
+  return formatMoney(n, currency);
 }
 
-export function moneyK(n: number): string {
-  const v = Math.round(n);
-  if (!Number.isFinite(v)) return '—';
-  if (Math.abs(v) >= 1e6) {
-    const m = v / 1e6;
-    const s = m.toFixed(1).replace(/\.0$/, '');
-    return (v < 0 ? '−S$' : 'S$') + s + 'm';
-  }
-  if (Math.abs(v) >= 1000) return (v < 0 ? '−S$' : 'S$') + Math.round(Math.abs(v) / 1000) + 'k';
-  return money(v);
+export function moneyK(n: number, currency = 'SGD'): string {
+  return formatMoneyK(n, currency);
 }
 
 export function happiBand(v: number): 'POOR' | 'FAIR' | 'GOOD' {
@@ -374,6 +444,8 @@ export const POLICY_FOR_NEED: Partial<Record<NeedType, string>> = {
   N_CRI: 'Critical Illness',
   N_TPD: 'Permanent Disability',
   N_HOS: 'Hospitalisation',
+  N_PAC: 'Personal Accident',
+  N_LTC: 'Long-term Care',
 };
 
 export const POLICY_COL: Record<string, string> = {
@@ -395,6 +467,8 @@ export function choiceFromDeps(n: number): DepsChoice {
   return String(n) as DepsChoice;
 }
 
+export const MAX_RETIREMENT_AGE = 70;
+
 export function sessionAge(s: Pick<GpSession, 'age'>): number | null {
   return typeof s.age === 'number' && s.age >= 18 && s.age <= 70 ? s.age : null;
 }
@@ -409,8 +483,9 @@ export const CPF_OW_CEILING = 8000;
 export function employeeCpfRate(age: number, residency: string): number {
   if (residency === 'Foreigner') return 0;
   if (age <= 55) return 0.2;
-  if (age <= 60) return 0.15;
-  if (age <= 65) return 0.095;
+  if (age <= 60) return 0.18;
+  if (age <= 65) return 0.125;
+  if (age <= 70) return 0.075;
   return 0.05;
 }
 
@@ -447,7 +522,14 @@ export function chartMoneyOut(s: Pick<GpSession, 'incomeMonthly' | 'expenseMonth
 }
 
 export function d2cReady(s: GpSession): boolean {
-  return !!(String(s.name || '').trim() && sessionAge(s) && s.occupation && s.gender && s.residency);
+  return !!(
+    String(s.name || '').trim() &&
+    sessionAge(s) &&
+    s.gender &&
+    s.residency &&
+    String(s.occupation || '').trim() &&
+    typeof s.dependents === 'number'
+  );
 }
 
 export function firstName(s: Pick<GpSession, 'name'>): string {
@@ -481,7 +563,7 @@ export function needHave(s: GpSession, n: NeedRow): number {
   if (n.existingInvestment != null && n.existingInvestment > 0) return n.existingInvestment;
   const want = POLICY_FOR_NEED[n.type];
   if (want) return s.policies.filter(p => p.type === want).reduce((t, p) => t + p.sum, 0);
-  return liquid(s);
+  return 0;
 }
 
 export function needGap(s: GpSession, n: NeedRow): number {

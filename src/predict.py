@@ -1,27 +1,96 @@
-"""People Like You / Need Profiler / Need Calculator session mapping."""
+"""People Like You / Need Profiler / Need Calculator session mapping.
+
+The People Like You maths moved to ``src/services/people_like_you/service.py`` in WP5,
+where the property bands, the life-cover step and the expense floor come from the admin
+parameters in USD instead of being SGD constants here.
+"""
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
-from src.cpf import expenses_from_gross, take_home_income
 from src.hu_payload import dob_from_age
+from src.needs import CALCULATOR_NEEDS, PROTECTION_NEEDS, need_code
 from src.pipeline.need_profiler import select_unified_top
+from src.services.config import service as config_service
+from src.services.fx.models import FxLock
+from src.services.people_like_you import service as plu_service
 
-UNIFIED_TYPES = ("N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP")
-PROTECTION = ("N_INC", "N_CRI", "N_TPD", "N_HOS")
-PROPERTY_LTV = 0.55
-# SV pots: cash/savings vs investments. GP labels these Cash & Savings / Investments.
-CASH_SAVINGS_SHARE = 0.15
-INVESTMENTS_SHARE = 0.85
+UNIFIED_TYPES = CALCULATOR_NEEDS
+PROTECTION = PROTECTION_NEEDS
+
+
+def session_fx(session: dict[str, Any]) -> FxLock:
+    """The session's locked rate, locking one if it has none.
+
+    A session assembled by an older client arrives without a lock. Treating that as
+    "1 USD = 1 unit" would read every USD parameter as if the customer's currency were
+    the dollar, so the rate is fetched and written back where the caller can see it.
+    """
+    locked = session.get("fx")
+    if locked:
+        return FxLock.model_validate(locked)
+    from src.services.registry import get_fx_client
+
+    lock = get_fx_client().lock(
+        session.get("currency") or "SGD",
+        session.get("country") or "Singapore",
+    )
+    session["fx"] = lock.model_dump()
+    return lock
+
+
+# The deterministic twin in docs/calculations/build_calculations_workbook.py
+# calls the live Need Profiler and calculator (WP15). These helpers stay because the
+# workbook still seeds home value and assumed life cover from People Like You.
+
+
+@lru_cache(maxsize=1)
+def _workbook_lock() -> FxLock:
+    from src.services.fx.client import SnapshotFxClient
+
+    return SnapshotFxClient().lock("SGD", "Singapore")
+
+
+def _workbook_params() -> dict[str, Any]:
+    return config_service.values("")
 
 
 def seed_property_value(income_monthly: float) -> int:
-    """Assumed home value (SGD) from monthly gross income."""
-    if income_monthly < 10_000:
-        return 350_000
-    if income_monthly <= 20_000:
-        return 650_000
-    return 850_000
+    """Assumed home value in SGD, from monthly gross income."""
+    return int(plu_service.property_seed(income_monthly, _workbook_lock(), _workbook_params()))
+
+
+def _round_to_100k(amount: float) -> int:
+    """The life-cover step in a Singapore session, which is S$100,000."""
+    lock = _workbook_lock()
+    return int(plu_service.round_up_to_step(amount, plu_service.life_cover_step(lock, _workbook_params())))
+
+
+def _assumed_life_policy(session: dict[str, Any]) -> dict[str, Any] | None:
+    policy = plu_service.assumed_life_policy(
+        property_value=float(session.get("property") or 0),
+        mortgage=float(session.get("mortgage") or 0),
+        income_monthly=float(session.get("incomeMonthly") or 0),
+        dependents=int(session.get("dependents") or 0),
+        fx=session_fx(session) if session.get("fx") else _workbook_lock(),
+        params=_workbook_params(),
+    )
+    if policy is None:
+        return None
+    return {
+        "type": "Life Protection",
+        "insurer": "Existing insurer",
+        "sum": policy.sum,
+        "premium": policy.premium,
+    }
+
+
+def __getattr__(name: str) -> Any:
+    """The three household shares the twin imports, read from the active parameters."""
+    if name in ("CASH_SAVINGS_SHARE", "INVESTMENTS_SHARE", "PROPERTY_LTV"):
+        return float(config_service.value(name, ""))
+    raise AttributeError(name)
 
 
 def session_dict(data: dict[str, Any]) -> dict[str, Any]:
@@ -31,12 +100,13 @@ def session_dict(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def plu_body(session: dict[str, Any], persist: bool) -> dict[str, Any]:
+    country = session.get("country") or "Singapore"
     return {
         "dob": session["dateOfBirth"],
         "dateOfBirth": session["dateOfBirth"],
         "occupation": session.get("occupation") or "Professional",
-        "country": "Singapore",
-        "city": "Singapore",
+        "country": country,
+        "city": session.get("city") or country,
         "dependents": int(session.get("dependents") or 0),
         "gender": session.get("gender"),
         "residency": session.get("residency"),
@@ -44,76 +114,53 @@ def plu_body(session: dict[str, Any], persist: bool) -> dict[str, Any]:
     }
 
 
-def _round_to_100k(amount: float) -> int:
-    """Nearest S$100,000, rounding halves up."""
-    if amount <= 0:
-        return 0
-    return int((amount + 50_000) // 100_000) * 100_000
-
-
-def _seed_home(session: dict[str, Any], *, own: bool) -> None:
-    """Seed a home at 55% LTV whenever People Like You says they own property."""
-    if not own:
-        session["property"] = 0
-        session["mortgage"] = 0
-        return
-    property_value = seed_property_value(float(session.get("incomeMonthly") or 0))
-    session["property"] = property_value
-    session["mortgage"] = round(property_value * PROPERTY_LTV)
-
-
-def _assumed_life_policy(session: dict[str, Any]) -> dict[str, Any] | None:
-    """Assume mortgage life cover, or 5× annual income when there is at least one dependant."""
-    mortgage_cover = 0
-    if float(session.get("property") or 0) > 0:
-        mortgage_cover = _round_to_100k(float(session.get("mortgage") or 0))
-    dependents_cover = 0
-    if int(session.get("dependents") or 0) > 0:
-        dependents_cover = int(round(float(session.get("incomeMonthly") or 0) * 12 * 5))
-    sum_assured = max(mortgage_cover, dependents_cover)
-    if sum_assured <= 0:
-        return None
-    return {
-        "type": "Life Protection",
-        "insurer": "Existing insurer",
-        "sum": sum_assured,
-        "premium": max(0, round(sum_assured * 0.0031)),
-    }
-
-
 def _apply_plu(session: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
     finance = (result.get("onboarding") or {}).get("data", {}).get("finance") or {}
     mapped = result.get("result") or {}
-    session["incomeMonthly"] = float(
+    income = float(
         finance.get("monthlyIncome") or mapped.get("income") or session.get("incomeMonthly") or 0
     )
-    deps = int(session.get("dependents") or 0)
     age = int(session.get("age") or 0)
-    cpf_age = age if age else 40
-    session["expenseMonthly"] = expenses_from_gross(
-        session["incomeMonthly"],
-        deps,
-        cpf_age,
-        session.get("residency"),
+    estimate = plu_service.derive(
+        income_monthly=income,
+        age=age if age else 40,
+        dependents=int(session.get("dependents") or 0),
+        residency=session.get("residency"),
+        country=session.get("country") or "Singapore",
+        currency=session.get("currency") or "SGD",
+        owns_property=bool((mapped.get("ownershipInformation") or {}).get("property")),
+        reported_life_expectancy=mapped.get("lifeExpectancy"),
+        liquid_assets=float(finance.get("liquidAssetValue") or mapped.get("assets") or 0),
+        fx=session_fx(session),
+        parameters_version=str(session.get("parametersVersion") or ""),
     )
-    take_home = take_home_income(session["incomeMonthly"], cpf_age, session.get("residency"))
-    surplus = take_home - session["expenseMonthly"]
-    if session["incomeMonthly"] and session["expenseMonthly"] and age > 21:
-        assets = max(0.0, surplus * 12 * 0.5 * (age - 21))
-        session["cash"] = round(assets * CASH_SAVINGS_SHARE)
-        session["investments"] = round(assets * INVESTMENTS_SHARE)
-    else:
-        assets = float(finance.get("liquidAssetValue") or mapped.get("assets") or 0)
-        if assets:
-            session["cash"] = round(assets * CASH_SAVINGS_SHARE)
-            session["investments"] = round(assets * INVESTMENTS_SHARE)
-    own = bool((mapped.get("ownershipInformation") or {}).get("property"))
-    _seed_home(session, own=own)
-    life = _assumed_life_policy(session)
+    session["incomeMonthly"] = estimate.incomeMonthly
+    session["expenseMonthly"] = estimate.expenseMonthly
+    # Age gates the assets estimate, not the seed: a 21-year-old has not saved yet.
+    if estimate.cash or estimate.investments:
+        session["cash"] = estimate.cash
+        session["investments"] = estimate.investments
+    session["property"] = estimate.property
+    session["mortgage"] = estimate.mortgage
+    # The Need Profiler's liabilities factor. Not the mortgage, and not a need row's
+    # own liabilities, which is why it is not called "liabilities".
+    session["pluLiabilities"] = estimate.liabilities
+    life = (
+        {
+            "type": "Life Protection",
+            "insurer": "Existing insurer",
+            "sum": estimate.policies[0].sum,
+            "premium": estimate.policies[0].premium,
+        }
+        if estimate.policies
+        else None
+    )
     others = [p for p in (session.get("policies") or []) if p.get("type") != "Life Protection"]
     session["policies"] = ([life] if life else []) + others
     session["plu"] = mapped
     session["source"] = "people-like-you"
+    if mapped.get("lifeExpectancy") and estimate.lifeExpectancy:
+        session["lifeExpectancy"] = estimate.lifeExpectancy
     # Do not copy People Like You risk_ability onto the session. Score capacity
     # is calculated in the UI from Your money (frontend/src/lib/riskCapacity.ts).
     return session
@@ -125,7 +172,8 @@ def _needs_from_profiler(session: dict[str, Any], result: dict[str, Any]) -> dic
     ranked = (result.get("result") or {}).get("rankedNeeds") or []
     rows = []
     if needs_map:
-        for t, row in needs_map.items():
+        for raw_type, row in needs_map.items():
+            t = need_code(raw_type)
             rows.append(
                 {
                     "type": t,
@@ -152,12 +200,13 @@ def _apply_calculator(session: dict[str, Any], result: dict[str, Any]) -> dict[s
     """Merge calculator rows onto the session, keeping derived fields (have, lifestyle, …)."""
     needs_map = (result.get("onboarding") or {}).get("data", {}).get("needs") or result.get("needs") or {}
     amounts = result.get("amounts") or (result.get("result") or {}).get("amounts") or {}
-    existing_by_type = {n["type"]: n for n in session.get("needs") or []}
-    types = list(needs_map.keys()) if needs_map else list(existing_by_type.keys())
+    existing_by_type = {need_code(n["type"]): n for n in session.get("needs") or []}
+    by_code = {need_code(t): row for t, row in needs_map.items()}
+    types = list(by_code) if by_code else list(existing_by_type)
     rows = []
     for t in types:
         prev = existing_by_type.get(t) or {}
-        row = {**prev, **(needs_map.get(t) or {}), "type": t}
+        row = {**prev, **(by_code.get(t) or {}), "type": t}
         amt = float(row.get("needAmount") or amounts.get(t) or 0)
         existing = float(row.get("existing") or 0)
         have = float(row["have"]) if row.get("have") is not None else existing

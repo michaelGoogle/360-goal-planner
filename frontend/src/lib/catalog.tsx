@@ -146,7 +146,7 @@ export const TIPS: Record<string, { title: string; body: ReactNode | ((s: GpSess
       <>
         <p>
           <b>Your employee contribution only</b> — not what your employer adds. Citizens and PRs: 20% of ordinary wage
-          to age 55, then 15% / 9.5% / 5%. Foreigners: none, so this line is S$0.
+          to age 55, then 18% / 12.5% / 7.5% / 5%. Foreigners: none, so this line is S$0.
         </p>
         <p>
           Ordinary wage is capped at <b>S$8,000 a month</b> from 2026, so the most taken off pay is S$1,600 at the 20%

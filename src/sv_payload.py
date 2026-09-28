@@ -6,8 +6,16 @@ from datetime import date
 from typing import Any
 
 from src.cpf import session_take_home
-from src.hu_payload import ACCUMULATION, PROTECTION, dob_from_age, hu_need_code
-from src.pipeline.goal_math import years_in_retirement
+from src.hu_payload import ACCUMULATION, PROTECTION, dob_from_age
+from src.money import to_user
+from src.needs import risk_code
+from src.pipeline.goal_math import (
+    LOAN_TERM_YEARS,
+    annual_loan_payment,
+    years_in_retirement,
+)
+from src.services.config import service as config_service
+from src.services.fx.models import FxLock
 from src.session_rates import session_rate
 
 ASSET_CASH = "7c3a91e2-4b8f-4d21-9e6a-2f5c8b1d0a44"
@@ -19,52 +27,19 @@ def _need_id(need_type: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"gp-need-{need_type}"))
 
 
-# GP sliders use 0 = this year. SV columns are 1-based (1 = this year).
-_EVENT_ALIAS = {
-    "crash": "crash",
-    "Crash": "crash",
-    "MarketCrash": "crash",
-    "death": "death",
-    "Death": "death",
-    "ci": "ci",
-    "CI": "ci",
-    "tpd": "tpd",
-    "PTD": "tpd",
-    "pa": "pa",
-    "PersonalAccident": "pa",
-    "inc": "inc",
-    "Unemployment": "inc",
-    "infl": "infl",
-    "Inflation": "infl",
-    "hosp": "hosp",
-    "care": "care",
-    "wed": "wed",
-    "Wedding": "wed",
-    "Marriage": "wed",
-    "baby": "baby",
-    "Newborn": "baby",
-    "exp": "exp",
-    "ccy": "ccy",
-}
-
 # HTML prototype: about two-thirds of the invested book sits outside SGD.
 _FX_SHARE = 2.0 / 3.0
 
-_DEFAULT_V = {
-    "crash": 0.35,
-    "ccy": 0.14,
-    "infl": 0.03,
-    "inc": -0.2,
-    "death": 20_000,
-    "ci": 150_000,
-    "tpd": 200_000,
-    "pa": 80_000,
-    "hosp": 120_000,
-    "care": 90_000,
-    "wed": 60_000,
-    "baby": 35_000,
-    "exp": 0.15,
+# Fraction / rate events. Lump sizes come from R_xxx_SIZE in the admin parameters.
+_RATE_DEFAULTS = {
+    "R_MKT": 0.35,
+    "R_CCY": 0.14,
+    "R_INF": 0.03,
+    "R_ICT": -0.2,
+    "R_EXP": 0.15,
 }
+_AGE_LUMPS = ("R_DEA", "R_CRI", "R_TPD", "R_PAC", "R_HOS")
+_YEAR_LUMPS = ("R_WED", "R_BAB")
 
 
 def _as_int(value: Any, default: int = 0) -> int:
@@ -111,43 +86,143 @@ def _range_event(event_type: str, start: int, end: int, measurement: str, impact
     }
 
 
+def _fx(session: dict[str, Any]) -> FxLock:
+    locked = session.get("fx")
+    if locked:
+        return FxLock.model_validate(locked)
+    from src.services.registry import get_fx_client
+
+    lock = get_fx_client().lock(
+        session.get("currency") or "SGD",
+        session.get("country") or "Singapore",
+    )
+    session["fx"] = lock.model_dump()
+    return lock
+
+
+def _params(session: dict[str, Any]) -> dict[str, Any]:
+    return config_service.values(str(session.get("parametersVersion") or ""))
+
+
+def _longevity_on(session: dict[str, Any]) -> bool:
+    for ev in session.get("events") or []:
+        if ev.get("on") and risk_code(str(ev.get("id") or ev.get("eventType") or "")) == "R_LON":
+            return True
+    return bool(session.get("longevityOn"))
+
+
+def _life_expectancy(session: dict[str, Any], params: dict[str, Any]) -> int:
+    cap = int(params["LON_AGE"])
+    default = int(params["lifeExpectancyDefault"])
+    try:
+        n = int(session.get("lifeExpectancy") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n <= 0:
+        n = default
+    return min(n, cap)
+
+
+def _path_end(params: dict[str, Any]) -> int:
+    return int(params["LON_AGE"])
+
+
+def _chart_horizon(session: dict[str, Any], params: dict[str, Any]) -> int:
+    return _path_end(params) if _longevity_on(session) else _life_expectancy(session, params)
+
+
+def _lump_size(risk: str, ev: dict[str, Any], params: dict[str, Any], fx: FxLock) -> float:
+    if ev.get("v") is not None:
+        return abs(_as_float(ev.get("v"), 0))
+    usd = float(params.get(f"{risk}_SIZE") or 0)
+    return abs(to_user(usd, fx))
+
+
+def _age_engine_year(when_age: int, age: int) -> int:
+    """Age-based events: already older than the age → next year (SV year 1)."""
+    return max(1, int(when_age) - int(age))
+
+
+def _horizon_years(need: dict[str, Any], session: dict[str, Any], t: str) -> int:
+    for key in ("contributeYears", "horizonYears"):
+        try:
+            n = int(need.get(key) or 0)
+        except (TypeError, ValueError):
+            n = 0
+        if n > 0:
+            return n
+    horizons = session.get("horizons") or {}
+    named = {"N_RET": "yearsToRet", "N_EDU": "eduYears", "N_SAV": "savYears", "N_PRP": "prpYears"}
+    if t in named:
+        try:
+            n = int(horizons.get(named[t]) or 0)
+        except (TypeError, ValueError):
+            n = 0
+        if n > 0:
+            return n
+    return 0
+
+
 def session_manual_events(session: dict[str, Any]) -> list[dict[str, Any]]:
-    """Map GP stress-test rows onto SV manualEvents (1-based year + config)."""
+    """Map GP stress-test rows onto SV manualEvents (1-based year + config).
+
+    Rows arrive keyed by R_ code; ``risk_code`` also accepts the ids a session saved
+    before the rename used, so an old plan still stresses the same way. Lump sizes
+    and ages come from the admin parameters when the row does not set them.
+    """
+    params = _params(session)
+    fx = _fx(session)
+    age = int(session.get("age") or 40)
+    le = _life_expectancy(session, params)
     inflation = session_rate(session, "inflationRate")
     out: list[dict[str, Any]] = []
     for ev in session.get("events") or []:
         if not ev.get("on"):
             continue
-        kind = _EVENT_ALIAS.get(str(ev.get("id") or ev.get("eventType") or ""))
-        if not kind:
+        risk = risk_code(str(ev.get("id") or ev.get("eventType") or ""))
+        if risk == "R_LON":
             continue
-        year, start, end = _event_window(ev)
-        v = _as_float(ev.get("v"), _DEFAULT_V[kind])
-        if kind == "death":
-            out.append(_shock("Death", year, oneTimeCost=abs(v)))
-        elif kind == "ci":
+        slider_set = ev.get("year") is not None or ev.get("from") is not None
+        year, start, end = _event_window(ev) if slider_set else (1, 1, 1)
+        if risk in _AGE_LUMPS and not slider_set:
+            year = _age_engine_year(int(params.get(f"{risk}_WHEN") or age + 1), age)
+        elif risk in _YEAR_LUMPS and not slider_set:
+            year = max(1, int(params.get(f"{risk}_WHEN") or 0) + 1)
+        elif risk == "R_LTC" and not slider_set:
+            ltc_age = int(session.get("ltcStartAge") or params.get("LTC_START_AGE") or 80)
+            start = max(1, ltc_age - age)
+            end = max(start, le - age - 1)
+            year = start
+        v = (
+            _as_float(ev.get("v"), _RATE_DEFAULTS[risk])
+            if risk in _RATE_DEFAULTS
+            else _lump_size(risk, ev, params, fx)
+        )
+        if risk == "R_DEA":
+            out.append(_shock("Death", year, oneTimeCost=abs(v), stopSalary=True, stopCpfWage=True))
+        elif risk == "R_CRI":
             out.append(_shock("CI", year, oneTimeCost=abs(v)))
-        elif kind == "tpd":
+        elif risk == "R_TPD":
             out.append(_shock("PTD", year, oneTimeCost=abs(v)))
-        elif kind == "pa":
+        elif risk == "R_PAC":
             out.append(_shock("PersonalAccident", year, oneTimeCost=abs(v)))
-        elif kind == "baby":
+        elif risk == "R_BAB":
             out.append(_shock("Newborn", year, oneTimeCost=abs(v)))
-        elif kind == "wed":
+        elif risk == "R_WED":
             out.append(_shock("Marriage", year, oneTimeCost=abs(v)))
-        elif kind == "crash":
+        elif risk == "R_MKT":
             out.append(_shock("MarketCrash", year, marketShock=abs(v)))
-        elif kind == "ccy":
+        elif risk == "R_CCY":
             out.append(_shock("CurrencyShock", year, currencyShock=abs(v) * _FX_SHARE))
-        elif kind == "infl":
+        elif risk == "R_INF":
             out.append(_shock("Inflation", start, inflationRate=inflation + abs(v), length=max(1, end - start + 1)))
-        elif kind == "inc":
+        elif risk == "R_ICT":
             out.append(_range_event("Income", start, end, "percentage", v if v <= 0 else -abs(v)))
-        elif kind == "exp":
+        elif risk == "R_EXP":
             out.append(_range_event("Expense", start, end, "percentage", abs(v)))
-        elif kind == "hosp":
+        elif risk == "R_HOS":
             out.append(_shock("Hospitalization", year, oneTimeCost=abs(v)))
-        elif kind == "care":
+        elif risk == "R_LTC":
             out.append(_range_event("Expense", start, end, "amount", abs(v)))
     return out
 
@@ -157,6 +232,8 @@ _PLAN_PRODUCT = {
     "N_CRI": ("CEJ", "Critical illness cover", "TermLife"),
     "N_TPD": ("TPD", "Disability cover", "TermLife"),
     "N_HOS": ("HSP", "Hospitalisation cover", "TermLife"),
+    "N_PAC": ("PAC", "Personal accident cover", "TermLife"),
+    "N_LTC": ("LTC", "Long-term care cover", "TermLife"),
     "N_RET": ("AIARS", "Retirement plan", "Savings"),
     "N_EDU": ("ERX", "Education plan", "Savings"),
     "N_SAV": ("SAV", "Saving plan", "Savings"),
@@ -214,16 +291,17 @@ def _grow_pot(lump: float, annual: float, rate: float, years: int, pay_years: in
 
 def plan_benefit_visualizer(session: dict[str, Any]) -> list[dict[str, Any]]:
     """Illustrate the D2C suggested mix so SV's post path is 'with this plan'."""
+    params = _params(session)
     age = int(session.get("age") or 40)
     ret_age = int(session.get("ageOfRetirement") or 65)
-    now_year = date.today().year
+    now_year = int(params.get("currentYear") or date.today().year)
     inv_ret = session_rate(session, "investmentReturn")
     off = {str(t) for t in (session.get("plansOff") or [])}
     plan_mth = _num_map(session.get("planMth"))
     plan_lump = _num_map(session.get("planLump"))
     plan_sum = _num_map(session.get("planSum"))
     plan_prem = _num_map(session.get("planPrem"))
-    n_years = max(20, 100 - age)
+    n_years = max(1, _path_end(params) - age)
     out: list[dict[str, Any]] = []
     for need in session.get("needs") or []:
         t = str(need.get("type") or "")
@@ -238,8 +316,11 @@ def plan_benefit_visualizer(session: dict[str, Any]) -> list[dict[str, Any]]:
             if t == "N_RET":
                 pay = max(1, ret_age - age)
             else:
-                funds = int(need.get("fundsNeededYear") or now_year + 10)
-                pay = max(1, funds - now_year)
+                pay = max(1, _horizon_years(need, session, t))
+                if pay <= 1:
+                    funds = int(need.get("fundsNeededYear") or 0)
+                    if funds:
+                        pay = max(1, funds - now_year)
             premiums, account = _grow_pot(lump, mth * 12, inv_ret, n_years, pay)
             out.append(
                 _bvo_product(
@@ -295,18 +376,28 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
     inv_ret = session_rate(session, "investmentReturn")
     asset_ret = session_rate(session, "assetReturn")
     prop_ret = max(0.0, asset_ret + 0.004)
-    now_year = date.today().year
+    params = _params(session)
+    now_year = int(params.get("currentYear") or date.today().year)
+    le = _life_expectancy(session, params)
+    path_end = _path_end(params)
+    chart_end = _chart_horizon(session, params)
     needs = [n for n in (session.get("needs") or []) if n.get("enabled")]
     if not needs:
-        needs = [{"type": "N_RET", "enabled": True, "needAmount": expense * 12 * years_in_retirement(ret_age), "priority": 5}]
+        needs = [{"type": "N_RET", "enabled": True, "needAmount": expense * 12 * years_in_retirement(ret_age, le), "priority": 5}]
 
     pd_needs = []
     nco = []
     for n in needs:
         t = str(n.get("type") or "")
-        code = hu_need_code(t)
+        code = "N_HSP" if t == "N_HOS" else t
         nid = _need_id(code)
-        funds_year = int(n.get("fundsNeededYear") or now_year + (ret_age - age if t == "N_RET" else 10))
+        years = _horizon_years(n, session, t)
+        if t == "N_RET":
+            funds_year = now_year + max(0, ret_age - age)
+        elif years:
+            funds_year = now_year + years
+        else:
+            funds_year = int(n.get("fundsNeededYear") or now_year + 10)
         amount = float(n.get("needAmount") or 0)
         tagged = [] if t in ACCUMULATION else [ASSET_PROPERTY]
         pd_needs.append(
@@ -329,7 +420,7 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
         }
         if t == "N_RET":
             result["retirementAge"] = ret_age
-            result["durationOfRetirement"] = years_in_retirement(ret_age)
+            result["durationOfRetirement"] = years_in_retirement(ret_age, le)
             result["fundsNeededYear"] = now_year + max(0, ret_age - age)
         elif t in ("N_SAV", "N_PRP", "N_EDU"):
             result["fundsNeededYear"] = funds_year
@@ -370,6 +461,9 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
             "subtractLoanBalances": True,
             "inflationRate": inflation,
             "incomeGrowthRate": income_grow,
+            "lifeExpectancy": path_end,
+            "chartHorizon": chart_end,
+            "numYears": max(1, path_end - age),
         },
         "personalDetails": [
             {
@@ -402,10 +496,12 @@ def build_sv_payload(session: dict[str, Any]) -> dict[str, Any]:
                             {
                                 "type": "Mortgage",
                                 "currentValue": int(mortgage),
-                                "interestRate": 0.035,
-                                "remainingYears": 20,
+                                "interestRate": session_rate(session, "loanRate"),
+                                "remainingYears": LOAN_TERM_YEARS,
                                 "frequency": 2,
-                                "installments": int(round(mortgage / 20)) if mortgage else 0,
+                                "installments": int(round(
+                                    annual_loan_payment(mortgage, session_rate(session, "loanRate"))
+                                )) if mortgage else 0,
                             }
                         ]
                         if mortgage

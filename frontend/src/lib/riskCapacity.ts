@@ -1,3 +1,4 @@
+import { DEFAULT_LOAN_RATE, monthlyLoanPayment } from './ratios';
 import { investRetFromReturn } from './assumptions';
 import { clampRiskProfile, riskLevel, type RiskProfile } from './riskBand';
 import type { GpSession } from './types';
@@ -60,8 +61,8 @@ export function liquidityMonths(cash: number, expense: number): number {
   return (cash || 0) / expense;
 }
 
-export function debtServiceRatio(mortgage: number, income: number): number {
-  const pay = (mortgage || 0) / 240;
+export function debtServiceRatio(mortgage: number, income: number, loanRate: number = DEFAULT_LOAN_RATE): number {
+  const pay = monthlyLoanPayment(mortgage || 0, loanRate);
   if (!(income > 0)) return mortgage > 0 ? Number.POSITIVE_INFINITY : 0;
   return pay / income;
 }
@@ -201,13 +202,14 @@ export function riskCapacity(
     | 'investments'
     | 'property'
     | 'mortgage'
+    | 'loanRate'
   >,
 ): RiskCapacity {
   const income = session.incomeMonthly || 0;
   const expense = session.expenseMonthly || 0;
   const cash = session.cash || 0;
   const liq = liquidityMonths(cash, expense);
-  const dsr = debtServiceRatio(session.mortgage || 0, income);
+  const dsr = debtServiceRatio(session.mortgage || 0, income, session.loanRate ?? DEFAULT_LOAN_RATE);
   const dar = debtAssetRatio(session.mortgage || 0, cash, session.investments || 0, session.property || 0);
   const sav = savingsRatio(income, expense);
   const ageKnown = typeof session.age === 'number' && session.age > 0;

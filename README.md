@@ -27,7 +27,7 @@ OpenAPI: `/docs`.
 
 ## API
 
-See [docs/API.md](docs/API.md). How People Like You / Need Profiler / Need Calculator work: [docs/People-like-you-and-needs.md](docs/People-like-you-and-needs.md). Other formulas: [docs/Calculations.md](docs/Calculations.md). Short form:
+See [docs/API.md](docs/API.md). How People Like You / Need Profiler / Need Calculator work: [docs/People-like-you-and-needs.md](docs/People-like-you-and-needs.md). Other formulas: [docs/calculations/Calculations.md](docs/calculations/Calculations.md). Short form:
 
 | Method | Path | Role |
 |--------|------|------|

@@ -164,7 +164,7 @@ without changing Your money, and inflating the assumed rate to close a shortfall
 | Doc | Role |
 |-----|------|
 | [Risk.md](Risk.md) | Capacity lookups, weights, hard caps, worked example, return table |
-| [Calculations.md](Calculations.md) | Live money / plan formulas (rate seeded from the risk band) |
+| [calculations/Calculations.md](calculations/Calculations.md) | Live money / plan formulas (rate seeded from the risk band) |
 | [People-like-you-and-needs.md](People-like-you-and-needs.md) | LLM still returns `risk_ability`; GP does not use it as the Score chip |
 | [Business-overview.md](Business-overview.md) | Journey and inputs |
 | [Open-issues-and-tasks.md](Open-issues-and-tasks.md) | Gap #11 done |

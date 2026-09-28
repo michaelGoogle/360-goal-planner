@@ -13,7 +13,8 @@ from typing import Any
 
 from src.cpf import session_employee_cpf, session_take_home
 from src.hu_payload import need_existing
-from src.session_rates import DEFAULTS as ASSUME_DEFAULTS
+from src.pipeline.goal_math import monthly_loan_payment
+from src.session_rates import defaults as assumption_defaults
 from src.session_rates import session_rate
 
 NEED_TYPES = ["N_INC", "N_CRI", "N_TPD", "N_HOS", "N_RET", "N_EDU", "N_SAV", "N_PRP"]
@@ -303,7 +304,7 @@ def _ratios(session: dict[str, Any]) -> list[dict[str, Any]]:
     assets = cash + investments + property_v
     nw = assets - mortgage
     sav = income - expense
-    loan_pay = mortgage / 240 if mortgage > 0 else 0.0
+    loan_pay = monthly_loan_payment(mortgage, session_rate(session, "loanRate")) if mortgage > 0 else 0.0
 
     def d(a: float, b: float) -> float:
         return a / b if b else 0.0
@@ -367,7 +368,8 @@ def _pct_an(v: float) -> str:
 
 def _changed_assumptions(session: dict[str, Any]) -> list[tuple[str, str, str]]:
     out = []
-    for key, base in ASSUME_DEFAULTS.items():
+    # Compare against the version this session was calculated under, not the built-in.
+    for key, base in assumption_defaults(str(session.get("parametersVersion") or "")).items():
         val = session_rate(session, key)
         if round(val * 1000) != round(base * 1000):
             out.append((ASSUME_LABEL[key], _pct_an(val), _pct_an(base)))

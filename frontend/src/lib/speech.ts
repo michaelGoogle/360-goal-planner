@@ -96,6 +96,9 @@ function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null 
   return best;
 }
 
+let lastSpoken = '';
+let lastOnEnd: (() => void) | undefined;
+
 function startUtterance(text: string, voice: SpeechSynthesisVoice | null, onEnd?: () => void): void {
   const u = new SpeechSynthesisUtterance(text);
   if (voice) {
@@ -112,6 +115,8 @@ function startUtterance(text: string, voice: SpeechSynthesisVoice | null, onEnd?
 }
 
 export function speak(text: string, onEnd?: () => void): boolean {
+  lastSpoken = text;
+  lastOnEnd = onEnd;
   if (!('speechSynthesis' in window)) {
     onEnd?.();
     return false;
@@ -157,6 +162,15 @@ export function resumeSpeak(): boolean {
   try {
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
+      window.setTimeout(() => {
+        try {
+          if (!window.speechSynthesis.speaking && lastSpoken) {
+            speak(lastSpoken, lastOnEnd);
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 80);
       return true;
     }
   } catch {

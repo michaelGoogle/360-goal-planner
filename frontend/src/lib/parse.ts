@@ -63,6 +63,9 @@ export function parseSentence(text: string): ParsedSentence {
   else if (
     /\b(foreigner|foreign|expat|expatriate|employment pass|ep holder|s pass|work permit|not a resident|on a visa)\b/.test(
       s,
+    ) ||
+    /\b(german|american|british|french|indian|malaysian|indonesian|filipino|thai|vietnamese|japanese|korean|australian|canadian|dutch|irish)\b/.test(
+      s,
     )
   )
     out.res = 'Foreigner';
@@ -181,6 +184,14 @@ export function parseSentence(text: string): ParsedSentence {
 
   m = raw.match(/\b(?:my name is|i am called|call me|this is|name's)\s+([A-Za-z][a-zA-Z'-]{1,20})/i);
   if (m) out.name = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+  if (!out.gender && out.name) {
+    const nm = out.name.toLowerCase();
+    if (/^(michael|michael|david|john|james|william|robert|thomas|daniel|andrew|alex|wei|jun|heng|ken|peter|paul|mark|steven|stephen|richard|joseph|christopher|matthew)$/.test(nm)) {
+      out.gender = 'Male';
+    } else if (/^(mary|maria|sarah|susan|jennifer|emily|anna|anne|lisa|jane|michelle|siti|mei|hui|priya|fatimah|elizabeth|rachel|karen|nancy)$/.test(nm)) {
+      out.gender = 'Female';
+    }
+  }
 
   return out;
 }

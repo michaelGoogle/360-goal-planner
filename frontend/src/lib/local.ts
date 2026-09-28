@@ -1,8 +1,9 @@
+import { postBudget, postPlan, type BudgetResponse, type PlanResponse } from './api';
 import { depsFromChoice, type DepsChoice, type DocKind, type GpSession, type NeedType } from './types';
 import type { ParsedSentence } from './parse';
 import { investRetFromReturn } from './assumptions';
 import { riskSessionPatch } from './riskCapacity';
-import { coverSliderCaps, defaultWealthMth, investLumpFromPlans, investMthFromPlans, planSliderCaps, productFlags, suggestedInGroup } from './planProducts';
+import { coverPremiumFor, coverSliderCaps, defaultWealthMth, investLumpFromPlans, investMthFromPlans, planSliderCaps, productFlags, refreshUntouchedCover, suggestedInGroup } from './planProducts';
 
 const OCC_PATTERNS: [RegExp, number][] = [
   [/surgeon|medical specialist|investment banker|private banker|chief |actuar|fund manager|portfolio manager/i, 18000],
@@ -165,17 +166,18 @@ export function applyDocs(session: GpSession): GpSession {
 }
 
 function seedCoverDefaults(session: GpSession) {
-  const planSum: Partial<Record<NeedType, number>> = { ...session.planSum };
-  const planPrem: Partial<Record<NeedType, number>> = { ...session.planPrem };
-  let patched = false;
+  const refreshed = refreshUntouchedCover(session);
+  const planSum = { ...(refreshed.planSum ?? session.planSum) };
+  const planPrem = { ...(refreshed.planPrem ?? session.planPrem) };
+  let patched = !!Object.keys(refreshed).length;
   for (const n of suggestedInGroup(session, 'p')) {
-    const caps = coverSliderCaps(session, n.type);
+    const caps = coverSliderCaps({ ...session, planSum, planPrem }, n.type);
     if (planSum[n.type] == null) {
       planSum[n.type] = caps.sum;
       patched = true;
     }
     if (planPrem[n.type] == null) {
-      planPrem[n.type] = Math.round(caps.prem / 2 / 10) * 10;
+      planPrem[n.type] = coverPremiumFor(caps.sum); // dummy 0.00078; future: premium-quote API
       patched = true;
     }
   }
@@ -230,5 +232,46 @@ export function seedProducts(session: GpSession): Partial<GpSession> {
     planSum,
     planPrem,
   };
+}
+
+export function applyPlanResponse(session: GpSession, plan: PlanResponse, budget?: BudgetResponse): Partial<GpSession> {
+  const planSum: Partial<Record<NeedType, number>> = { ...session.planSum };
+  const planPrem: Partial<Record<NeedType, number>> = { ...session.planPrem };
+  const planMth: Partial<Record<NeedType, number>> = { ...session.planMth };
+  const planLump: Partial<Record<NeedType, number>> = { ...session.planLump };
+  for (const n of plan.needs) {
+    const type = n.type as NeedType;
+    planSum[type] = n.planSum;
+    planPrem[type] = n.planPrem;
+    planMth[type] = n.planMth;
+    planLump[type] = n.planLump;
+  }
+  const next = { ...session, planSum, planPrem, planMth, planLump, investMth: plan.investMth, investLump: plan.investLump };
+  return {
+    prodSeeded: true,
+    ...productFlags(next),
+    planSum,
+    planPrem,
+    planMth,
+    planLump,
+    investMth: plan.investMth,
+    investLump: plan.investLump,
+    lifeSum: planSum.N_INC ?? session.lifeSum,
+    lifePrem: planPrem.N_INC ?? session.lifePrem,
+    ...(budget ? { budget } : {}),
+  };
+}
+
+/** Sizes the suggested plan from POST /v1/plan. Falls back to the local seed if the BFF is down. */
+export async function seedProductsFromApi(session: GpSession, token?: string | null): Promise<Partial<GpSession>> {
+  try {
+    const plan = await postPlan(session, token);
+    const seeded = applyPlanResponse(session, plan);
+    const withPlan = { ...session, ...seeded };
+    const budget = await postBudget(withPlan, token);
+    return applyPlanResponse(session, plan, budget);
+  } catch {
+    return seedProducts(session);
+  }
 }
 

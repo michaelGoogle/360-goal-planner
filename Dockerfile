@@ -36,6 +36,8 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 COPY src/ ./src/
 COPY run_server.py ./
+# Published parameter versions — see the note in deployment/docker/GP.Dockerfile.
+COPY config/ ./config/
 COPY --from=frontend /frontend/dist ./frontend/dist
 
 RUN find . -name "*.py" -exec sed -i 's/\r$//' {} \;

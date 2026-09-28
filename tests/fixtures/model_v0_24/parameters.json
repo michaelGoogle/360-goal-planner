@@ -1,0 +1,693 @@
+{
+ "model": "V0-24",
+ "parameters": {
+  "CASH_SAVINGS_SHARE": {
+   "value": 0.15,
+   "cell": "B53",
+   "unit": "% of assets",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "predict.py",
+   "label": "CASH_SAVINGS_SHARE"
+  },
+  "CRI_COST": {
+   "value": 156325.47,
+   "cell": "B35",
+   "unit": "one-off",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "goal_math.py CI_COST (SGD)",
+   "changedIn": "V0-15 USD; V0-21 also sent to HappiU",
+   "label": "CRI_COST (USD)"
+  },
+  "CRI_YEARS": {
+   "value": 3,
+   "cell": "B34",
+   "unit": "years",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py CI_YEARS",
+   "changedIn": "V0-16 renamed",
+   "label": "CRI_YEARS"
+  },
+  "EDU_COST": {
+   "value": 58622.05,
+   "cell": "B39",
+   "unit": "one-off",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "goal_math.py EDU_TOTAL_COST (SGD)",
+   "changedIn": "V0-15 USD; V0-16 renamed",
+   "label": "EDU_COST (USD)"
+  },
+  "EDU_TARGET_AGE": {
+   "value": 50,
+   "cell": "B40",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "needEdit.ts (was +10 years)",
+   "changedIn": "V0-24",
+   "label": "EDU_TARGET_AGE (N_EDU default target: children leave home at 20, born at 30)"
+  },
+  "FREE_BUDGET_SHARE": {
+   "value": 0.5,
+   "cell": "B66",
+   "unit": "% of surplus",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "planProducts.ts",
+   "label": "FREE_BUDGET_SHARE"
+  },
+  "HOS_MONTHS": {
+   "value": 6,
+   "cell": "B38",
+   "unit": "months of income",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py HOSP_MONTHS",
+   "changedIn": "V0-16 renamed",
+   "label": "HOS_MONTHS"
+  },
+  "INC_SUPPORT_MAX": {
+   "value": 25,
+   "cell": "B32",
+   "unit": "years",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFE_SUPPORT_MAX_YEARS",
+   "changedIn": "V0-16 renamed",
+   "label": "INC_SUPPORT_MAX"
+  },
+  "INC_SUPPORT_MIN": {
+   "value": 10,
+   "cell": "B31",
+   "unit": "years",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFE_SUPPORT_MIN_YEARS",
+   "changedIn": "V0-16 renamed",
+   "label": "INC_SUPPORT_MIN"
+  },
+  "INC_SUPPORT_PIVOT_AGE": {
+   "value": 50,
+   "cell": "B33",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFE_SUPPORT_PIVOT_AGE",
+   "changedIn": "V0-16 renamed",
+   "label": "INC_SUPPORT_PIVOT_AGE"
+  },
+  "INVESTMENTS_SHARE": {
+   "value": 0.85,
+   "cell": "B54",
+   "unit": "% of assets",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "predict.py",
+   "label": "INVESTMENTS_SHARE"
+  },
+  "LON_AGE": {
+   "value": 99,
+   "cell": "B45",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFE_EXPECTANCY_MAX",
+   "changedIn": "V0-21: also the LE cap and the SV path end",
+   "label": "LON_AGE (life expectancy cap and R_LON)"
+  },
+  "LTC_COST": {
+   "value": 129000,
+   "cell": "B25",
+   "unit": "per year",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "— (new)",
+   "changedIn": "V0-19",
+   "label": "LTC_COST (USD / year, N_LTC nursing home)"
+  },
+  "LTC_START_AGE": {
+   "value": 80,
+   "cell": "B26",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "— (new, front-end input)",
+   "changedIn": "V0-19",
+   "label": "LTC_START_AGE (N_LTC default; front-end input)"
+  },
+  "MIN_EXPENSE_MONTHLY": {
+   "value": 100,
+   "cell": "B79",
+   "unit": "per month",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "frontend MIN_EXPENSE_MONTHLY (SGD 100)",
+   "changedIn": "V0-21: USD 100 (was S$100)",
+   "label": "MIN_EXPENSE_MONTHLY (USD)"
+  },
+  "PAC_COST": {
+   "value": 62530.19,
+   "cell": "B44",
+   "unit": "one-off",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "— (new)",
+   "changedIn": "V0-16, agreed V0-18",
+   "label": "PAC_COST (USD = S$80,000 at the calibration rate)"
+  },
+  "PAC_YEARS": {
+   "value": 1,
+   "cell": "B43",
+   "unit": "years",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "— (new)",
+   "changedIn": "V0-16, agreed V0-18",
+   "label": "PAC_YEARS"
+  },
+  "PPP_BASE_COUNTRY": {
+   "value": "Singapore",
+   "cell": "B78",
+   "unit": "country",
+   "currency": "—",
+   "status": "System",
+   "codeSource": "— (new)",
+   "changedIn": "V0-22",
+   "openProposal": "USD fixed amounts were calibrated in Singapore, so Singapore = 1",
+   "label": "PPP_BASE_COUNTRY (price level = 1)"
+  },
+  "PROPERTY_LTV": {
+   "value": 0.55,
+   "cell": "B60",
+   "unit": "% of property",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "predict.py PROPERTY_LTV",
+   "label": "PROPERTY_LTV"
+  },
+  "PRP_INCOME_MULT": {
+   "value": 5,
+   "cell": "B42",
+   "unit": "× annual income",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "need_calculator.py",
+   "changedIn": "V0-16 renamed",
+   "label": "PRP_INCOME_MULT"
+  },
+  "PRP_TARGET_AGE": {
+   "value": 33,
+   "cell": "B19",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "needEdit.ts (was +10 years)",
+   "changedIn": "V0-24",
+   "label": "PRP_TARGET_AGE (N_PRP default target: 3 years after marriage at 30)"
+  },
+  "RET_LIFESTYLE_FRUGAL": {
+   "value": 0.75,
+   "cell": "B28",
+   "unit": "× today's spend",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFESTYLE_RATES",
+   "changedIn": "V0-16 renamed",
+   "label": "RET_LIFESTYLE_FRUGAL"
+  },
+  "RET_LIFESTYLE_ONLYTHEBEST": {
+   "value": 1.25,
+   "cell": "B30",
+   "unit": "× today's spend",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFESTYLE_RATES",
+   "changedIn": "V0-16 renamed",
+   "label": "RET_LIFESTYLE_ONLYTHEBEST"
+  },
+  "RET_LIFESTYLE_STRESSFREE": {
+   "value": 1,
+   "cell": "B29",
+   "unit": "× today's spend",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFESTYLE_RATES",
+   "changedIn": "V0-16 renamed",
+   "label": "RET_LIFESTYLE_STRESSFREE"
+  },
+  "R_BAB_SIZE": {
+   "value": 27356.96,
+   "cell": "L28"
+  },
+  "R_BAB_WHEN": {
+   "value": 3,
+   "cell": "N28"
+  },
+  "R_CRI_SIZE": {
+   "value": 156325.47,
+   "cell": "L22"
+  },
+  "R_CRI_WHEN": {
+   "value": 55,
+   "cell": "N22"
+  },
+  "R_DEA_SIZE": {
+   "value": 15632.55,
+   "cell": "L21"
+  },
+  "R_DEA_WHEN": {
+   "value": 60,
+   "cell": "N21"
+  },
+  "R_HOS_SIZE": {
+   "value": 93795.28,
+   "cell": "L25"
+  },
+  "R_HOS_WHEN": {
+   "value": 50,
+   "cell": "N25"
+  },
+  "R_LTC_SIZE": {
+   "value": 129000,
+   "cell": "L26"
+  },
+  "R_LTC_WHEN": {
+   "value": 80,
+   "cell": "N26"
+  },
+  "R_PAC_SIZE": {
+   "value": 62530.19,
+   "cell": "L24"
+  },
+  "R_PAC_WHEN": {
+   "value": 45,
+   "cell": "N24"
+  },
+  "R_TPD_SIZE": {
+   "value": 156325.47,
+   "cell": "L23"
+  },
+  "R_TPD_WHEN": {
+   "value": 50,
+   "cell": "N23"
+  },
+  "R_WED_SIZE": {
+   "value": 46897.64,
+   "cell": "L27"
+  },
+  "R_WED_WHEN": {
+   "value": 5,
+   "cell": "N27"
+  },
+  "SAV_INCOME_MULT": {
+   "value": 1,
+   "cell": "B41",
+   "unit": "× annual income",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "need_calculator.py",
+   "changedIn": "V0-16 renamed",
+   "label": "SAV_INCOME_MULT"
+  },
+  "SAV_TARGET_AGE": {
+   "value": 40,
+   "cell": "B18",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "needEdit.ts (was +10 years)",
+   "changedIn": "V0-24",
+   "label": "SAV_TARGET_AGE (N_SAV default target: next car / investment)"
+  },
+  "TPD_COST": {
+   "value": 156325.47,
+   "cell": "B37",
+   "unit": "one-off",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "goal_math.py TPD_COST (SGD)",
+   "changedIn": "V0-15 USD; V0-21 also sent to HappiU",
+   "label": "TPD_COST (USD)"
+  },
+  "TPD_YEARS": {
+   "value": 5,
+   "cell": "B36",
+   "unit": "years",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py TPD_YEARS",
+   "label": "TPD_YEARS"
+  },
+  "ageOfRetirement": {
+   "value": 65,
+   "cell": "B14",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py RETIREMENT_AGE",
+   "label": "ageOfRetirement"
+  },
+  "annualBudget": {
+   "value": 1172.44,
+   "cell": "B73",
+   "unit": "per year",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "hu_payload.py (SGD 1,500)",
+   "changedIn": "V0-15",
+   "label": "annualBudget (USD)"
+  },
+  "assetReturn": {
+   "value": 0.03,
+   "cell": "B10",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py",
+   "label": "assetReturn"
+  },
+  "assetsSaveShare": {
+   "value": 0.5,
+   "cell": "B50",
+   "unit": "% of surplus",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "people_like_you.py",
+   "label": "assetsSaveShare"
+  },
+  "benefitRound": {
+   "value": 39081.37,
+   "cell": "B76",
+   "unit": "step",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "hu_payload.py (SGD 50,000)",
+   "changedIn": "V0-15",
+   "label": "benefitRound (USD, before nice step)"
+  },
+  "coverPremRoundStep": {
+   "value": 7.82,
+   "cell": "B69",
+   "unit": "step",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "planProducts.ts (SGD 10)",
+   "changedIn": "V0-15",
+   "label": "coverPremRoundStep (USD, before nice step)"
+  },
+  "coverSliderPremFloor": {
+   "value": 156.33,
+   "cell": "B70",
+   "unit": "per year",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "planProducts.ts (SGD 200)",
+   "changedIn": "V0-15",
+   "label": "coverSliderPremFloor (USD)"
+  },
+  "currentYear": {
+   "value": 2026,
+   "cell": "B16",
+   "unit": "year",
+   "currency": "—",
+   "status": "No currency",
+   "label": "currentYear"
+  },
+  "endAge": {
+   "value": 85,
+   "cell": "B17",
+   "unit": "age",
+   "currency": "—",
+   "status": "Derived",
+   "codeSource": "sv_payload.py endAge",
+   "changedIn": "V0-21: = default; chart uses the session LE",
+   "label": "endAge (chart horizon default)"
+  },
+  "fxMode": {
+   "value": "B",
+   "cell": "B23",
+   "unit": "A / B",
+   "currency": "—",
+   "status": "System",
+   "changedIn": "V0-15; V0-22 B",
+   "label": "fxMode (A = market rate; B = market rate × price level)"
+  },
+  "gfr": {
+   "value": 0.05,
+   "cell": "B75",
+   "unit": "%",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "hu_payload.py",
+   "label": "gfr"
+  },
+  "huNumSims": {
+   "value": 200,
+   "cell": "B77",
+   "unit": "count",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "hu_payload.py",
+   "label": "huNumSims"
+  },
+  "incomeGrowthRate": {
+   "value": 0.028,
+   "cell": "B8",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py",
+   "label": "incomeGrowthRate"
+  },
+  "inflationRate": {
+   "value": 0.023,
+   "cell": "B5",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py",
+   "label": "inflationRate"
+  },
+  "interestRate": {
+   "value": 0.012,
+   "cell": "B6",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py",
+   "label": "interestRate"
+  },
+  "investmentReturn": {
+   "value": 0.042,
+   "cell": "B9",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py / riskCapacity.ts",
+   "label": "investmentReturn"
+  },
+  "liabilityRatio": {
+   "value": 0.7,
+   "cell": "B52",
+   "unit": "× assets",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "people_like_you.py",
+   "label": "liabilityRatio (PLU only; not the mortgage)"
+  },
+  "lifeExpectancyDefault": {
+   "value": 85,
+   "cell": "B15",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "goal_math.py LIFE_EXPECTANCY",
+   "changedIn": "V0-21: the one default; GP sends it to HappiU and SV",
+   "label": "lifeExpectancyDefault"
+  },
+  "lifePremiumRate": {
+   "value": 0.0031,
+   "cell": "B61",
+   "unit": "% of sum",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "predict.py _assumed_life_policy",
+   "label": "lifePremiumRate"
+  },
+  "lifeRoundUnit": {
+   "value": 78162.73,
+   "cell": "B62",
+   "unit": "step",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py (SGD 100,000)",
+   "changedIn": "V0-15",
+   "label": "lifeRoundUnit (USD, before nice step)"
+  },
+  "loanRate": {
+   "value": 0.035,
+   "cell": "B7",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "session_rates.py",
+   "label": "loanRate"
+  },
+  "lumpRoundStep": {
+   "value": 781.63,
+   "cell": "B67",
+   "unit": "step",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "planProducts.ts (SGD 1,000)",
+   "changedIn": "V0-15",
+   "label": "lumpRoundStep (USD, before nice step)"
+  },
+  "monthlyRoundStep": {
+   "value": 39.08,
+   "cell": "B68",
+   "unit": "step",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "planProducts.ts (SGD 50)",
+   "changedIn": "V0-15",
+   "label": "monthlyRoundStep (USD, before nice step)"
+  },
+  "placeholderNeedBudget": {
+   "value": 156.33,
+   "cell": "B74",
+   "unit": "per year",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "hu_payload.py (SGD 200)",
+   "changedIn": "V0-15",
+   "label": "placeholderNeedBudget (USD)"
+  },
+  "priceLevelOn": {
+   "value": 1,
+   "cell": "B24",
+   "unit": "TRUE / FALSE",
+   "currency": "—",
+   "status": "System",
+   "changedIn": "V0-15; V0-22 switched on",
+   "label": "priceLevelOn (option B)"
+  },
+  "propertyHigh": {
+   "value": 664383.24,
+   "cell": "B57",
+   "unit": "value",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py seed_property_value (SGD)",
+   "changedIn": "V0-15",
+   "label": "propertyHigh (USD)"
+  },
+  "propertyIncomeHigh": {
+   "value": 15632.55,
+   "cell": "B59",
+   "unit": "per month",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py (SGD)",
+   "changedIn": "V0-15",
+   "label": "propertyIncomeHigh (USD / month)"
+  },
+  "propertyIncomeLow": {
+   "value": 7816.27,
+   "cell": "B58",
+   "unit": "per month",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py (SGD)",
+   "changedIn": "V0-15",
+   "label": "propertyIncomeLow (USD / month)"
+  },
+  "propertyLow": {
+   "value": 273569.57,
+   "cell": "B55",
+   "unit": "value",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py seed_property_value (SGD)",
+   "changedIn": "V0-15",
+   "label": "propertyLow (USD)"
+  },
+  "propertyMid": {
+   "value": 508057.77,
+   "cell": "B56",
+   "unit": "value",
+   "currency": "USD",
+   "status": "USD",
+   "codeSource": "predict.py seed_property_value (SGD)",
+   "changedIn": "V0-15",
+   "label": "propertyMid (USD)"
+  },
+  "protectionPremiumRate": {
+   "value": 0.00078,
+   "cell": "B65",
+   "unit": "% of sum",
+   "currency": "—",
+   "status": "Placeholder",
+   "codeSource": "planProducts.ts coverPremiumFor",
+   "openProposal": "Premium-quote API; too cheap for large covers (N_LTC)",
+   "label": "protectionPremiumRate"
+  },
+  "realReturn": {
+   "value": 0.0185728250244381,
+   "cell": "B11",
+   "unit": "% p.a.",
+   "currency": "—",
+   "status": "Derived",
+   "codeSource": "goal_math.real_return",
+   "label": "realReturn (derived)"
+  },
+  "spendShareBase": {
+   "value": 0.675,
+   "cell": "B47",
+   "unit": "% of take-home",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "src/cpf.py spend_share",
+   "label": "spendShareBase"
+  },
+  "spendShareCap": {
+   "value": 0.9,
+   "cell": "B49",
+   "unit": "% of take-home",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "src/cpf.py spend_share",
+   "label": "spendShareCap"
+  },
+  "spendSharePerDependant": {
+   "value": 0.05,
+   "cell": "B48",
+   "unit": "pp per dependant",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "src/cpf.py spend_share",
+   "label": "spendSharePerDependant"
+  },
+  "systemCurrency": {
+   "value": "USD",
+   "cell": "B22",
+   "unit": "code",
+   "currency": "—",
+   "status": "System",
+   "changedIn": "V0-15",
+   "label": "systemCurrency"
+  },
+  "workStartAge": {
+   "value": 21,
+   "cell": "B51",
+   "unit": "age",
+   "currency": "—",
+   "status": "No currency",
+   "codeSource": "people_like_you.py",
+   "label": "workStartAge"
+  }
+ }
+}

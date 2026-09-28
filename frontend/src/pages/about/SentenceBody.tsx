@@ -29,23 +29,6 @@ export function missing(session: GpSession) {
     .map(r => ({ k: r[0], l: r[1], v: val[r[0]] || '', assumed: !!(val[r[0]] || '').trim() }));
 }
 
-export function confirmLine(session: GpSession): string {
-  const rd = session.sentenceRead || {};
-  const parts: string[] = [];
-  if (rd.name) parts.push(rd.name);
-  if (rd.age) parts.push(rd.age);
-  if (rd.gender) parts.push(rd.gender);
-  if (rd.res) parts.push(rd.res);
-  if (rd.deps) parts.push(rd.deps === '1' ? '1 dependant' : `${rd.deps} dependants`);
-  if (rd.occ) parts.push(rd.occ);
-  const gaps: string[] = [];
-  if (!String(session.name || '').trim()) gaps.push('name missing');
-  if (!sessionAge(session)) gaps.push('age missing');
-  if (!String(session.occupation || '').trim()) gaps.push('occupation missing');
-  if (!parts.length && !gaps.length) return '';
-  return parts.join(' · ') + (gaps.length ? ' — ' + gaps.join(', ') : '');
-}
-
 export function SentenceBody({
   session,
   listening,
@@ -79,7 +62,7 @@ export function SentenceBody({
         <div className={`x-qbox ${listening ? 'rec' : ''}`}>
         <textarea
           className="x-qta"
-          rows={4}
+          rows={2}
           aria-label="Tell us about yourself in one sentence"
           placeholder="e.g. My name is Alex, 42, male Singapore citizen, married with two kids, working as a software engineer"
           value={session.sentence}
@@ -119,7 +102,6 @@ function readPanel(session: GpSession, parsing: boolean) {
   const rd = session.sentenceRead;
   if (rd && Object.keys(rd).length && !session.sentenceDirty) {
     const miss = missing(session);
-    const summary = confirmLine(session);
     const ready = d2cReady(session);
     const still = miss.length
       ? miss
@@ -149,7 +131,6 @@ function readPanel(session: GpSession, parsing: boolean) {
             </span>
           ))}
         </div>
-        {summary ? <p className="x-qconfirm">{summary}</p> : null}
         {!ready ? (
           <div className="x-qneed">
             <b>Still needed</b>

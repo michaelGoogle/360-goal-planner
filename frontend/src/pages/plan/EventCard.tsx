@@ -79,6 +79,7 @@ export function EventCard({
   startOpen,
   onToggle,
   onPatch,
+  currency = 'SGD',
 }: {
   ev: GpEvent;
   startAge: number;
@@ -87,6 +88,7 @@ export function EventCard({
   startOpen?: boolean;
   onToggle: () => void;
   onPatch: (p: Partial<GpEvent>) => void;
+  currency?: string;
 }) {
   const spec = STRESS_BY_ID[raw.id];
   const [open, setOpen] = useState(!!startOpen || raw.on);
@@ -104,7 +106,7 @@ export function EventCard({
   const when = rng
     ? `Age ${ageOf(ev.from)}–${ageOf(ev.to)} · ${yearOf(ev.from)}`
     : `Age ${ageOf(ev.year)} · ${yearOf(ev.year)}`;
-  const val = formatEventValue(ev.v, spec);
+  const val = formatEventValue(ev.v, spec, currency);
   const meta = rng ? `Age ${ageOf(ev.from)}–${ageOf(ev.to)} · ${val}` : `Age ${ageOf(ev.year)} · ${val}`;
   const shown = ev.on && open;
   const color = ev.on ? spec.color : '#CDD2D8';
@@ -137,7 +139,7 @@ export function EventCard({
             aria-expanded={shown}
             onClick={() => setOpen(o => !o)}
           >
-            {shown ? Ico.chev : Ico.pencil}
+            {Ico.pencil}
           </button>
         ) : null}
         <Switch

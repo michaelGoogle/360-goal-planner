@@ -2,6 +2,7 @@ import { ASSUME_DEFAULTS, pctAn, type AssumeKey } from '../../lib/assumptions';
 import { needCardGap, needCardHave } from '../../lib/needEdit';
 import {
   PLAN_FOR_NEED,
+  anyPlanOn,
   planAfford,
   planCoverPrem,
   planCoverSum,
@@ -67,6 +68,7 @@ export function ratioSummary(session: GpSession) {
     investments: session.investments,
     property: session.property,
     mortgage: session.mortgage,
+    loanRate: session.loanRate,
   });
   return { rows, ok: rows.filter(r => r.ok).length };
 }
@@ -94,6 +96,7 @@ export function changedAssumptions(session: GpSession) {
 const ASSUME_LABEL: Record<AssumeKey, string> = {
   inflationRate: 'Inflation',
   interestRate: 'Cash / savings interest',
+  loanRate: 'Loan rate',
   incomeGrowthRate: 'Income growth',
   investmentReturn: 'Net expected returns',
   assetReturn: 'Asset return',
@@ -111,7 +114,7 @@ export function walkSlides(
 ): WalkSlide[] {
   const name = firstName(session);
   const age = sessionAge(session);
-  const score = post ?? pre ?? 0;
+  const score = anyPlanOn(session) ? (post ?? pre ?? 0) : (pre ?? 0);
   const gap = biggestGap(session);
   const ratios = ratioSummary(session);
   const afford = planAfford(session);

@@ -94,9 +94,8 @@
 .x-chain>div.sep>span:first-child{font-size:12px;font-weight:750;letter-spacing:.7px;
  text-transform:uppercase;color:var(--ink1);flex:0 0 auto}
 .x-chain>div.sep>.x-coach-hit{padding:4px;margin:-4px}
-.x-chain>div.sep>.cv,.x-chain>div.sep>.x-coach-hit>.cv{display:flex;color:var(--ink2);flex:0 0 auto;transition:transform .2s}
+.x-chain>div.sep>.cv,.x-chain>div.sep>.x-coach-hit>.cv{display:flex;color:var(--acc);flex:0 0 auto}
 .x-chain>div.sep:focus-visible{outline:2px solid var(--acc2);outline-offset:2px;border-radius:8px}
-.x-chain.open>div.sep>.cv,.x-chain.open>div.sep>.x-coach-hit>.cv{transform:rotate(180deg)}
 .x-chain.fold:not(.open)>.t,
 .x-chain.fold:not(.open)>.none,
 .x-chain.fold:not(.open)>.pol,
@@ -136,10 +135,11 @@
 .x-pie{display:flex;align-items:center;gap:18px 24px;flex-wrap:wrap}
 .x-pied{position:relative;width:148px;height:148px;flex:0 0 auto}
 .x-pied svg{width:100%;height:100%}
-.x-pie .x-gkey{margin:0;flex:1;min-width:160px;flex-direction:column;align-items:flex-start;gap:8px}
-.x-pie .x-gk{font-size:14.5px;color:var(--ink0);gap:8px}
-.x-pie .x-gk .l{font-weight:650;color:var(--ink0)}
-.x-pie .x-gk b{font-size:inherit;font-weight:650;color:var(--ink1);letter-spacing:0;margin-left:0}
+.x-pie .x-gkey{margin:0;flex:1;min-width:160px;flex-direction:column;align-items:stretch;gap:8px}
+.x-pie .x-gi{display:flex;width:100%}
+.x-pie .x-gk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;width:100%;align-items:baseline;font-size:14.5px;color:var(--ink0);gap:8px}
+.x-pie .x-gk .l{font-weight:650;color:var(--ink0);text-align:left}
+.x-pie .x-gk b{font-size:inherit;font-weight:650;color:var(--ink1);letter-spacing:0;margin-left:0;text-align:right;font-variant-numeric:tabular-nums}
 /* .x-bar, .in and .out are all already used by the adviser build — hence the
    prefixed element name and the pos/neg modifiers. */
 .x-gline{display:flex;height:16px;border-radius:99px;overflow:hidden;background:#F1F4F8;

@@ -1,42 +1,33 @@
 """
-Need / gaps calculator — single seam for UNIFIED need amounts, projected have, and gap.
+Need / gaps calculator — session adapter around the USD Need Calculator service.
 
-Swap point for a later engine: ``evaluate_session`` is what ``POST /v1/needs``
-and ``POST /v1/predict`` call. Does not rank needs.
+``evaluate_session`` is what ``POST /v1/needs`` and ``POST /v1/predict`` call. It
+converts the session into USD, calls the service, and writes the rounded user-currency
+amounts back onto the same rows the UI already knows.
 """
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
-from src.hu_payload import need_existing
+from src.hu_payload import apply_investment_pot, need_existing
+from src.money import round_half_up, to_usd, to_user
+from src.needs import CALCULATOR_NEEDS, PROTECTION_NEEDS
 from src.pipeline.goal_math import (
-    ACCUMULATION_TYPES,
-    CI_COST,
-    CI_YEARS,
-    EDU_TOTAL_COST,
-    HOSP_MONTHS,
-    PROTECTION_TYPES,
     RETIREMENT_AGE,
-    TPD_COST,
-    TPD_YEARS,
     UNIFIED_TYPES,
     age_from_dob,
-    fv,
-    fv_annuity,
-    life_support_years,
+    income_support_years,
     lifestyle_rate,
-    pv_annuity,
-    pv_annuity_due,
-    real_return,
     remaining_gap,
-    round_money,
     round_to,
-    years_in_retirement,
     years_to_retirement,
 )
 from src.pipeline.onboarding import UNIFIED_NEED_TYPES, ensure_needs_map
+from src.predict import session_fx
+from src.services.config import service as config_service
+from src.services.need_calculator import service as calculator
+from src.services.need_calculator.models import GoalInputs, NeedCalculatorRequest
 from src.session_rates import session_rate
 
 _ROW_PASSTHROUGH = (
@@ -89,7 +80,6 @@ def _fill_defaults(session: dict[str, Any], row: dict[str, Any]) -> dict[str, An
     income = _num(session.get("incomeMonthly"))
     dependents = _int(session.get("dependents"))
     age = _session_age(session)
-    now_year = date.today().year
     lifestyle = _int(row.get("lifestyle"), 0)
     if lifestyle not in (1, 3):
         lifestyle = 2
@@ -97,9 +87,6 @@ def _fill_defaults(session: dict[str, Any], row: dict[str, Any]) -> dict[str, An
     if ret_age <= 0:
         ret_age = RETIREMENT_AGE
     target_year = _int(row.get("targetYear") or row.get("fundsNeededYear"), 0)
-    if target_year <= 0:
-        target_year = now_year + 10
-    years_to = max(1, target_year - now_year)
     existing = _existing_input(row, session)
     income_replace = row.get("incomeReplaceMonthly")
     if income_replace is None:
@@ -113,7 +100,7 @@ def _fill_defaults(session: dict[str, Any], row: dict[str, Any]) -> dict[str, An
     out["lifestyle"] = lifestyle
     out["retIncomeMonthly"] = round_to(_num(session.get("expenseMonthly")) * lifestyle_rate(lifestyle), 50)
     out["incomeReplaceMonthly"] = income_replace
-    support_years = life_support_years(age)
+    support_years = income_support_years(age)
     out["dependYears"] = _int(row.get("dependYears"), support_years)
     if out["dependYears"] <= 0:
         out["dependYears"] = support_years
@@ -121,138 +108,164 @@ def _fill_defaults(session: dict[str, Any], row: dict[str, Any]) -> dict[str, An
     out["liabilities"] = _num(row.get("liabilities"), _num(session.get("mortgage")))
     out["bequest"] = max(0.0, _num(row.get("bequest")))
     out["existing"] = existing
-    out["targetYear"] = target_year
-    out["fundsNeededYear"] = target_year
+    if target_year > 0:
+        out["targetYear"] = target_year
+        out["fundsNeededYear"] = target_year
     out["monthlyContribution"] = max(0.0, _num(row.get("monthlyContribution")))
     yrs_to_ret = years_to_retirement(ret_age, age)
     if t == "N_RET":
         out["contributeYears"] = yrs_to_ret
-    else:
-        out["contributeYears"] = _int(row.get("contributeYears"), years_to)
-        if out["contributeYears"] <= 0:
-            out["contributeYears"] = years_to
     out["_age"] = age
     return out
 
 
-def _need_amount(session: dict[str, Any], filled: dict[str, Any]) -> float:
+def _goal_inputs(filled: dict[str, Any], fx) -> GoalInputs:
     t = filled["type"]
-    inf = session_rate(session, "inflationRate")
-    r = real_return(session_rate(session, "investmentReturn"), inf)
-    if t == "N_RET":
-        annual = _num(session.get("expenseMonthly")) * 12.0 * lifestyle_rate(filled["lifestyle"])
-        t_yrs = years_to_retirement(_int(filled.get("retAge")), _int(filled.get("_age"), _session_age(session)))
-        n = years_in_retirement(_int(filled.get("retAge")))
-        return round_money(pv_annuity(fv(annual, r, t_yrs), r, n))
-    if t == "N_INC":
-        # Excel: bequest + liabilities + PV of annual spend over the support years.
-        return round_money(
-            _num(filled.get("bequest"))
-            + _num(filled.get("liabilities"))
-            + pv_annuity(_num(session.get("expenseMonthly")) * 12.0, r, _int(filled.get("dependYears")))
-        )
-    if t == "N_CRI":
-        return round_money(
-            pv_annuity_due(_num(filled.get("incomeReplaceMonthly")) * 12.0, r, CI_YEARS) + CI_COST
-        )
-    if t == "N_TPD":
-        return round_money(
-            pv_annuity_due(_num(filled.get("incomeReplaceMonthly")) * 12.0, r, TPD_YEARS) + TPD_COST
-        )
-    if t == "N_HOS":
-        return round_money(_num(session.get("incomeMonthly")) * HOSP_MONTHS)
-    if t == "N_EDU":
-        yrs = max(0, _int(filled.get("targetYear")) - date.today().year)
-        return round_money(EDU_TOTAL_COST * ((1 + inf) ** yrs))
-    stored = _num(filled.get("needAmount"))
-    if stored > 0:
-        return round_money(stored)
-    income = _num(session.get("incomeMonthly")) * 12.0
-    if t == "N_SAV":
-        return round_money(income)
-    if t == "N_PRP":
-        return round_money(5 * income)
-    return round_money(stored)
-
-
-def _have(session: dict[str, Any], filled: dict[str, Any]) -> float:
-    t = filled["type"]
-    existing = _num(filled.get("existing"))
-    if t not in ACCUMULATION_TYPES:
-        return round_money(existing)
-    r = real_return(session_rate(session, "investmentReturn"), session_rate(session, "inflationRate"))
-    age = _int(filled.get("_age"), _session_age(session))
-    if t == "N_RET":
-        yrs = years_to_retirement(_int(filled.get("retAge")), age)
-        return round_money(
-            fv(existing, r, yrs)
-            + fv_annuity(_num(filled.get("monthlyContribution")) * 12.0, r, yrs)
-        )
-    yrs = max(0, _int(filled.get("targetYear")) - date.today().year)
-    grown = fv(existing, r, yrs)
-    if t == "N_EDU":
-        return round_money(grown)
-    return round_money(
-        grown
-        + fv_annuity(_num(filled.get("monthlyContribution")) * 12.0, r, _int(filled.get("contributeYears")))
+    tagged = filled["existing"] if t in ("N_RET", "N_EDU", "N_SAV", "N_PRP") else 0.0
+    stored = _num(filled.get("needAmount")) if t in ("N_SAV", "N_PRP") else 0.0
+    return GoalInputs(
+        lifestyle=filled.get("lifestyle"),
+        retAge=filled.get("retAge"),
+        targetYear=filled.get("targetYear") or None,
+        bequestUsd=to_usd(filled.get("bequest") or 0, fx),
+        liabilitiesUsd=to_usd(filled.get("liabilities") or 0, fx) if t == "N_INC" else None,
+        dependYears=filled.get("dependYears"),
+        incomeReplaceMonthlyUsd=to_usd(filled.get("incomeReplaceMonthly") or 0, fx),
+        monthlyContributionUsd=to_usd(filled.get("monthlyContribution") or 0, fx),
+        storedAmountUsd=to_usd(stored, fx) if stored > 0 else None,
+        ltcStartAge=filled.get("ltcStartAge"),
+        taggedInvestmentsUsd=to_usd(tagged, fx),
     )
 
 
+def request_from_session(session: dict[str, Any], rows: list[dict[str, Any]]) -> NeedCalculatorRequest:
+    fx = session_fx(session)
+    cover = {}
+    inputs = {}
+    for row in rows:
+        t = row["type"]
+        inputs[t] = _goal_inputs(row, fx)
+        if t in PROTECTION_NEEDS:
+            cover[t] = to_usd(row.get("existing") or 0, fx)
+    return NeedCalculatorRequest(
+        age=_session_age(session),
+        ageOfRetirement=_int(session.get("ageOfRetirement"), RETIREMENT_AGE),
+        lifeExpectancy=_int(session.get("lifeExpectancy"), 0) or 85,
+        incomeMonthlyUsd=to_usd(session.get("incomeMonthly") or 0, fx),
+        expenseMonthlyUsd=to_usd(session.get("expenseMonthly") or 0, fx),
+        cashUsd=to_usd(session.get("cash") or 0, fx),
+        investmentsUsd=to_usd(session.get("investments") or 0, fx),
+        mortgageUsd=to_usd(session.get("mortgage") or 0, fx),
+        existingCoverUsd=cover,
+        enabled={row["type"]: bool(row.get("enabled")) for row in rows},
+        inputs=inputs,
+        inflationRate=session_rate(session, "inflationRate"),
+        investmentReturn=session_rate(session, "investmentReturn"),
+        priceLevel=float(fx.priceLevel or 1.0),
+        parametersVersion=str(session.get("parametersVersion") or ""),
+    )
+
+
+def _to_user(amount_usd: float, fx) -> float:
+    return round_half_up(to_user(amount_usd, fx), 0)
+
+
 def evaluate_need(session: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
-    """Fill defaults and compute needAmount / have / gap for one UNIFIED row."""
-    filled = _fill_defaults(session, row)
-    amount = _need_amount(session, filled)
-    have = _have(session, filled)
-    out: dict[str, Any] = {
-        "type": filled["type"],
-        "enabled": filled["enabled"],
-        "needAmount": amount,
-        "have": have,
-        "existing": filled["existing"],
-        "gap": remaining_gap(amount, have),
-        "retAge": filled["retAge"],
-        "lifestyle": filled["lifestyle"],
-        "retIncomeMonthly": filled["retIncomeMonthly"],
-        "incomeReplaceMonthly": filled["incomeReplaceMonthly"],
-        "dependYears": filled["dependYears"],
-        "dependants": filled["dependants"],
-        "liabilities": filled["liabilities"],
-        "bequest": filled["bequest"],
-        "targetYear": filled["targetYear"],
-        "fundsNeededYear": filled["fundsNeededYear"],
-        "monthlyContribution": filled["monthlyContribution"],
-        "contributeYears": filled["contributeYears"],
-    }
-    if filled["type"] in PROTECTION_TYPES:
-        out["existingSumAssured"] = filled["existing"]
-        out["existingInvestment"] = None
-    else:
-        out["existingInvestment"] = filled["existing"]
-        out["existingSumAssured"] = None
-    for key in _ROW_PASSTHROUGH:
-        if key in filled and filled[key] is not None:
-            out[key] = filled[key]
-    return out
+    """Fill one row. Prefer ``evaluate_session``; this exists for older callers."""
+    session = evaluate_session({**session, "needs": [row]})
+    return next(n for n in session["needs"] if n["type"] == row.get("type"))
 
 
 def evaluate_session(session: dict[str, Any]) -> dict[str, Any]:
     """
-    Recompute every UNIFIED need on the GP session.
+    Recompute every calculator need on the GP session.
 
-    Returns a shallow copy with ``needs`` (list of rows) and ``ageOfRetirement``.
+    Returns a shallow copy with ``needs`` (list of rows), ``ageOfRetirement``,
+    ``horizons`` and the R_LON block.
     """
     out = dict(session)
+    fx = session_fx(out)
     by_type: dict[str, dict[str, Any]] = {}
     for row in out.get("needs") or []:
         t = row.get("type")
         if t:
             by_type[t] = dict(row)
-    rows = []
+    rows_in = []
     for t in UNIFIED_TYPES:
         row = by_type.get(t) or {"type": t, "enabled": t in ("N_INC", "N_RET"), "needAmount": 0}
         row["type"] = t
-        rows.append(evaluate_need(out, row))
+        rows_in.append(_fill_defaults(out, row))
+    apply_investment_pot(rows_in, _num(out.get("investments")))
+
+    result = calculator.calculate(request_from_session(out, rows_in))
+    by_result = {n.type: n for n in result.needs}
+    year = int(config_service.value("currentYear", str(out.get("parametersVersion") or "")))
+    horizon_years = {
+        "N_RET": result.horizons.yearsToRet,
+        "N_EDU": result.horizons.eduYears,
+        "N_SAV": result.horizons.savYears,
+        "N_PRP": result.horizons.prpYears,
+    }
+
+    rows = []
+    for filled in rows_in:
+        t = filled["type"]
+        calc = by_result[t]
+        amount = _to_user(calc.needAmountUsd, fx)
+        have = _to_user(calc.haveUsd, fx)
+        target = year + horizon_years[t] if t in horizon_years else filled.get("targetYear")
+        out_row: dict[str, Any] = {
+            "type": t,
+            "enabled": filled["enabled"],
+            "needAmount": amount,
+            "have": have,
+            "existing": filled["existing"],
+            "gap": remaining_gap(amount, have),
+            "retAge": filled["retAge"],
+            "lifestyle": filled["lifestyle"],
+            "retIncomeMonthly": filled["retIncomeMonthly"],
+            "incomeReplaceMonthly": filled["incomeReplaceMonthly"],
+            "dependYears": filled["dependYears"],
+            "dependants": filled["dependants"],
+            "liabilities": filled["liabilities"],
+            "bequest": filled["bequest"],
+            "targetYear": target,
+            "fundsNeededYear": target,
+            "monthlyContribution": filled["monthlyContribution"],
+            "contributeYears": horizon_years.get(t, filled.get("contributeYears")),
+            "needAmountUsd": calc.needAmountUsd,
+            "haveUsd": calc.haveUsd,
+            "gapUsd": calc.gapUsd,
+        }
+        if t == "N_LTC":
+            out_row["ltcStartAge"] = filled.get("ltcStartAge") or int(
+                config_service.value("LTC_START_AGE", str(out.get("parametersVersion") or ""))
+            )
+            out_row["careYears"] = result.horizons.careYears
+        if t in PROTECTION_NEEDS:
+            out_row["existingSumAssured"] = filled["existing"]
+            out_row["existingInvestment"] = None
+        else:
+            out_row["existingInvestment"] = filled["existing"]
+            out_row["existingSumAssured"] = None
+        for key in _ROW_PASSTHROUGH:
+            if key in filled and filled[key] is not None:
+                out_row[key] = filled[key]
+        rows.append(out_row)
+
     out["needs"] = rows
+    out["horizons"] = result.horizons.model_dump()
+    lon = result.stress.get("R_LON")
+    if lon:
+        out["stress"] = {
+            "R_LON": {
+                "yearsInRetirement": lon.yearsInRetirement,
+                "careYears": lon.careYears,
+                "needAmount": {k: _to_user(v, fx) for k, v in lon.needAmountUsd.items()},
+                "gap": {k: _to_user(v, fx) for k, v in lon.gapUsd.items()},
+                "extraNeed": {k: _to_user(v, fx) for k, v in lon.extraNeedUsd.items()},
+            }
+        }
     ret = next((r for r in rows if r.get("type") == "N_RET"), None)
     if ret:
         out["ageOfRetirement"] = int(ret.get("retAge") or RETIREMENT_AGE)

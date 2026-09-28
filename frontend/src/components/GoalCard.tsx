@@ -2,16 +2,16 @@ import { useState, type ReactNode } from 'react';
 import { Switch } from './ui';
 import { Ico, NeedIcon } from '../lib/icons';
 import { fillNeedEdit, needCardGap, needCardHave, patchNeedInputs } from '../lib/needEdit';
+import { sessionCurrency } from '../lib/currency';
+import { PARKED_NEED_LABEL } from '../lib/needs';
 import {
-  EXTRA_NEED_ICONS,
-  EXTRA_NEEDS,
   money,
   NEED_META,
   NEED_TYPES,
-  type ExtraNeed,
   type GpSession,
   type NeedRow,
   type NeedType,
+  type ParkedNeedRow,
 } from '../lib/types';
 import { bannerFor, GoalEditor } from './GoalEditor';
 
@@ -49,6 +49,7 @@ export function GoalCard({
   const have = needCardHave(session, n);
   const req = n.needAmount || 0;
   const g = needCardGap(session, n);
+  const ccy = sessionCurrency(session);
   const pct = req ? Math.max(have > 0 ? 2 : 0, Math.min(100, (have / req) * 100)) : 100;
   const by =
     !edit && meta.group === 'w'
@@ -93,7 +94,7 @@ export function GoalCard({
           aria-expanded={edit}
           onClick={toggleEdit}
         >
-          {edit ? Ico.chev : Ico.pencil}
+          {Ico.pencil}
         </button>
         <Switch on={n.enabled} label={meta.label} onClick={onToggle} />
       </div>
@@ -117,12 +118,12 @@ export function GoalCard({
           <i style={{ width: `${pct}%` }} />
         </div>
         <div className="gc-v">
-          <span>{money(have)}</span>
-          <b>{money(req)}</b>
+          <span>{money(have, ccy)}</span>
+          <b>{money(req, ccy)}</b>
         </div>
         <div className={`gc-row gc-sf ${g > 0 ? 'no' : 'ok'}`}>
           <span>{g > 0 ? 'Shortfall' : 'Status'}</span>
-          <b>{g > 0 ? money(g) : 'Fully funded'}</b>
+          <b>{g > 0 ? money(g, ccy) : 'Fully funded'}</b>
         </div>
         {g > 0 && onAddPlan ? (
           <div className="gc-add">
@@ -143,11 +144,25 @@ export function GoalCard({
   );
 }
 
+export function ParkedCoverage({ parked }: { parked?: ParkedNeedRow[] }) {
+  if (!parked?.length) return null;
+  return (
+    <div className="x-add">
+      <span className="x-sm">Coverage to consider</span>
+      {parked.map(n => (
+        <span key={n.type} className="x-chip">
+          {PARKED_NEED_LABEL[n.type]}
+          {n.priority != null ? ` · ${n.priority}` : ''}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function NeedGroups({
   session,
   onChange,
   onToggleNeed,
-  onToggleExtra,
   onAddPlan,
   protectLead,
   growthLead,
@@ -155,27 +170,12 @@ export function NeedGroups({
   session: GpSession;
   onChange: (p: Partial<GpSession>) => void;
   onToggleNeed: (t: NeedType) => void;
-  onToggleExtra?: (k: ExtraNeed) => void;
   onAddPlan?: (t: NeedType) => void;
   protectLead?: ReactNode;
   growthLead?: ReactNode;
 }) {
   const col = (group: 'p' | 'w', lead?: ReactNode) => {
     const meta = NEED_GROUPS[group];
-    const extras =
-      group === 'p' && onToggleExtra
-        ? EXTRA_NEEDS.filter(x => session.extraNeeds.includes(x.k)).map(x => (
-            <div key={x.k} className="gc on">
-              <div className="gc-h">
-                <span className="gc-ic" style={{ borderColor: x.color }}>
-                  <span className="need-ico">{EXTRA_NEED_ICONS[x.k]}</span>
-                </span>
-                <b>{x.label}</b>
-                <Switch on label={x.label} onClick={() => onToggleExtra(x.k)} />
-              </div>
-            </div>
-          ))
-        : [];
     return (
       <div className="x-prodg">
         <div className="x-prodh">
@@ -184,7 +184,6 @@ export function NeedGroups({
         </div>
         <div className="x-prodl">
           {lead}
-          {extras}
           {needsInGroup(session, group).map(n => (
             <GoalCard
               key={n.type}

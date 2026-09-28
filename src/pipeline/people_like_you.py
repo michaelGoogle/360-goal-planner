@@ -201,10 +201,11 @@ def calculate_expenses_deterministically(
     marital_status: str,
     dependents: int,
     residency: str | None = None,
+    country: str | None = None,
 ) -> float:
     """Spend is a share of take-home. ``marital_status`` is unused."""
     del marital_status
-    return expenses_from_gross(income, dependents, age, residency)
+    return expenses_from_gross(income, dependents, age, residency, country)
 
 
 def risk_ability_to_profile(risk_ability: str | None) -> int:
@@ -437,11 +438,12 @@ def predict_people_like_you(
             marital_status=inferred_marital_status,
             dependents=dependents,
             residency=residency,
+            country=country,
         )
         predictions["expenses"] = expenses
 
         if income and expenses and age > 21:
-            savings_per_month = take_home_income(income, age, residency) - expenses
+            savings_per_month = take_home_income(income, age, residency, country) - expenses
             working_years = max(0, age - 21)
             assets = savings_per_month * 12 * 0.5 * working_years
             predictions["assets"] = max(0, assets)

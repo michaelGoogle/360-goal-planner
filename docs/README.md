@@ -14,7 +14,7 @@ Branded in the UI as **FinPlan360 · Powered by 360F**.
 | [Getting-started.md](Getting-started.md) | Developers | Install, env, local UI + BFF, Docker |
 | [Business-overview.md](Business-overview.md) | Product / all | Customer journey; what GP is and is not |
 | [People-like-you-and-needs.md](People-like-you-and-needs.md) | Product / engineers | How People Like You, Need Profiler, and Need Calculator are called and calculated |
-| [Calculations.md](Calculations.md) | Product / engineers | Formulas and data flow: PLU → profiler → calculator → plan → budget |
+| [calculations/Calculations.md](calculations/Calculations.md) | Product / engineers | Logic flow, shared Assumptions, and how each component calculates |
 | [HU-and-SV-payloads.md](HU-and-SV-payloads.md) | Engineers | What the same session sends to HappiU vs Scenario Visualizer |
 | [Risk.md](Risk.md) | Product / engineers | Risk capacity vs tolerance; mapping to net expected returns |
 | [risk-mgmt.md](risk-mgmt.md) | Product / engineers | Risk product decisions and build sequence |

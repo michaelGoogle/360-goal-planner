@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import {
   LIFESTYLE,
+  investmentRoom,
   moneyMax,
   nowYear,
   surplusAnnual,
   yearsWord,
   type NeedEdit,
 } from '../lib/needEdit';
-import { money, sessionAge, type GpSession, type NeedRow, type NeedType } from '../lib/types';
+import { sessionCurrency } from '../lib/currency';
+import { money, MAX_RETIREMENT_AGE, sessionAge, type GpSession, type NeedRow, type NeedType } from '../lib/types';
 
 function SliderRow({
   label,
@@ -99,19 +101,24 @@ export function GoalEditor({
   const age = sessionAge(session) || 40;
   const y = nowYear();
   const inc = session.incomeMonthly || 0;
-  const liq = (session.cash || 0) + (session.investments || 0);
+  const room = investmentRoom(session, type);
+  const ccy = sessionCurrency(session);
+  const $ = (n: number) => money(n, ccy);
 
   if (type === 'N_RET') {
+    const retMax = MAX_RETIREMENT_AGE;
+    const retMin = Math.min(retMax, Math.max(50, age + 1));
     return (
       <>
         <SliderRow
           label="Retirement age"
           display={`Age ${e.retAge}`}
-          min={Math.max(50, age + 1)}
-          max={75}
+          min={retMin}
+          max={retMax}
           step={1}
           value={e.retAge}
           onChange={v => onPatch({ retAge: v })}
+          note={e.retAge >= retMax ? 'Retirement age is capped at 70.' : undefined}
         />
         <SegRow
           label="Retirement lifestyle"
@@ -121,16 +128,16 @@ export function GoalEditor({
         />
         <SliderRow
           label="Amount already set aside"
-          display={money(e.existing)}
+          display={$(e.existing)}
           min={0}
-          max={moneyMax(liq, 500000)}
+          max={Math.max(room, 0)}
           step={500}
           value={e.existing}
           onChange={v => onPatch({ existing: v })}
         />
         <SliderRow
           label="Existing monthly contribution"
-          display={`${money(e.monthlyContribution)}/mo`}
+          display={`${$(e.monthlyContribution)}/mo`}
           min={0}
           max={moneyMax(Math.max(inc - (session.expenseMonthly || 0), 2000), 5000)}
           step={50}
@@ -152,11 +159,11 @@ export function GoalEditor({
           step={1}
           value={e.dependYears}
           onChange={v => onPatch({ dependYears: v })}
-          note={`Covers ${money(session.expenseMonthly || 0)}/mo of household spending`}
+          note={`Covers ${$(session.expenseMonthly || 0)}/mo of household spending`}
         />
         <SliderRow
           label="Liabilities to settle"
-          display={money(e.liabilities)}
+          display={$(e.liabilities)}
           min={0}
           max={moneyMax(session.mortgage || 0, 200000)}
           step={1000}
@@ -165,7 +172,7 @@ export function GoalEditor({
         />
         <SliderRow
           label="Legacy to leave behind"
-          display={money(e.bequest)}
+          display={$(e.bequest)}
           min={0}
           max={moneyMax(e.bequest, 500000)}
           step={5000}
@@ -174,7 +181,7 @@ export function GoalEditor({
         />
         <SliderRow
           label="Existing cover in force"
-          display={money(e.existing)}
+          display={$(e.existing)}
           min={0}
           max={moneyMax(n.needAmount || 0, 500000)}
           step={5000}
@@ -185,18 +192,48 @@ export function GoalEditor({
     );
   }
 
-  if (type === 'N_HOS') {
+  if (type === 'N_HOS' || type === 'N_PAC') {
     return (
       <SliderRow
         label="Existing cover in force"
-        display={money(e.existing)}
+        display={$(e.existing)}
         min={0}
         max={moneyMax(n.needAmount || 0, 500000)}
         step={5000}
         value={e.existing}
         onChange={v => onPatch({ existing: v })}
-        note={`Six months of income at ${money(inc)}/mo`}
+        note={
+          type === 'N_HOS'
+            ? `Six months of income at ${$(inc)}/mo`
+            : `Personal accident cover needed ${$(n.needAmount || 0)}`
+        }
       />
+    );
+  }
+
+  if (type === 'N_LTC') {
+    const startMin = Math.min(95, Math.max(age + 1, 60));
+    return (
+      <>
+        <SliderRow
+          label="Care start age"
+          display={`Age ${e.ltcStartAge}`}
+          min={startMin}
+          max={95}
+          step={1}
+          value={e.ltcStartAge}
+          onChange={v => onPatch({ ltcStartAge: v })}
+        />
+        <SliderRow
+          label="Existing cover in force"
+          display={$(e.existing)}
+          min={0}
+          max={moneyMax(n.needAmount || 0, 500000)}
+          step={5000}
+          value={e.existing}
+          onChange={v => onPatch({ existing: v })}
+        />
+      </>
     );
   }
 
@@ -205,7 +242,7 @@ export function GoalEditor({
       <>
         <SliderRow
           label="Monthly income to replace"
-          display={`${money(e.incomeReplaceMonthly)}/mo`}
+          display={`${$(e.incomeReplaceMonthly)}/mo`}
           min={0}
           max={moneyMax(inc, 20000)}
           step={100}
@@ -214,7 +251,7 @@ export function GoalEditor({
         />
         <SliderRow
           label="Existing cover in force"
-          display={money(e.existing)}
+          display={$(e.existing)}
           min={0}
           max={moneyMax(n.needAmount || 0, 500000)}
           step={5000}
@@ -240,9 +277,9 @@ export function GoalEditor({
         />
         <SliderRow
           label="Funds set aside for education"
-          display={money(e.existing)}
+          display={$(e.existing)}
           min={0}
-          max={moneyMax(liq, 200000)}
+          max={Math.max(room, 0)}
           step={500}
           value={e.existing}
           onChange={v => onPatch({ existing: v })}
@@ -266,7 +303,7 @@ export function GoalEditor({
       />
       <SliderRow
         label={amountLabel}
-        display={money(e.amountRequired)}
+        display={$(e.amountRequired)}
         min={0}
         max={moneyMax(0, 5_000_000)}
         step={5000}
@@ -275,16 +312,16 @@ export function GoalEditor({
       />
       <SliderRow
         label={setAsideLabel}
-        display={money(e.existing)}
+        display={$(e.existing)}
         min={0}
-        max={moneyMax(liq, 200000)}
+        max={Math.max(room, 0)}
         step={500}
         value={e.existing}
         onChange={v => onPatch({ existing: v })}
       />
       <SliderRow
         label="Existing monthly contribution"
-        display={`${money(e.monthlyContribution)}/mo`}
+        display={`${$(e.monthlyContribution)}/mo`}
         min={0}
         max={moneyMax(Math.max(inc - (session.expenseMonthly || 0), 2000), 5000)}
         step={50}
@@ -313,12 +350,12 @@ export function bannerFor(session: GpSession, type: NeedType, e: NeedEdit): stri
   if (type === 'N_INC') {
     const d = e.dependants;
     const dep = `${d} dependant${d === 1 ? '' : 's'}`;
-    return `${dep} and ${money(e.liabilities)} of debt outstanding`;
+    return `${dep} and ${money(e.liabilities, sessionCurrency(session))} of debt outstanding`;
   }
   if (type === 'N_SAV') {
     const left = surplusAnnual(session);
     if (!left) return 'Unallocated saving needs a target to be worth anything';
-    return `${money(left)} a year left over · unallocated saving needs a target to be worth anything`;
+    return `${money(left, sessionCurrency(session))} a year left over · unallocated saving needs a target to be worth anything`;
   }
   return null;
 }

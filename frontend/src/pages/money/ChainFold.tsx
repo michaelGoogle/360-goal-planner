@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 import { Tip } from '../../components/ui';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { Ico } from '../../lib/icons';
 import { money } from '../../lib/types';
 
@@ -20,6 +21,7 @@ export function ChainFold({
   chevronRef?: RefObject<HTMLSpanElement | null>;
   children: ReactNode;
 }) {
+  const isMobile = useIsMobile();
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -37,12 +39,16 @@ export function ChainFold({
         onClick={onToggle}
         onKeyDown={onKey}
       >
-        <span>{title}</span>
-        {tag}
+        <span ref={isMobile ? chevronRef : undefined}>{title}</span>
+        {isMobile ? null : tag}
         <em className="u">{unit}</em>
-        <span ref={chevronRef} className="x-coach-hit">
-          <span className="cv">{Ico.chev}</span>
-        </span>
+        {isMobile ? (
+          tag
+        ) : (
+          <span ref={chevronRef} className="x-coach-hit">
+            <span className="cv">{Ico.pencil}</span>
+          </span>
+        )}
       </div>
       {children}
     </div>

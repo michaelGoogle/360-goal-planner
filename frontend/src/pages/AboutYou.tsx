@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { ClassicToggle, Foot, SecHead } from '../components/ui';
 import { parseAboutYou } from '../lib/api';
@@ -40,6 +40,7 @@ export function AboutYou({
   const skipDebounceRef = useRef(false);
   const sentenceBoxRef = useRef<HTMLDivElement>(null);
   const classicRef = useRef<HTMLSpanElement>(null);
+  const gtTtRef = useRef<HTMLElement | null>(null);
   const [listening, setListening] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [err, setErr] = useState('');
@@ -62,6 +63,10 @@ export function AboutYou({
   }, [session, onChange, onToast]);
 
   useEffect(() => () => recRef.current?.stop(), []);
+
+  useLayoutEffect(() => {
+    gtTtRef.current = document.getElementById('x-gttt-switch');
+  }, []);
 
   const runExtract = async (t: string, opts?: { fromVoice?: boolean }) => {
     const text = t.trim();
@@ -273,14 +278,20 @@ export function AboutYou({
         onComplete={onGtTtComplete}
         steps={[
           {
-            title: 'Tell us in one sentence',
-            body: 'Type or speak a little about yourself — who you are, your age, family, job and residency. You do not need to add any numbers. We fill in the details from what you say.',
-            anchorRef: sentenceBoxRef,
+            title: 'Turn tool tips on or off',
+            body: 'Use this switch in the top right to turn these guides on or off. Leave it on to see a short tip on each page, or switch it off once you know your way around.',
+            anchorRef: gtTtRef,
+            aboveHeader: true,
           },
           {
             title: 'Or enter data classically',
             body: 'Turn on Enter data classically to fill each field yourself, or to edit what we captured from your sentence.',
             anchorRef: classicRef,
+          },
+          {
+            title: 'Tell us in one sentence',
+            body: 'Type or speak a little about yourself — who you are, your age, family, job and residency. You do not need to add any numbers. We fill in the details from what you say.',
+            anchorRef: sentenceBoxRef,
           },
         ]}
       />
@@ -291,7 +302,7 @@ export function AboutYou({
         </button>
         <span className="sp" />
         <button className="x-btn p" type="button" disabled={!d2cReady(session) || busy} onClick={onEstimate}>
-          {busy ? 'Predicting…' : 'Predict my finance →'}
+          {busy ? 'Predicting…' : 'Predict finance'}
         </button>
       </Foot>
     </>

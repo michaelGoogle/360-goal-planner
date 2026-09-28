@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { GpSession, Route } from '../lib/types';
 import { ROUTES, ROUTE_LABEL } from '../lib/types';
 import { suitePortalUrl } from '../lib/auth';
 import { postJson, sessionPayload, type CrmSyncResponse } from '../lib/api';
 import { Ico } from '../lib/icons';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useOrientation } from '../hooks/useOrientation';
 
 export function Shell({
   route,
@@ -53,8 +55,28 @@ export function Shell({
     planId?: string;
   }) => void;
 }) {
+  const isMobile = useIsMobile();
+  const orientation = useOrientation();
+  const isIntro = route === 'd2cIntro';
+  const immersive = isMobile && orientation === 'landscape' && route === 'd2cPlan';
+  const hideFabs = isMobile && orientation === 'landscape';
+  const showFabs = !hideFabs && (!isMobile || isIntro);
+  const showHeaderAdvisors = isMobile && !isIntro && !immersive;
+  const showAssume = !!onAssume && !isMobile;
+  const brand = isMobile && !isIntro ? 'F360' : 'FinPlan360 · Goal Planner';
+  const rootClass = [
+    'x',
+    isMobile ? 'x-mobile' : '',
+    isMobile ? (orientation === 'landscape' ? 'x-landscape' : 'x-portrait') : '',
+    isMobile && isIntro ? 'x-intro' : '',
+    immersive ? 'x-immersive' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   const cur = ROUTES.indexOf(route);
-  const pct = Math.round((cur / (ROUTES.length - 1)) * 100);
+  const steps: Route[] = ROUTES.filter(r => r !== 'd2cIntro');
+  const stepCur = steps.indexOf(route);
+  const pct = stepCur < 0 ? 0 : Math.round((stepCur / (steps.length - 1)) * 100);
   const [adv, setAdv] = useState(false);
   const [advSent, setAdvSent] = useState(false);
   const [advEmail, setAdvEmail] = useState('');
@@ -62,6 +84,26 @@ export function Shell({
   const [advVia, setAdvVia] = useState('');
   const [advBusy, setAdvBusy] = useState(false);
   const [advErr, setAdvErr] = useState('');
+  const [release, setRelease] = useState('');
+
+  useEffect(() => {
+    let cancel = false;
+    fetch('/v1/release')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        const id =
+          data && typeof data.R === 'string' && data.R.trim()
+            ? data.R.trim()
+            : data && typeof data.release === 'string'
+              ? data.release.trim()
+              : '';
+        if (!cancel && id) setRelease(id);
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
   const sendAdv = () => {
     const em = advEmail.trim();
@@ -104,68 +146,128 @@ export function Shell({
   };
 
   return (
-    <div className="x">
-      <header className="x-top">
-        <a href={suitePortalUrl()} className="x-logo" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <i>F</i>
-          <div>
-            <b>FinPlan360</b>
-            <span>Powered by 360F</span>
+    <div className={rootClass}>
+      {immersive ? null : (
+        <header className="x-top">
+          <div className="x-logo">
+            <a href={suitePortalUrl()} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <i>F</i>
+            </a>
+            <div>
+              <a href={suitePortalUrl()} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <b>{brand}</b>
+              </a>
+              <span>
+                Powered by 360F
+                {release ? (
+                  <>
+                    {' · '}
+                    <a href={`${suitePortalUrl()}release-notes/`}>R {release}</a>
+                  </>
+                ) : null}
+              </span>
+            </div>
           </div>
-        </a>
-        <nav className="x-nav" aria-label="Progress">
-          {ROUTES.map((r, i) => (
+          {isMobile ? null : (
+            <nav className="x-nav" aria-label="Progress">
+              {steps.map((r, n) => {
+                const i = ROUTES.indexOf(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`${r === route ? 'on' : ''} ${i < cur ? 'done' : ''}`}
+                    disabled={i > maxStep}
+                    aria-current={r === route ? 'step' : undefined}
+                    title={ROUTE_LABEL[r]}
+                    onClick={() => onGo(r)}
+                  >
+                    <i>{i < cur ? '✓' : n + 1}</i>
+                    <span>{ROUTE_LABEL[r]}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+          <div className="x-top-end">
+            {showHeaderAdvisors ? (
+              <>
+                <button
+                  className={`x-top-ico mira ${miraOn ? 'on' : ''}${miraPaused ? ' paused' : ''}`}
+                  type="button"
+                  onClick={onMira}
+                  aria-pressed={!!miraOn}
+                  aria-label={
+                    miraOn
+                      ? miraPaused
+                        ? 'Resume Mira'
+                        : 'Pause Mira'
+                      : 'Talk to Mira (AI advisor)'
+                  }
+                  title={miraOn ? (miraPaused ? 'Resume Mira' : 'Pause Mira') : 'Talk to Mira (AI advisor)'}
+                >
+                  {miraOn ? (miraPaused ? Ico.play : Ico.pause) : Ico.wand}
+                </button>
+                {advSent ? (
+                  <span className="x-top-ico done" title={`We will be in touch on ${advVia}.`}>
+                    {Ico.check}
+                  </span>
+                ) : (
+                  <button
+                    className="x-top-ico human"
+                    type="button"
+                    aria-label="Talk to a human advisor"
+                    title="Talk to a human advisor"
+                    onClick={() => {
+                      setAdvEmail(session?.reportEmail || advEmail);
+                      setAdvPhone(session?.reportMobile || advPhone);
+                      setAdvErr('');
+                      setAdv(true);
+                    }}
+                  >
+                    {Ico.chat}
+                  </button>
+                )}
+              </>
+            ) : null}
+            {showAssume ? (
+              <button
+                className={`x-top-assume ${assumeOn ? 'on' : ''}`}
+                type="button"
+                aria-pressed={!!assumeOn}
+                aria-label="Assumptions"
+                title="Assumptions"
+                onClick={onAssume}
+              >
+                {Ico.sliders}
+                <span>Assumptions</span>
+                {nAssume ? <em className="x-assn">{nAssume}</em> : null}
+              </button>
+            ) : null}
             <button
-              key={r}
+              id="x-gttt-switch"
+              className={`x-gttt ${gtTtOn ? 'on' : ''}`}
               type="button"
-              className={`${i === cur ? 'on' : ''} ${i < cur ? 'done' : ''}`}
-              disabled={i > maxStep}
-              aria-current={i === cur ? 'step' : undefined}
-              title={ROUTE_LABEL[r]}
-              onClick={() => onGo(r)}
+              role="switch"
+              aria-checked={gtTtOn}
+              aria-label="Tool tips"
+              title={gtTtOn ? 'Tool tips on' : 'Tool tips off'}
+              onClick={onGtTtToggle}
             >
-              <i>{i < cur ? '✓' : i + 1}</i>
-              <span>{ROUTE_LABEL[r]}</span>
+              <span className="x-gttt-l">Tool tips</span>
+              <span className="x-togs">
+                <i className="x-togk" />
+              </span>
             </button>
-          ))}
-        </nav>
-        <div className="x-top-end">
-          {onAssume ? (
-            <button
-              className={`x-top-assume ${assumeOn ? 'on' : ''}`}
-              type="button"
-              aria-pressed={!!assumeOn}
-              aria-label="Assumptions"
-              title="Assumptions"
-              onClick={onAssume}
-            >
-              {Ico.sliders}
-              <span>Assumptions</span>
-              {nAssume ? <em className="x-assn">{nAssume}</em> : null}
-            </button>
-          ) : null}
-          <button
-            className={`x-gttt ${gtTtOn ? 'on' : ''}`}
-            type="button"
-            role="switch"
-            aria-checked={gtTtOn}
-            aria-label="Tool tips"
-            title={gtTtOn ? 'Tool tips on' : 'Tool tips off'}
-            onClick={onGtTtToggle}
-          >
-            <span className="x-gttt-l">Tool tips</span>
-            <span className="x-togs">
-              <i className="x-togk" />
-            </span>
-          </button>
-        </div>
-        <span className="x-bar" style={{ width: `${pct}%` }} />
-      </header>
+          </div>
+          <span className="x-bar" style={{ width: `${pct}%` }} />
+        </header>
+      )}
       <main className="canvas x-scroll" id="main" tabIndex={-1}>
         <div className="x-wrap">{children}</div>
       </main>
       {overlay}
-      {adv ? (
+      {hideFabs ? null : adv ? (
         <div className="x-advp" role="dialog" aria-label="Talk to an adviser">
           <button className="cl" type="button" onClick={() => setAdv(false)} aria-label="Close">
             {Ico.close}
@@ -213,7 +315,7 @@ export function Shell({
           </div>
           <div className="x-fine">We save your details and this plan for the adviser.</div>
         </div>
-      ) : (
+      ) : showFabs ? (
         <div className="x-fabs">
           <button
             className={`x-fab mira ${miraOn ? 'on' : ''}${miraPaused ? ' paused' : ''}`}
@@ -228,7 +330,7 @@ export function Shell({
                 ? miraPaused
                   ? 'Mira is paused — resume'
                   : 'Mira is speaking — pause'
-                : 'Let Mira guide you (AI adviser)'}
+                : 'Talk to Mira (AI advisor)'}
             </span>
           </button>
           {advSent ? (
@@ -246,14 +348,14 @@ export function Shell({
                 setAdvErr('');
                 setAdv(true);
               }}
-              title="Leave a number or email for an adviser"
+              title="Leave a number or email for an advisor"
             >
               {Ico.chat}
-              <span>Let me talk to a human adviser</span>
+              <span>Talk to a human advisor</span>
             </button>
           )}
         </div>
-      )}
+      ) : null}
       {toast ? <div className="toast">{toast}</div> : null}
     </div>
   );

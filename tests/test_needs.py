@@ -7,11 +7,17 @@ from datetime import date
 from fastapi.testclient import TestClient
 from src.app import api
 from src.pipeline.goal_math import (
-    CI_COST,
-    CI_YEARS,
-    EDU_TOTAL_COST,
-    life_support_years,
+    CRI_COST,
+    CRI_YEARS,
+    EDU_COST,
+    fv,
+    income_support_years,
+    pv_annuity,
     pv_annuity_due,
+    real_return,
+    session_life_expectancy,
+    years_in_retirement,
+    years_to_retirement,
 )
 from src.pipeline.need_calculator import evaluate_session
 
@@ -85,10 +91,10 @@ def _amount(session: dict, need_type: str) -> float:
 
 
 def test_life_support_years_boundaries():
-    assert life_support_years(25) == 25
-    assert life_support_years(30) == 20
-    assert life_support_years(42) == 10
-    assert life_support_years(45) == 10
+    assert income_support_years(25) == 25
+    assert income_support_years(30) == 20
+    assert income_support_years(42) == 10
+    assert income_support_years(45) == 10
 
 
 def test_protection_goldens_match_excel_shapes():
@@ -129,7 +135,7 @@ def test_education_inflates_single_cost_to_target_year():
     a = _amount(near, "N_EDU")
     b = _amount(far, "N_EDU")
     assert a == 94149
-    assert b == round(EDU_TOTAL_COST * 1.023**15)
+    assert b == round(EDU_COST * 1.023**15)
     assert b > a
 
 
@@ -148,7 +154,7 @@ def test_needs_endpoint_returns_have_and_gap():
     assert body["session"]["ageOfRetirement"] == 65
     cri = by_type["N_CRI"]
     real = (1 + 0.035) / (1 + 0.023) - 1
-    assert cri["needAmount"] == round(pv_annuity_due(6800 * 12, real, CI_YEARS) + CI_COST)
+    assert cri["needAmount"] == round(pv_annuity_due(6800 * 12, real, CRI_YEARS) + CRI_COST)
     hos = by_type["N_HOS"]
     assert hos["needAmount"] == 6 * 6800
 
@@ -165,10 +171,41 @@ def test_retirement_contribution_raises_have_not_need():
     assert b["gap"] < a["gap"]
 
 
-def test_retirement_existing_excludes_cpf():
+def test_untagged_wealth_does_not_take_cash_or_investments():
     session = _ret_session(ret_age=65)
     session["cpfOa"] = 999_999
-    session["cpfSa"] = 999_999
+    session["needs"].append({"type": "N_EDU", "enabled": True, "targetYear": date.today().year + 10})
     del session["needs"][0]["existing"]
-    ret = next(n for n in evaluate_session(session)["needs"] if n["type"] == "N_RET")
-    assert ret["existing"] == 70_000 + 84_224
+    rows = {n["type"]: n for n in evaluate_session(session)["needs"]}
+    assert rows["N_RET"]["existing"] == 0
+    assert rows["N_EDU"]["existing"] == 0
+
+
+def test_investment_tags_are_sequential_and_exclude_cash():
+    session = _ret_session(ret_age=65, existing=60_000)
+    session["needs"].append(
+        {"type": "N_SAV", "enabled": True, "existing": 50_000, "needAmount": 80_000}
+    )
+    rows = {n["type"]: n for n in evaluate_session(session)["needs"]}
+    assert rows["N_RET"]["existing"] == 60_000
+    assert rows["N_SAV"]["existing"] == 24_224
+
+
+def test_retirement_need_grows_at_real_return():
+    session = _ret_session(ret_age=65)
+    row = next(n for n in evaluate_session(session)["needs"] if n["type"] == "N_RET")
+    r = real_return(0.035, 0.023)
+    annual = 4000 * 12
+    t_yrs = years_to_retirement(65, 42)
+    n = years_in_retirement(65, session_life_expectancy(session))
+    assert row["needAmount"] == round(pv_annuity(fv(annual, r, t_yrs), r, n))
+
+
+def test_retirement_need_uses_session_life_expectancy():
+    short = _ret_session(ret_age=65)
+    long = _ret_session(ret_age=65)
+    short["lifeExpectancy"] = 81
+    long["lifeExpectancy"] = 86
+    a = next(n for n in evaluate_session(short)["needs"] if n["type"] == "N_RET")
+    b = next(n for n in evaluate_session(long)["needs"] if n["type"] == "N_RET")
+    assert b["needAmount"] > a["needAmount"]

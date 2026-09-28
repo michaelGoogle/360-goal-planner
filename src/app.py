@@ -6,8 +6,11 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -15,26 +18,19 @@ from src.explain import KINDS, ROUTES, generate_explanation
 from src.heygen.jobs import get_job
 from src.heygen.media_store import dummy_media_url
 from src.heygen.pipeline import NotifyError, resume_pending, submit_notify
-from src.hu_payload import build_happiu_payload, need_existing
 from src.insapi_client import InsApiError
-from src.insapi_sync import schedule_insapi_sync, sync_contact_and_plan
+from src.insapi_sync import sync_contact_and_plan
 from src.openai_client import llm_configured
+from src.orchestration.needs import run_needs
+from src.orchestration.predict import run_predict
+from src.orchestration.project import build_payload_only, run_project
+from src.orchestration.score import run_score
 from src.parse_sentence import extract_about_you
-from src.pipeline.need_calculator import evaluate_session
-from src.pipeline.run import run_need_profiler, run_people_like_you
-from src.predict import (
-    UNIFIED_TYPES,
-    _apply_plu,
-    _needs_from_profiler,
-    session_dict,
-)
-from src.sv_payload import build_sv_payload
-from src.upstream import UpstreamError, hu_happiu, sv_project
+from src.release_info import load_release_id
+from src.services import all_routers
+from src.services.errors import GpError, ServiceError
 
 logger = logging.getLogger(__name__)
-PLU_UNAVAILABLE = (
-    "360-PeopleLikeU(r) is not available, so we cannot predict your financial future."
-)
 
 
 @asynccontextmanager
@@ -68,6 +64,28 @@ api.add_middleware(
     allow_headers=["*"],
 )
 
+for _service_router in all_routers():
+    api.include_router(_service_router)
+
+
+@api.exception_handler(ServiceError)
+def _service_error(_request: Request, exc: ServiceError) -> JSONResponse:
+    """The service envelope: {"error": <code>, ...}."""
+    return JSONResponse(status_code=exc.status, content=jsonable_encoder(exc.payload()))
+
+
+@api.exception_handler(RequestValidationError)
+def _validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    """FastAPI's own 422, plus the error code and field list the services promise.
+
+    ``detail`` keeps its shape, because the frontend already reads it.
+    """
+    errors = jsonable_encoder(exc.errors())
+    return JSONResponse(
+        status_code=422,
+        content={"error": "validation_failed", "detail": errors, "fields": errors},
+    )
+
 
 class ParseSentenceBody(BaseModel):
     text: str = ""
@@ -85,6 +103,14 @@ class GpSession(BaseModel):
     gender: str = "Male"
     residency: str = "Singapore Citizen"
     nationality: str = "Singapore"
+    # Where they live and what they hold. The country picks the social-security module
+    # and the price level; the currency picks the rate everything is converted at.
+    country: str = "Singapore"
+    currency: str = "SGD"
+    # The rate and price level this session was calculated at, so a rate published
+    # mid-session cannot change a number the customer has already been shown. Locked on
+    # the first predict and sent back with every later call.
+    fx: dict[str, Any] | None = None
     occupation: str = ""
     dependents: int = 0
     dateOfBirth: str | None = None
@@ -100,11 +126,16 @@ class GpSession(BaseModel):
     policies: list[dict[str, Any]] = Field(default_factory=list)
     needs: list[dict[str, Any]] = Field(default_factory=list)
     events: list[dict[str, Any]] = Field(default_factory=list)
-    inflationRate: float = 0.023
-    interestRate: float = 0.012
-    incomeGrowthRate: float = 0.028
-    investmentReturn: float = 0.042
-    assetReturn: float = 0.03
+    # Absent means "use the parameter version", which is how a published rate change
+    # reaches a session that never touched the assumption box. See session_rates.py.
+    inflationRate: float | None = None
+    interestRate: float | None = None
+    incomeGrowthRate: float | None = None
+    investmentReturn: float | None = None
+    loanRate: float | None = None
+    assetReturn: float | None = None
+    lifeExpectancy: int | None = None
+    parametersVersion: str = ""
     plansOff: list[str] = Field(default_factory=list)
     planMth: dict[str, float] = Field(default_factory=dict)
     planLump: dict[str, float] = Field(default_factory=dict)
@@ -135,6 +166,13 @@ class VideoNotifyBody(BaseModel):
 @api.get("/healthz")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "gp"}
+
+
+@api.get("/v1/release")
+def release() -> dict[str, str | None]:
+    """lx43 release id (N-YYYY-MM-DD) from deployment/release_notes/latest.json."""
+    ident = load_release_id()
+    return {"R": ident, "release": ident}
 
 
 @api.post("/v1/parse-sentence")
@@ -170,130 +208,40 @@ def explain(body: ExplainBody) -> dict[str, Any]:
     return {"success": True, "kind": kind, "source": source, "text": text}
 
 
+def _run(orchestrator, body: GpSession) -> dict[str, Any]:
+    """Call an orchestrator and translate its GpError back into the old envelope."""
+    try:
+        return orchestrator(body.model_dump())
+    except GpError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
+
+
 @api.post("/v1/predict")
 def predict(body: GpSession) -> dict[str, Any]:
     """People Like You → Need Profiler → Need Calculator. Errors if People Like You cannot run."""
-    session = session_dict(body.model_dump())
-    notes: list[str] = []
-
-    try:
-        plu = run_people_like_you(session)
-    except Exception as exc:
-        logger.warning("People Like You unavailable: %s", exc)
-        raise HTTPException(status_code=503, detail=PLU_UNAVAILABLE) from exc
-    session = _apply_plu(session, plu)
-
-    plu_data = (plu.get("onboarding") or {}).get("data") or {}
-    prefs = ((session.get("plu") or {}).get("clientPreferences") or {})
-    policy_owner = {
-        "dateOfBirth": session["dateOfBirth"],
-        "gender": session.get("gender"),
-        "occupation": session.get("occupation"),
-        "dependents": session.get("dependents"),
-        "country": "Singapore",
-        "city": "Singapore",
-        "isSmoker": bool(session.get("isSmoker") or prefs.get("isSmoker")),
-        "ageOfRetirement": session.get("ageOfRetirement"),
-    }
-    finance = {
-        "monthlyIncome": session["incomeMonthly"],
-        "monthlyExpense": session["expenseMonthly"],
-        "liquidAssetValue": float(session.get("cash") or 0) + float(session.get("investments") or 0),
-        "property": float(session.get("property") or 0),
-    }
-    try:
-        npr = run_need_profiler(
-            policy_owner,
-            finance,
-            people_like_you=plu_data.get("peopleLikeYou"),
-            top_n=4,
-        )
-        session = _needs_from_profiler(session, npr)
-    except Exception as exc:
-        logger.warning("Need Profiler unavailable: %s", exc)
-        notes.append("Need Profiler unavailable; enabled default goals.")
-        deps = int(session.get("dependents") or 0)
-        has_property = float(session.get("property") or 0) > 0
-        default_on = {"N_INC", "N_CRI", "N_RET", "N_PRP" if has_property else "N_SAV"}
-        if deps:
-            default_on = {"N_INC", "N_CRI", "N_RET", "N_EDU"}
-        session["needs"] = [
-            {"type": t, "enabled": t in default_on, "needAmount": 0, "priority": 3}
-            for t in UNIFIED_TYPES
-        ]
-
-    for n in session.get("needs") or []:
-        n["existing"] = need_existing(n, session)
-
-    try:
-        session = evaluate_session(session)
-    except Exception as exc:
-        logger.warning("Need Calculator unavailable: %s", exc)
-        notes.append("Need Calculator unavailable; amounts stay at zero until HU/SV.")
-
-    schedule_insapi_sync(session)
-    return {"success": True, "session": session, "notes": notes}
+    return _run(run_predict, body)
 
 
 @api.post("/v1/needs")
 def needs(body: GpSession) -> dict[str, Any]:
     """Recompute needAmount, projected have, and gap from the current session inputs."""
-    session = session_dict(body.model_dump())
-    try:
-        session = evaluate_session(session)
-    except Exception as exc:
-        logger.warning("Need Calculator unavailable: %s", exc)
-        raise HTTPException(status_code=503, detail="Need Calculator unavailable") from exc
-    return {
-        "success": True,
-        "session": {
-            "needs": session.get("needs") or [],
-            "ageOfRetirement": session.get("ageOfRetirement"),
-        },
-    }
+    return _run(run_needs, body)
 
 
 @api.post("/v1/score")
 def score(body: GpSession) -> dict[str, Any]:
-    payload = build_happiu_payload(session_dict(body.model_dump()))
-    try:
-        status, data = hu_happiu(payload)
-    except UpstreamError as exc:
-        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
-    if status >= 400:
-        raise HTTPException(status_code=status, detail=data)
-    result = data.get("result") if isinstance(data, dict) else data
-    pre = (result or {}).get("preHappiU") if isinstance(result, dict) else None
-    post = (result or {}).get("postHappiU") if isinstance(result, dict) else None
-    schedule_insapi_sync(session_dict(body.model_dump()), pre=pre, post=post)
-    return {
-        "success": True,
-        "preHappiU": pre,
-        "postHappiU": post,
-        "result": result,
-        "breakdown": data.get("breakdown") if isinstance(data, dict) else None,
-    }
+    return _run(run_score, body)
 
 
 @api.post("/v1/project")
 def project(body: GpSession) -> dict[str, Any]:
-    payload = build_sv_payload(session_dict(body.model_dump()))
-    try:
-        status, data = sv_project(payload)
-    except UpstreamError as exc:
-        raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
-    if status >= 400:
-        raise HTTPException(status_code=status, detail=data)
-    inner = data.get("data") if isinstance(data, dict) else data
-    schedule_insapi_sync(session_dict(body.model_dump()))
-    return {"success": True, "data": inner, "raw": data, "payload": payload}
+    return _run(run_project, body)
 
 
 @api.post("/v1/sv-payload")
 def sv_payload(body: GpSession) -> dict[str, Any]:
     """Map the session to an SV body without running the projection (debug)."""
-    payload = build_sv_payload(session_dict(body.model_dump()))
-    return {"success": True, "payload": payload}
+    return _run(build_payload_only, body)
 
 
 @api.get("/v1/report-walkthrough")

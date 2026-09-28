@@ -148,6 +148,7 @@ export function SvChart({
           type: 'scatter',
           mode: 'lines',
           name: 'Without this plan',
+          showlegend: false,
           line: { color: SV_COLORS.wealthWithout, width: 2.5, dash: 'dot' },
           hoverinfo: 'name+y',
         });
@@ -239,7 +240,9 @@ export function SvChart({
         onDragEnd={handleDragEnd}
         onMarkerClick={onMarkerClick}
       />
-      <Plot data={traces} layout={layout} className="x-svplot" />
+      <div className="x-svplot-stage">
+        <Plot data={traces} layout={layout} className="x-svplot" />
+      </div>
       {x.length > 1 ? (
         <RangeSlider
           min={0}

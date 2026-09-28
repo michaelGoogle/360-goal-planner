@@ -11,18 +11,22 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from src.fx import to_usd
+from src.needs import CUSTOMER_ONLY_NEEDS, PROTECTION_PICK_ORDER
 from src.pipeline.onboarding import (
     AI_NEED_LABELS,
     AI_NEED_TO_UNIFIED,
     snake_to_camel,
 )
 
+MONEY_FACTORS = ("Income", "Expense", "Assets", "Liabilities")
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_N = 4
 MANDATORY_UNIFIED = ("N_RET",)
-PROTECTION_UNIFIED = ("N_INC", "N_CRI", "N_TPD", "N_HOS")
-GROWTH_UNIFIED = ("N_RET", "N_EDU", "N_SAV", "N_PRP")
+PROTECTION_UNIFIED = PROTECTION_PICK_ORDER
+GROWTH_UNIFIED = ("N_RET", "N_EDU", "N_SAV")
 GROUP_N = 2
 
 
@@ -33,16 +37,17 @@ def select_unified_top(
     mandatory: tuple[str, ...] = MANDATORY_UNIFIED,
     has_property: bool | None = None,
 ) -> list[str]:
-    """Two wealth-protection and two wealth-growth types. Retirement is always one of the growth pair.
+    """Two protection needs and two growth needs. Retirement is always one of the growth pair.
 
-    When ``has_property`` is true, Property purchase (N_PRP) beats Savings (N_SAV)
-    for the second growth slot. When false, Savings is the default instead.
+    N_PRP and N_LTC have no profiler label, so they are never auto-picked. Home ownership
+    does not swap savings for a home-purchase goal. ``has_property`` is unused; it stays
+    on the signature because leftover callers still pass it.
     """
-    _ = (top_n, mandatory)
+    _ = (top_n, mandatory, has_property)
     ranked_uts: list[str] = []
     for need in ranked:
         ut = need.get("unifiedType")
-        if ut and ut not in ranked_uts:
+        if ut and ut not in ranked_uts and ut not in CUSTOMER_ONLY_NEEDS:
             ranked_uts.append(ut)
     prot: list[str] = []
     grow: list[str] = ["N_RET"]
@@ -58,29 +63,12 @@ def select_unified_top(
             break
         if ut not in prot:
             prot.append(ut)
-    growth_fill = ["N_RET", "N_EDU"]
-    if has_property:
-        growth_fill += ["N_PRP", "N_SAV"]
-    else:
-        growth_fill += ["N_SAV", "N_PRP"]
-    for ut in growth_fill:
+    for ut in ("N_EDU", "N_SAV"):
         if len(grow) >= GROUP_N:
             break
         if ut not in grow:
             grow.append(ut)
-    return prot[:GROUP_N] + _growth_pair(grow, has_property)
-
-
-def _growth_pair(grow: list[str], has_property: bool | None) -> list[str]:
-    grow = grow[:GROUP_N]
-    if has_property is None:
-        return grow
-    want, drop = ("N_PRP", "N_SAV") if has_property else ("N_SAV", "N_PRP")
-    if want in grow:
-        return grow
-    if drop in grow:
-        return [want if t == drop else t for t in grow]
-    return grow
+    return prot[:GROUP_N] + grow[:GROUP_N]
 
 
 def load_needs_config() -> dict[str, Any]:
@@ -158,51 +146,8 @@ def _get_option_weight(
             0.0,
         )
 
-    if factor_name == "Income" and isinstance(value, (int, float)):
-        usd_value = value * 0.75
-        if usd_value < 108:
-            return 4.0
-        if usd_value < 243:
-            return 3.0
-        if usd_value < 1081:
-            return 2.0
-        if usd_value < 2703:
-            return 1.0
-        return 0.0
-
-    if factor_name == "Expense" and isinstance(value, (int, float)):
-        usd_value = value * 0.75
-        if usd_value < 68:
-            return 4.0
-        if usd_value < 135:
-            return 3.0
-        if usd_value < 541:
-            return 2.0
-        if usd_value < 1351:
-            return 1.0
-        return 0.0
-
-    if factor_name in ("Assets", "Liabilities") and isinstance(value, (int, float)):
-        usd_value = value * 0.75
-        if factor_name == "Assets":
-            if usd_value < 541:
-                return 4.0
-            if usd_value < 1351:
-                return 3.0
-            if usd_value < 5405:
-                return 2.0
-            if usd_value < 27027:
-                return 1.0
-            return 0.0
-        if usd_value < 270:
-            return 4.0
-        if usd_value < 541:
-            return 3.0
-        if usd_value < 1351:
-            return 2.0
-        if usd_value < 5405:
-            return 1.0
-        return 0.0
+    if factor_name in MONEY_FACTORS and isinstance(value, (int, float)):
+        return _usd_band_weight(options, float(value))
 
     # Booleans (ownership / existing cover)
     if isinstance(value, bool):
@@ -231,6 +176,19 @@ def _get_option_weight(
             return float(opt["weight"])
 
     return 0.0
+
+
+def _usd_band_weight(options: list[dict[str, Any]], usd_value: float) -> float:
+    """Read ``lt`` cut-overs from Need_profiler.json weight_options (USD after FX)."""
+    if not options:
+        return 0.0
+    for opt in options:
+        lt = opt.get("lt")
+        if lt is None:
+            return float(opt["weight"])
+        if usd_value < float(lt):
+            return float(opt["weight"])
+    return float(options[-1]["weight"])
 
 
 def _calculate_weighted_score(
@@ -289,7 +247,10 @@ def _calculate_weighted_score(
         if need_name not in factor_weights:
             continue
         need_weight = float(factor_weights[need_name])
-        option_weight = _get_option_weight(factor_name, value, weight_options)
+        option_value = value
+        if factor_name in MONEY_FACTORS and isinstance(value, (int, float)):
+            option_value = to_usd(float(value), profile.get("Currency"))
+        option_weight = _get_option_weight(factor_name, option_value, weight_options)
         total += need_weight * option_weight
 
     return round(total, 2)

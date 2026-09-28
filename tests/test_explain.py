@@ -28,6 +28,22 @@ def test_prompt_files_exist_and_load():
     needs = load_prompt("needs", "d2cScore")
     assert "goals and needs" in needs.lower()
     assert "do not talk about a plan" in needs.lower()
+    mira_about = load_prompt("mira", "d2cAbout")
+    assert "sentence box" in mira_about.lower() or "enter data classically" in mira_about.lower()
+    products = load_prompt("prod", None)
+    assert "critical illness" in products.lower()
+
+
+def test_explain_mira_about_does_not_say_speak(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    client = TestClient(api)
+    r = client.post("/v1/explain", json={"kind": "mira", "route": "d2cAbout", "context": {}})
+    assert r.status_code == 200
+    text = r.json()["text"].lower()
+    assert "press speak" not in text
+    assert "sentence" in text or "box" in text
+
 
 
 def test_explain_fallback_without_key(monkeypatch):
@@ -106,11 +122,12 @@ def test_explain_needs_fallback(monkeypatch):
     assert r.json()["source"] == "fallback"
     assert "people like michael" in text
     assert "retirement" in text
+    assert "life expectancy" in text
     assert "savings goal" in text
     assert "fully funded" in text
     assert "largest gap" in text
-    assert "plan" not in text
     assert "happiu" not in text
+    assert "3,000,000 dollars" in text or "3,000,000" in r.json()["text"]
 
 
 def test_explain_uses_llm_when_configured(monkeypatch):

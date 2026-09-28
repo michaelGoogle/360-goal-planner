@@ -1,5 +1,81 @@
 
 /* =========================================================
+   JS-driven mobile chrome (PA breakpoint: ≤767 or tablet-touch).
+   Desktop is unchanged unless .x-mobile is on the root.
+   ========================================================= */
+.x-mobile .x-nav,
+.x-mobile .x-top-assume{display:none}
+.x-mobile .x-hero-visual{display:none}
+.x-mobile .x-hero{grid-template-columns:1fr}
+.x-mobile .x-wrap,.x-mobile .x-wrap.w,.x-mobile .x-wrap.l,.x-mobile .x-wrap.m{
+  max-width:100%;padding:16px 16px 88px}
+.x-mobile.x-intro .x-wrap,.x-mobile.x-intro .x-wrap.w,.x-mobile.x-intro .x-wrap.l,.x-mobile.x-intro .x-wrap.m{
+  padding-bottom:220px}
+.x-mobile .x-sticky{bottom:0;padding-bottom:8px;z-index:70}
+.x-mobile.x-intro .x-sticky{bottom:118px}
+.x-mobile .x-fabs{right:12px;bottom:12px;left:12px;align-items:stretch;gap:8px;
+  padding-bottom:env(safe-area-inset-bottom)}
+.x-mobile .x-fab{padding:12px 16px;font-size:13.5px;justify-content:center;text-align:left}
+.x-mobile .x-top-ico{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;
+  border:0;border-radius:10px;padding:0;cursor:pointer;flex:0 0 auto}
+.x-mobile .x-top-ico svg{width:17px;height:17px}
+.x-mobile .x-top-ico.mira{background:#0C1424;color:#fff}
+.x-mobile .x-top-ico.mira svg{fill:#fff;stroke:none}
+.x-mobile .x-top-ico.mira.on{background:#E5484D}
+.x-mobile .x-top-ico.human{background:#2554D6;color:#fff}
+.x-mobile .x-top-ico.human svg{fill:none;stroke:#fff}
+.x-mobile .x-top-ico.done{background:#E6FBF0;color:#0B7A3B}
+.x-mobile .x-top-end{gap:8px}
+.x-mobile .x-foot{flex-wrap:nowrap;gap:8px}
+.x-mobile .x-foot .sp{flex:1 1 6px;height:auto;min-width:4px}
+.x-mobile .x-foot .x-btn{flex:0 1 auto;padding:10px 12px;font-size:14px;white-space:nowrap}
+.x-mobile .x-foot .x-btn.p{flex:1 1 auto;min-width:0}
+.x-mobile .x-card,.x-mobile .x-why,.x-mobile .x-needs,.x-mobile .x-prod,.x-mobile .x-hero{
+  background:transparent;border:none;box-shadow:none;border-radius:0}
+.x-mobile .x-why,.x-mobile .x-needs,.x-mobile .x-prod{padding:0;margin-bottom:8px}
+.x-mobile .x-card.x-pad,.x-mobile .x-card.x-fade{padding:0}
+.x-mobile .x-hero{padding:8px 0 0}
+.x-mobile .x-chain{background:transparent;border:none;box-shadow:none;border-radius:0;
+  padding-left:0;padding-right:0}
+.x-mobile .x-card+.x-card,.x-mobile .x-card+.x-sec,.x-mobile .x-sec{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--ln)}
+.x-mobile .x-quick>.x-secb,.x-mobile .x-sec.open>.x-secb{margin-left:0;margin-right:0}
+.x-mobile .x-score-viz{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--ln)}
+.x-mobile .x-chain.fold{background:transparent;border:none;box-shadow:none;border-radius:0}
+.x-mobile .x-chain.fold+.x-chain.fold{margin-top:8px;padding-top:8px;border-top:1px solid var(--ln)}
+.x-mobile .x-chain.fold>div.sep{flex-wrap:wrap;align-items:center;row-gap:8px}
+.x-mobile .x-chain.fold>div.sep>span:first-child{flex:1 1 auto}
+.x-mobile .x-chain.fold>div.sep>.x-gtag{flex:1 0 100%;white-space:normal;max-width:100%;line-height:1.35}
+.x-mobile .x-gtag.x-gtag-ico{position:relative;cursor:pointer;padding:5px 7px;min-width:28px;
+  justify-content:center}
+.x-mobile .x-gtag.x-gtag-ico.on{background:var(--acc-t);color:var(--acc)}
+.x-rotate{margin:0 0 18px;padding:14px 16px;border-radius:14px;border:1px solid var(--acc-t2);
+  background:var(--acc-t);color:var(--acc-d)}
+.x-rotate-t{margin:0;font-size:15px;font-weight:750;letter-spacing:-.2px}
+.x-rotate-s{margin:4px 0 0;font-size:13px;line-height:1.45;color:var(--ink1)}
+.x-mobile .x-tip,.x-mobile .x-tip.w{position:fixed;left:50%;top:50%;right:auto;bottom:auto;
+  transform:translate(-50%,-50%);width:calc(100vw - 32px);max-width:400px;
+  max-height:70vh;overflow:auto;border-radius:18px;z-index:95}
+.x-mobile .x-tip:before{display:none}
+.x-landscape .x-fabs,.x-landscape .x-advp{display:none}
+.x-immersive{min-height:100dvh;height:100dvh;overflow:hidden}
+.x-immersive .x-scroll{overflow:hidden}
+.x-immersive .x-wrap,.x-immersive .x-wrap.w,.x-immersive .x-wrap.l,.x-immersive .x-wrap.m{
+  max-width:none;padding:8px 10px;height:100%;display:flex;flex-direction:column;min-height:0}
+.x-immersive .x-svcard{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  overflow:hidden;border-radius:14px}
+.x-immersive .x-svhead{flex-wrap:wrap;padding:10px 12px}
+.x-immersive .x-svplot-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.x-immersive .x-markrail,.x-immersive .x-xrange{flex:0 0 auto}
+/* Ages already sit on the plot axis. Drop the duplicate label line and the
+   slack under the track so the curve keeps the short landscape viewport. */
+.x-immersive .x-xrange{padding-bottom:4px}
+.x-immersive .x-xrange-track{height:24px}
+.x-immersive .x-xrange-labs{display:none}
+.x-immersive .x-svplot-stage{flex:1 1 auto;min-height:0;position:relative}
+.x-immersive .x-svplot{position:absolute;inset:0;width:100%;height:100%;min-height:0}
+
+/* =========================================================
    The phone. Nothing above this line changes on a desktop.
    ========================================================= */
 @media(max-width:860px){
@@ -15,11 +91,11 @@
  .x .objright{min-width:0}
  .x .card-b,.x .card-h{padding-left:16px!important;padding-right:16px!important}
 }
-.x-qta{min-height:132px}
+.x-qta{min-height:72px}
 .x-doc b{line-height:1.3}
 
 @media(max-width:700px){
- .x-qta{min-height:170px}
+ .x-qta{min-height:88px}
  .x-scoreh{margin-bottom:12px}
  /* chart view chips and the four panel tabs scroll rather than clip */
  .x .card-h>.row{flex:1 1 100%!important;overflow-x:auto;-webkit-overflow-scrolling:touch;
@@ -58,12 +134,9 @@
  .x-chain>div{font-size:13.2px;flex-wrap:nowrap;gap:8px}
  /* the derivation suffix is in the tip; on a phone it only makes the row wrap */
  .x-chain .rsub{display:none}
- /* On a narrow row a trailing ⓘ orphans onto a line of its own whenever the
-    label wraps. Leading it instead keeps every row two lines at worst and the
-    button always beside its label. */
  .x-chain>div:not(.sep)>span:first-child{flex:1 1 auto;align-items:flex-start}
- .x-chain>div:not(.sep)>span:first-child>.x-tipw{order:-1;margin-left:-6px}
- .x-chain>div:not(.sep)>span:first-child>.x-rtag{order:1}
+ .x-chain>div:not(.sep)>span:first-child>.x-tipw{order:2;margin-left:2px}
+ .x-chain>div:not(.sep)>span:first-child>.x-rtag{order:3}
  .x-chain>div b{font-size:14.5px}
  .x-chain>div.t b{font-size:15px}
  .x-chain>div.b b{font-size:17px}
@@ -81,8 +154,9 @@
  .x-pie .x-gk{font-size:13.2px}
  .x-pie .x-gk b{font-size:inherit}
  .x-prov{font-size:10.5px;padding:3px 8px}
- /* a tip on a phone is a sheet, not a bubble */
- .x-tip,.x-tip.w{position:fixed;left:12px;right:12px;top:auto;bottom:12px;width:auto;
+ /* a tip on a phone is a centered sheet, not a bubble */
+ .x-tip,.x-tip.w{position:fixed;left:50%;top:50%;right:auto;bottom:auto;
+  transform:translate(-50%,-50%);width:calc(100vw - 32px);max-width:400px;
   max-height:70vh;overflow:auto;border-radius:18px;z-index:95}
  .x-tip:before{display:none}
  .x-sech{padding:16px 16px;gap:11px;align-items:flex-start;flex-wrap:wrap}
@@ -95,9 +169,10 @@
  .x-sech>.cv{margin-top:4px}
  .x-sech>.t b{font-size:15.5px}
  .x-quick>.x-secb,.x-sec.open>.x-secb{margin:0 16px;padding:17px 0 19px}
- .x-foot{gap:10px}
- .x-foot .x-btn{flex:1 1 auto;justify-content:center;text-align:center}
- .x-foot .sp{flex:0 0 100%;height:0}
+ .x-foot{gap:8px;flex-wrap:nowrap}
+ .x-foot .x-btn{flex:0 1 auto;justify-content:center;text-align:center;white-space:nowrap}
+ .x-foot .x-btn.p{flex:1 1 auto}
+ .x-foot .sp{flex:1 1 6px;height:auto;min-width:4px}
 }
 @media(max-width:430px){
  .x-pills button{padding:11px 16px}

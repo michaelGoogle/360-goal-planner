@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { capEnabledNeeds, toggleNeedEnabled } from './needEdit';
-import { NEED_TYPES, type NeedRow, type NeedType } from './types';
+import { capEnabledNeeds, minExpenseMonthly, patchNeedInputs, toggleNeedEnabled } from './needEdit';
+import { EMPTY_SESSION, NEED_TYPES, type NeedRow, type NeedType } from './types';
 
 function row(type: NeedType, enabled: boolean, gap: number): NeedRow {
   return { type, enabled, needAmount: gap, gap };
@@ -25,23 +25,21 @@ test('cap keeps two protection and two growth, retirement always on', () => {
   assert.deepEqual(on(needs).sort(), ['N_CRI', 'N_EDU', 'N_RET', 'N_TPD']);
 });
 
-test('property on the books defaults the second growth slot to property purchase', () => {
+test('owning a home does not swap savings for a home-purchase goal', () => {
   const needs = capEnabledNeeds(
     all({ N_CRI: true, N_TPD: true, N_RET: true, N_SAV: true }, { N_SAV: 80, N_PRP: 40 }),
-    { hasProperty: true },
-  );
-  assert.equal(needs.find(n => n.type === 'N_PRP')?.enabled, true);
-  assert.equal(needs.find(n => n.type === 'N_SAV')?.enabled, false);
-  assert.equal(needs.find(n => n.type === 'N_RET')?.enabled, true);
-});
-
-test('no property defaults the second growth slot to savings', () => {
-  const needs = capEnabledNeeds(
-    all({ N_CRI: true, N_TPD: true, N_RET: true, N_PRP: true }, { N_SAV: 80, N_PRP: 40 }),
-    { hasProperty: false },
   );
   assert.equal(needs.find(n => n.type === 'N_SAV')?.enabled, true);
   assert.equal(needs.find(n => n.type === 'N_PRP')?.enabled, false);
+  assert.equal(needs.find(n => n.type === 'N_RET')?.enabled, true);
+});
+
+test('N_PRP stays off unless the customer already switched it on', () => {
+  const needs = capEnabledNeeds(
+    all({ N_CRI: true, N_TPD: true, N_RET: true, N_PRP: true }, { N_SAV: 80, N_PRP: 40 }),
+  );
+  assert.equal(needs.find(n => n.type === 'N_PRP')?.enabled, true);
+  assert.equal(needs.find(n => n.type === 'N_SAV')?.enabled, false);
 });
 
 test('clicking a lower-gap need adds it without dropping the others', () => {
@@ -81,4 +79,21 @@ test('turning a need off does not immediately turn it back on', () => {
   );
   const next = toggleNeedEnabled(start, 'N_CRI');
   assert.equal(next.find(n => n.type === 'N_CRI')?.enabled, false);
+});
+
+test('editing a need marks provenance as your own figures', () => {
+  const s = {
+    ...EMPTY_SESSION,
+    needs: [row('N_RET', true, 100)],
+  };
+  const open = patchNeedInputs(s, 'N_RET', {});
+  assert.equal(open.provenance, undefined);
+  const edited = patchNeedInputs(s, 'N_RET', { retAge: 68 });
+  assert.equal(edited.provenance?.needs, 'you');
+});
+
+test('spend floor is USD 100 converted at the session lock', () => {
+  assert.equal(minExpenseMonthly(undefined), 100);
+  assert.equal(minExpenseMonthly({ fx: { usdPerLocal: 1 } }), 100);
+  assert.equal(minExpenseMonthly({ fx: { usdPerLocal: 0.7816 } }), 127.94);
 });

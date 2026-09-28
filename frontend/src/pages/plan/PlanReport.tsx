@@ -3,8 +3,8 @@ import { HappiUGauge } from '../../components/HappiUGauge';
 import { EqPie, GroupTag } from '../../components/ui';
 import { Ico } from '../../lib/icons';
 import { getJson } from '../../lib/api';
+import { PARKED_NEED_LABEL } from '../../lib/needs';
 import {
-  EXTRA_NEEDS,
   NEED_META,
   POLICY_COL,
   assets,
@@ -30,7 +30,7 @@ import {
   reportPrintedOn,
   rnum,
 } from './reportModel';
-import { planAfford } from '../../lib/planProducts';
+import { anyPlanOn, planAfford } from '../../lib/planProducts';
 
 const REPORT_JUMP = [
   ['rpt-video', 'Video'],
@@ -77,7 +77,7 @@ export function PlanReport({
   const who = firstName(session);
   const age = sessionAge(session);
   const today = reportPrintedOn();
-  const score = post ?? pre ?? 0;
+  const score = anyPlanOn(session) ? (post ?? pre ?? 0) : (pre ?? 0);
   const band = happiBand(score);
   const lift = pre != null && post != null ? Math.round(post) - Math.round(pre) : null;
   const liftCopy =
@@ -94,7 +94,7 @@ export function PlanReport({
   const plans = planLines(session);
   const assume = changedAssumptions(session);
   const eventsOn = session.events.filter(e => e.on);
-  const extras = EXTRA_NEEDS.filter(x => session.extraNeeds.includes(x.k));
+  const parked = session.parkedNeeds || [];
   const moneyKeys = ['income', 'expense', 'cash', 'investments', 'property', 'loans', 'cover'] as const;
   const mInc = session.incomeMonthly;
   const surplus = availableBudget(session);
@@ -327,8 +327,10 @@ export function PlanReport({
               ))}
             </tbody>
           </table>
-          {extras.length ? (
-            <p className="x-sm">Also on: {extras.map(x => x.label).join(', ')}.</p>
+          {parked.length ? (
+            <p className="x-sm">
+              Coverage to consider: {parked.map(n => PARKED_NEED_LABEL[n.type]).join(', ')}.
+            </p>
           ) : null}
         </ReportSec>
 

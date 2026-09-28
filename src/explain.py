@@ -69,6 +69,17 @@ def listed_prompt_files() -> list[str]:
     return sorted(set(names))
 
 
+def _say_money_exact(n: Any) -> str:
+    """Spoken exact dollars. No rounding to millions."""
+    try:
+        v = int(round(abs(float(n or 0))))
+    except (TypeError, ValueError):
+        return "zero dollars"
+    if v == 0:
+        return "zero dollars"
+    return f"{v:,} dollars"
+
+
 def _say_money(n: Any) -> str:
     try:
         v = abs(float(n or 0))
@@ -160,8 +171,8 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
         )
         return (
             "This first screen is six answers about you. Nothing financial yet. "
-            "The quickest way is to say it in one sentence — press Speak and describe yourself "
-            "the way you would to a person. If you would rather type it into boxes, turn on "
+            "The quickest way is to type it in the box on the screen — one sentence, "
+            "the way you would describe yourself to a person. If you would rather type it into boxes, turn on "
             "Enter data classically. "
             + tail
         )
@@ -218,10 +229,15 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
             lab = _need_spoken_label(n)
             gap = _gap_of(n)
             if gap > 0:
-                short_bits.append(f"{lab} is short by {_say_money(gap)}")
+                short_bits.append(f"{lab} is short by {_say_money_exact(gap)}")
             else:
                 funded.append(lab)
-        bits = [f"These are the goals and needs people like {who} typically have."]
+        bits = [
+            f"These goals and needs are typical for people like {who}. "
+            "Retirement is on the list because you do not work until life expectancy, so you need a plan for the years after work. "
+            "Critical illness is there because treatment can be extremely costly. "
+            "A property goal can cut housing cost later and build an asset."
+        ]
         if short_bits:
             bits.append(". ".join(short_bits) + ".")
         if funded:
@@ -252,7 +268,7 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
             end_wealth = chart.get("withPlanEnd") if plans_on else (chart.get("withoutEnd") or chart.get("withPlanEnd"))
             return (
                 f"This chart is your money projected from age {start} to {end}. "
-                f"You are looking at net wealth {side}. It reaches {_say_money(end_wealth)} "
+                f"You are looking at gross assets {side}. It reaches {_say_money(end_wealth)} "
                 f"by age {end}.{extra} It is not a forecast. "
                 f"It is arithmetic on the rates under Assumptions."
             )
@@ -289,6 +305,18 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
             if products.get("lifeOn")
             else "Life cover is switched off. "
         )
+        cri = (
+            f"Critical illness cover {_say_money(products.get('criPrem'))} a year, "
+            f"sum assured {_say_money(products.get('criSum'))}. "
+            if products.get("criOn")
+            else ""
+        )
+        tpd = (
+            f"Disability cover {_say_money(products.get('tpdPrem'))} a year, "
+            f"sum assured {_say_money(products.get('tpdSum'))}. "
+            if products.get("tpdOn")
+            else ""
+        )
         inv = (
             f"Investment plan {_say_money(products.get('investMth'))} a month. "
             if products.get("investOn")
@@ -298,6 +326,8 @@ def fallback_script(kind: str, route: str | None, context: dict[str, Any]) -> st
             "Two kinds of product sit on this screen: cover that absorbs an event, "
             "and an investment plan that builds the balance. "
             + life
+            + cri
+            + tpd
             + inv
             + "Switch either off and watch the chart. Nothing here is a recommendation to buy."
         )
@@ -343,7 +373,19 @@ def generate_explanation(
     if not llm_configured():
         return fallback, "fallback"
     system = load_prompt(kind, route)
-    user = "Context JSON:\n" + json.dumps(ctx, default=str)
+    extra = ""
+    if kind == "needs":
+        rows = _enabled_needs(ctx)
+        if rows:
+            bits = []
+            for n in rows:
+                bits.append(
+                    f"{_need_spoken_label(n)}: gap {int(round(_gap_of(n))):,}; "
+                    f"have {int(round(float(n.get('have') or 0))):,}; "
+                    f"need {int(round(float(n.get('need') or 0))):,}"
+                )
+            extra = "\nExact gap / have / need (do not round):\n" + "\n".join(bits)
+    user = "Context JSON:\n" + json.dumps(ctx, default=str) + extra
     try:
         text = _call_openai(system, user)
     except Exception:

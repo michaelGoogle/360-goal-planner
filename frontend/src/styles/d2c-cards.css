@@ -31,7 +31,7 @@
 .x .gc-x{width:23px;height:23px;padding:0;border-radius:50%;
  background:#F1F4F8;color:var(--acc)}
 .x .gc-x:hover{background:var(--acc-t);color:var(--acc)}
-.x .gc.open .gc-x{background:var(--acc);color:#fff}
+.x .gc.open .gc-x{background:#F1F4F8;color:var(--acc)}
 
 /* read-out */
 .x .gc-b{margin:0 14px 14px;background:#F7F9FC;border:1px solid #EDF1F6;border-radius:12px;padding:13px 14px}
@@ -223,7 +223,7 @@
  transition:transform .2s,color .16s,background .16s}
 .gc-x:hover{background:var(--fill-2);color:var(--ink)}
 .gc-x:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
-.gc.open .gc-x{transform:rotate(180deg);color:var(--acc,#4B7BFF)}
+.gc.open .gc-x{color:var(--acc,#4B7BFF)}
 
 /* the switch, shared by goals, events and cover */
 .tgl{appearance:none;-webkit-appearance:none;border:0;padding:0;position:relative;width:34px;height:19px;

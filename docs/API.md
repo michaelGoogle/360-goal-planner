@@ -24,7 +24,67 @@ CORS: allow all origins. No login. `/v1/predict` runs People Like You in-process
 | `POST` | `/v1/video-notify` | Queue HeyGen plan video; WhatsApp (and optional email) when ready |
 | `GET` | `/v1/video-notify/{jobId}` | Poll job status and public media URL |
 
-When `frontend/dist` is present, `GET /` serves the React UI.
+### Internal services
+
+Each calculation step is also a service with its own route, so it can be moved out
+of the process later without changing the contract. Modes are `GP_SVC_<NAME>`
+(`inproc`, `http`, `mock`, `snapshot`).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/v1/config/parameters` | The active parameter version |
+| `GET` | `/v1/config/parameters/{version}` | An earlier version, unchanged |
+| `PUT` | `/v1/config/parameters` | Save changed values as the next version (admin) |
+| `GET` | `/v1/config/versions` | Every version on disk, oldest first |
+| `GET` | `/v1/config/audit` | One entry per write, with the diff |
+| `GET` | `/v1/config/session-assumptions/schema` | Customer-editable rates and their bounds |
+| `PUT` | `/v1/config/session-assumptions/schema` | Narrow or relabel that list (admin) |
+| `GET` | `/v1/config/session-defaults?age=&country=` | Retirement age, life expectancy, target years |
+| `POST` | `/v1/fx/lock` | Lock a rate and price level for a session |
+| `GET` | `/v1/fx/countries` | Countries with a price level |
+| `POST` | `/v1/social-security/contribution` | Contribution and take-home for a country |
+| `POST` | `/v1/people-like-you` | Income, assets and liability estimate |
+| `POST` | `/v1/need-profiler` | Which needs matter, and how much |
+| `POST` | `/v1/need-calculator` | Amount, have and gap per need |
+| `POST` | `/v1/premium/quote` | Indicative premium for a sum assured (mock) |
+| `POST` | `/v1/plan` | Suggested plan, previously built in the browser |
+| `POST` | `/v1/budget` | Affordability, previously built in the browser |
+
+When `frontend/dist` is present, `GET /` serves the React UI, and `#parameters`
+opens the parameter admin screen.
+
+### Configuration
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `GP_SVC_<NAME>` | see `src/services/registry.py` | `inproc`, `http`, `mock` or `snapshot` per service |
+| `GP_SVC_<NAME>_URL` | — | Base URL when that service is `http`; required in that mode |
+| `GP_CONFIG_DIR` | `config/parameters` | Where parameter versions and the audit log live |
+| `GP_PARAMETERS_VERSION` | newest on disk | Pin the active version |
+| `GP_CONFIG_ADMIN_MODE` | `fm` | `fm` asks FM `/v1/admin/whoami`; `open` skips the check for local work |
+| `FM_UPSTREAM` | `http://127.0.0.1:8062` | Where FX, People Like You and the admin check live |
+| `GP_FX_SNAPSHOT_DIR` | beside the workbook | Rates for `GP_SVC_FX=snapshot`; `config/fx_ppp` in the image |
+
+### Currency
+
+USD is the calculation currency. Amounts arrive in the customer's currency, are
+converted once, calculated in USD, then converted back and rounded for display — so
+the same household gets the same plan whichever currency they enter it in.
+
+A session first calls `POST /v1/fx/lock`, which pins the rate and the country's price
+level for its whole life. The returned `FxLock` travels with every later request, so a
+rate published mid-session cannot change a number the customer has already seen.
+
+The lock's `priceLevel` is the country's price level over the base country's (Singapore,
+per the workbook), with `priceLevelCountry` and `priceLevelBase` kept beside it so an old
+lock reading 0.4602 can still be checked. Two kinds of amount use it differently: a
+**comparable standard of living** divides by it, because 0.4602 means the same life costs
+less there; a **fixed local cost** multiplies by it. Which one applies is a property of
+the need, not of the country.
+
+A country FM has no PPP for locks at `priceLevel` 1.0 with `pppAvailable: false`, which is
+plain currency conversion and is honest about it. An unreachable FX service is a failure,
+not a price level of 1.0, and returns **424** `dependency_failed`.
 
 ---
 
@@ -153,7 +213,7 @@ Same session body as predict. The UI calls this (debounced) whenever goal,
 money, or assumption inputs that feed the calculator change. `/v1/predict`
 uses the same engine (`evaluate_session`).
 
-Formulas: [Calculations.md](Calculations.md) §4–5 and
+Formulas: [calculations/Need-calculator.md](calculations/Need-calculator.md) and
 [People-like-you-and-needs.md](People-like-you-and-needs.md) §5.
 
 UNIFIED types: `N_INC`, `N_CRI`, `N_TPD`, `N_HOS`, `N_RET`, `N_EDU`, `N_SAV`,
@@ -307,3 +367,15 @@ until `mediaUrl` is set.
 
 FastAPI `detail` is a string or the upstream JSON. There is no Prometheus
 `/metrics` on GP.
+
+The internal service routes use a second envelope, `{"error": <code>, ...}`, because
+they are new and nothing reads their bodies yet. The endpoints above keep `detail`.
+
+| Status | `error` | When |
+|--------|---------|------|
+| **401** | `not_authenticated` | A parameter write arrived without a bearer token |
+| **403** | `not_authorised` | The bearer is not a platform admin, or FM could not be asked |
+| **404** | `unknown_currency` | No FX rate for that ISO code. There is no fallback currency |
+| **422** | `validation_failed` | Bad input, with the offending `fields` |
+| **424** | `dependency_failed` | A service this one needs did not answer usefully |
+| **501** | `not_implemented` | The contract is fixed but its `workPackage` is still open |

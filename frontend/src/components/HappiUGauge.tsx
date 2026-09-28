@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { happiBand, HAPPI_COL } from '../lib/types';
 
 export function HappiUGauge({
@@ -10,7 +11,28 @@ export function HappiUGauge({
   showBand?: boolean;
   compact?: boolean;
 }) {
-  const v = Math.max(0, Math.min(100, Math.round(value)));
+  const target = Math.max(0, Math.min(100, Math.round(value)));
+  const [shown, setShown] = useState(target);
+  const shownRef = useRef(target);
+  shownRef.current = shown;
+  useEffect(() => {
+    const from = shownRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    const dur = 650;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - (1 - t) ** 3;
+      const next = Math.round(from + (target - from) * eased);
+      setShown(next);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  const v = shown;
+  const uid = useId().replace(/:/g, '');
   const b = happiBand(v);
   const W = 240;
   const sw = 18;
@@ -46,7 +68,7 @@ export function HappiUGauge({
   const [px, py] = pt(v, R - sw / 2 - 2);
   const [l1x, l1y] = pt(v - 6, hubR * 0.55);
   const [l2x, l2y] = pt(v + 6, hubR * 0.55);
-  const id = `xg${v}_${size}_${showBand ? 1 : 0}`;
+  const id = `xg_${uid}`;
   return (
     <div className="x-gauge" style={{ maxWidth: size }}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`HappiU Score ${v} of 100, ${b.toLowerCase()}`}>

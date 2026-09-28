@@ -1,4 +1,7 @@
-/** Unforeseen events catalog — same 13 rows as the HTML SVEV list. */
+/** Unforeseen events catalog — the 13 R_ codes of the Dictionary's stress-event table. */
+
+import { formatMoney } from './currency';
+import { riskCode } from './needs';
 
 export type EventKind = 'one' | 'range' | 'rangec';
 export type EventGroup = 'w' | 'p';
@@ -41,32 +44,20 @@ const CARE = { vMin: 0, vMax: 300_000, vStep: 1_000, frac: false as const };
 const BABY = { vMin: 0, vMax: 200_000, vStep: 1_000, frac: false as const };
 
 export const STRESS_EVENTS: StressSpec[] = [
-  { id: 'crash', label: 'Market crash', kind: 'one', group: 'w', valueLabel: 'Asset shock', defaultV: 0.35, defaultYear: 8, icon: 'crash', color: W, ...FRAC },
-  { id: 'ccy', label: 'Currency shock', kind: 'one', group: 'w', valueLabel: 'Depreciation on foreign holdings', defaultV: 0.14, defaultYear: 6, icon: 'money', color: W, ...CCY },
-  { id: 'infl', label: 'Inflation shock', kind: 'range', group: 'w', valueLabel: 'Additional inflation', defaultV: 0.03, defaultYear: [4, 9], icon: 'flame', color: W, ...INFL },
-  { id: 'inc', label: 'Impact on income', kind: 'range', group: 'w', valueLabel: 'Impact', defaultV: -0.2, defaultYear: [5, 10], icon: 'wage', color: W, ...FRAC },
-  { id: 'death', label: 'Death', kind: 'one', group: 'p', valueLabel: 'One-time cost', defaultV: 20000, defaultYear: 17, icon: 'heart', color: P, ...LUMP },
-  { id: 'ci', label: 'Critical illness', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 150000, defaultYear: 12, icon: 'cross', color: P, ...LUMP },
-  { id: 'tpd', label: 'Total & permanent disability', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 200000, defaultYear: 15, icon: 'wheel', color: P, ...LUMP },
-  { id: 'pa', label: 'Personal accident', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 80000, defaultYear: 10, icon: 'bolt', color: P, ...LUMP },
-  { id: 'hosp', label: 'Hospitalisation', kind: 'one', group: 'p', valueLabel: 'One-time hospital bill', defaultV: 120000, defaultYear: 9, icon: 'hospital', color: P, ...LUMP },
-  { id: 'care', label: 'Long-term care years', kind: 'rangec', group: 'p', valueLabel: 'Additional annual care cost', defaultV: 90000, defaultYear: [30, 35], icon: 'care', color: P, ...CARE },
-  { id: 'wed', label: 'Wedding / marriage', kind: 'one', group: 'p', valueLabel: 'One-time cost', defaultV: 60000, defaultYear: 5, icon: 'rings', color: P, ...LUMP },
-  { id: 'baby', label: 'Newborn', kind: 'one', group: 'p', valueLabel: 'One-time newborn cost', defaultV: 35000, defaultYear: 3, icon: 'baby', color: P, ...BABY },
-  { id: 'exp', label: 'Impact on expenses', kind: 'range', group: 'p', valueLabel: 'Impact', defaultV: 0.15, defaultYear: [6, 12], icon: 'cart', color: P, ...FRAC },
+  { id: 'R_MKT', label: 'Market crash', kind: 'one', group: 'w', valueLabel: 'Asset shock', defaultV: 0.35, defaultYear: 8, icon: 'crash', color: W, ...FRAC },
+  { id: 'R_CCY', label: 'Currency shock', kind: 'one', group: 'w', valueLabel: 'Depreciation on foreign holdings', defaultV: 0.14, defaultYear: 6, icon: 'money', color: W, ...CCY },
+  { id: 'R_INF', label: 'Inflation shock', kind: 'range', group: 'w', valueLabel: 'Additional inflation', defaultV: 0.03, defaultYear: [4, 9], icon: 'flame', color: W, ...INFL },
+  { id: 'R_ICT', label: 'Impact on income', kind: 'range', group: 'w', valueLabel: 'Impact', defaultV: -0.2, defaultYear: [5, 10], icon: 'wage', color: W, ...FRAC },
+  { id: 'R_DEA', label: 'Death', kind: 'one', group: 'p', valueLabel: 'One-time cost', defaultV: 20000, defaultYear: 17, icon: 'heart', color: P, ...LUMP },
+  { id: 'R_CRI', label: 'Critical illness', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 150000, defaultYear: 12, icon: 'cross', color: P, ...LUMP },
+  { id: 'R_TPD', label: 'Total & permanent disability', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 200000, defaultYear: 15, icon: 'wheel', color: P, ...LUMP },
+  { id: 'R_PAC', label: 'Personal accident', kind: 'one', group: 'p', valueLabel: 'One-time medical cost', defaultV: 80000, defaultYear: 10, icon: 'bolt', color: P, ...LUMP },
+  { id: 'R_HOS', label: 'Hospitalisation', kind: 'one', group: 'p', valueLabel: 'One-time hospital bill', defaultV: 120000, defaultYear: 9, icon: 'hospital', color: P, ...LUMP },
+  { id: 'R_LTC', label: 'Long-term care years', kind: 'rangec', group: 'p', valueLabel: 'Additional annual care cost', defaultV: 90000, defaultYear: [30, 35], icon: 'care', color: P, ...CARE },
+  { id: 'R_WED', label: 'Wedding / marriage', kind: 'one', group: 'p', valueLabel: 'One-time cost', defaultV: 60000, defaultYear: 5, icon: 'rings', color: P, ...LUMP },
+  { id: 'R_BAB', label: 'Newborn', kind: 'one', group: 'p', valueLabel: 'One-time newborn cost', defaultV: 35000, defaultYear: 3, icon: 'baby', color: P, ...BABY },
+  { id: 'R_EXP', label: 'Impact on expenses', kind: 'range', group: 'p', valueLabel: 'Impact', defaultV: 0.15, defaultYear: [6, 12], icon: 'cart', color: P, ...FRAC },
 ];
-
-const ALIAS: Record<string, string> = {
-  Crash: 'crash',
-  MarketCrash: 'crash',
-  Death: 'death',
-  CI: 'ci',
-  PTD: 'tpd',
-  Disability: 'tpd',
-  PersonalAccident: 'pa',
-  Unemployment: 'inc',
-  Inflation: 'infl',
-};
 
 export const STRESS_BY_ID: Record<string, StressSpec> = Object.fromEntries(STRESS_EVENTS.map(s => [s.id, s]));
 
@@ -102,14 +93,41 @@ function fromSpec(spec: StressSpec): GpEvent {
   return { id: spec.id, on: false, year: span, from: span, to: span, v: spec.defaultV, label: spec.label };
 }
 
-export function defaultStressEvents(): GpEvent[] {
-  return STRESS_EVENTS.map(fromSpec);
+const AGE_LUMPS = new Set(['R_DEA', 'R_CRI', 'R_TPD', 'R_PAC', 'R_HOS']);
+
+/** Build the catalog from admin parameters (USD sizes, ages) and the locked rate. */
+export function stressEventsFromParameters(
+  values: Record<string, number>,
+  usdPerLocal: number,
+  age: number,
+): StressSpec[] {
+  const rate = usdPerLocal || 1;
+  return STRESS_EVENTS.map(spec => {
+    const next = { ...spec };
+    const size = values[`${spec.id}_SIZE`];
+    const when = values[`${spec.id}_WHEN`];
+    if (size != null && !spec.frac) next.defaultV = size / rate;
+    if (when == null) return next;
+    if (spec.id === 'R_WED' || spec.id === 'R_BAB') {
+      next.defaultYear = when;
+    } else if (spec.id === 'R_LTC') {
+      const start = Math.max(0, (values.LTC_START_AGE ?? 80) - age);
+      next.defaultYear = [start, Math.max(start, (values.lifeExpectancyDefault ?? 85) - age - 1)];
+    } else if (AGE_LUMPS.has(spec.id)) {
+      next.defaultYear = Math.max(0, when - age);
+    }
+    return next;
+  });
+}
+
+export function defaultStressEvents(specs: StressSpec[] = STRESS_EVENTS): GpEvent[] {
+  return specs.map(fromSpec);
 }
 
 export function hydrateStressEvents(raw: GpEvent[] | undefined): GpEvent[] {
   const byId = new Map<string, GpEvent>();
   for (const ev of raw || []) {
-    const id = ALIAS[ev.id] || ev.id;
+    const id = riskCode(ev.id);
     byId.set(id, { ...ev, id });
   }
   return STRESS_EVENTS.map(spec => {
@@ -135,36 +153,29 @@ export function eventAge(startAge: number, offset: number, last: number): number
   return startAge + Math.max(0, Math.min(last, offset));
 }
 
-export function formatEventValue(v: number, spec?: StressSpec): string {
+export function formatEventValue(v: number, spec?: StressSpec, currency = 'SGD'): string {
   if (spec ? spec.frac : Math.abs(v) <= 1) {
     return `${Math.round(Math.abs(v) * 100)}%`;
   }
-  return `S$${Math.round(Math.abs(v)).toLocaleString('en-US')}`;
+  return formatMoney(Math.abs(v), currency);
 }
 
-/** Ids SV already understands, plus the rest of the catalog. */
+/** The event name SV's engine uses for a risk code. GP owns the translation. */
 export function svEventType(id: string): string {
   const mapped: Record<string, string> = {
-    crash: 'MarketCrash',
-    Crash: 'MarketCrash',
-    death: 'Death',
-    Death: 'Death',
-    ci: 'CI',
-    CI: 'CI',
-    tpd: 'PTD',
-    PTD: 'PTD',
-    pa: 'PersonalAccident',
-    PersonalAccident: 'PersonalAccident',
-    inc: 'Income',
-    Unemployment: 'Income',
-    infl: 'Inflation',
-    Inflation: 'Inflation',
-    hosp: 'Hospitalization',
-    care: 'Expense',
-    wed: 'Marriage',
-    baby: 'Newborn',
-    exp: 'Expense',
-    ccy: 'CurrencyShock',
+    R_MKT: 'MarketCrash',
+    R_CCY: 'CurrencyShock',
+    R_INF: 'Inflation',
+    R_ICT: 'Income',
+    R_EXP: 'Expense',
+    R_DEA: 'Death',
+    R_CRI: 'CI',
+    R_TPD: 'PTD',
+    R_PAC: 'PersonalAccident',
+    R_HOS: 'Hospitalization',
+    R_LTC: 'Expense',
+    R_WED: 'Marriage',
+    R_BAB: 'Newborn',
   };
-  return mapped[id] || id;
+  return mapped[riskCode(id)] || id;
 }

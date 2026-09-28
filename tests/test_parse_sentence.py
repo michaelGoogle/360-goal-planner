@@ -37,6 +37,8 @@ def test_normalize_drops_garbage_occupation_and_maps_mail():
     assert normalize_fields({"residency": "resident of Singapore"})["res"] == "Singapore Citizen"
     assert normalize_fields({"res": "Singapore"})["res"] == "Singapore Citizen"
     assert normalize_fields({"res": "PR"})["res"] == "Permanent Resident"
+    assert normalize_fields({"res": "german"})["res"] == "Foreigner"
+    assert normalize_fields({"res": "Singaporean"})["res"] == "Singapore Citizen"
 
 
 def test_parse_sentence_unavailable_without_key(monkeypatch):

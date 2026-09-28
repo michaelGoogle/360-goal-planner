@@ -51,12 +51,12 @@ button.x-sech:hover{background:#F7F9FC}
  background:#fff;box-shadow:0 1px 3px rgba(12,20,36,.3);transition:.18s;font-style:normal}
 .x-tog.on .x-togs{background:var(--acc)}
 .x-tog.on .x-togk{left:21px}
-.x-sech>.cv{display:flex;color:var(--ink2);flex:0 0 auto;transition:transform .2s}
-.x-sec.open .x-sech>.cv{transform:rotate(180deg)}
+.x-sech>.cv{display:flex;color:var(--acc);flex:0 0 auto}
 .x-card+.x-card,.x-card+.x-sec{margin-top:14px}
 .x-secb{display:none;padding-top:2px}
 .x-sec.open>.x-secb,.x-quick>.x-secb{display:block}
-.x-quick>.x-secb,.x-sec.open>.x-secb{border-top:1px solid var(--ln);margin:0 22px;padding:20px 0 22px}
+.x-quick>.x-secb,.x-sec.open>.x-secb{margin:0 22px;padding:20px 0 22px}
+.x-sec.open>.x-secb{border-top:1px solid var(--ln)}
 .x-form .x-2:last-child .x-f:last-child{margin-bottom:0}
 .x-f.flash{animation:xflash 1.4s ease-out}
 @keyframes xflash{0%,42%{background:rgba(55,114,255,.09)}100%{background:transparent}}
@@ -163,7 +163,6 @@ button.x-sech:hover{background:#F7F9FC}
 .x-qdone{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:13px;
  border-top:1px solid #C8E9D6;font-size:14px;color:#0B7A3B}
 .x-qdone svg{stroke:#0B7A3B}
-.x-qconfirm{margin:4px 0 0;font-size:14.5px;line-height:1.45;color:#0B7A3B;font-weight:650}
 
 /* --- 3 · documents --- */
 .x-doc3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
@@ -204,6 +203,7 @@ label.x-doc:hover .x-docic{background:#fff;color:var(--acc)}
 /* sequential About you helpers */
 .x-coach-hit{display:inline-flex;flex:0 0 auto}
 .x-coach{position:fixed;inset:0;z-index:220;overflow:hidden;cursor:default}
+.x-coach.top{z-index:240}
 .x-coach-spot{position:fixed;border-radius:18px;pointer-events:none;
  box-shadow:0 0 0 2px var(--acc),0 0 0 9999px rgba(12,20,36,.48);transition:top .18s,left .18s,width .18s,height .18s}
 .x-coach-tip{position:fixed;z-index:221;width:320px;max-width:calc(100vw - 24px);background:#fff;border:1px solid var(--ln);

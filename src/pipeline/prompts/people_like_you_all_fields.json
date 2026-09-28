@@ -78,7 +78,7 @@
     "- hospitalization_type: Public | Private",
     "- retirement_lifestyle: Basic | Comfortable | Luxurious",
     "- sports: realistic for age/location",
-    "- life_expectancy: integer based ONLY on location + gender",
+    "- life_expectancy: integer based ONLY on location + gender, maximum 99",
     "",
     "LIFE EXPECTANCY GUIDELINE:",
     "- Use typical national averages",

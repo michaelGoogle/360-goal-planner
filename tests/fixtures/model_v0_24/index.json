@@ -1,0 +1,218 @@
+{
+ "model": "V0-24",
+ "workbook": "Calculations V0-24.xlsx",
+ "cases": [
+  {
+   "case": "personas/P01",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P02",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P03",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P04",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P05",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P06",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P07",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P08",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P09",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P10",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P11",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P12",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P13",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P14",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P15",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P16",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P17",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P18",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P19",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P20",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P21",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P22",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P23",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P24",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P25",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P26",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P27",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P28",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P29",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P30",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P31",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P32",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P33",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P34",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P35",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P36",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P37",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P38",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P39",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P40",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P41",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P42",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P43",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P44",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P45",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P46",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P47",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P48",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P49",
+   "formulaErrors": 0
+  },
+  {
+   "case": "personas/P50",
+   "formulaErrors": 0
+  },
+  {
+   "case": "scenarios/P03_VND_Vietnam",
+   "formulaErrors": 0
+  },
+  {
+   "case": "scenarios/P03_PAC_LTC_on",
+   "formulaErrors": 0
+  },
+  {
+   "case": "scenarios/P03_all_stress_events",
+   "formulaErrors": 0
+  }
+ ]
+}

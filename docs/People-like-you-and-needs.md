@@ -8,7 +8,7 @@ routes for the portal; GP no longer calls them for Estimate.
 
 The product story is in [Business-overview.md](Business-overview.md). The rest
 of the formula trail (goal-card edits, suggested plan, HappiU budget) stays in
-[Calculations.md](Calculations.md). Risk capacity vs People Like You
+[calculations/Calculations.md](calculations/Calculations.md). Risk capacity vs People Like You
 `risk_ability` is in [Risk.md](Risk.md). HTTP wiring is in
 [Architecture.md](Architecture.md).
 
@@ -28,7 +28,7 @@ GP then:
 
 - Recomputes CPF, spend, liquid assets, property, and assumed life cover
   (`src/predict.py`, `src/cpf.py`).
-- Sets `existing` on each need (policies vs cash+investments).
+- Sets `existing` on each need (policies for protection; tagged investments for wealth).
 - Shows the customer **Your money**, where pencil edits stick (`moneyTouched`).
 
 UNIFIED types GP shows as goals: `N_INC`, `N_CRI`, `N_TPD`, `N_HOS`, `N_RET`, `N_EDU`,
@@ -48,11 +48,11 @@ GP  POST /v1/predict
     │      maps finance → session  (_apply_plu)
     │      If this raises → HTTP 503. No occupation-band fallback.
     │
-    ├─ 2. run_need_profiler       topN = 5, including the PLU lifestyle blob
+    ├─ 2. run_need_profiler       four needs (2 prot + N_RET + 1 growth), including the PLU lifestyle blob
     │      maps ranked needs → session.needs  (_needs_from_profiler)
-    │      If this raises → enable N_INC + N_RET (and N_EDU if dependants), amounts 0.
+    │      If this raises → enable {N_INC, N_CRI, N_RET, N_PRP|N_SAV}, or with dependants {N_INC, N_CRI, N_RET, N_EDU}, amounts 0.
     │
-    ├─ 3. need_existing(need, session)        policies for protection; cash+investments for wealth
+    ├─ 3. need_existing(need, session)        policies for protection; tagged investments for wealth
     │
     └─ 4. evaluate_session        needAmount, have, gap
            (`src/pipeline/need_calculator.py`)
@@ -129,7 +129,7 @@ share        = min(67.5% + 5% × dependants, 90%)
 expenses     = round(take_home × share, 2)
 ```
 
-Employee rates (not employer): **20%** to age 55, then **15% / 9.5% / 5%**.
+Employee rates (not employer): **20%** to age 55, then **18% / 12.5% / 7.5% / 5%**.
 The **S$8,000** cap is the CPF ordinary-wage ceiling from 1 Jan 2026, so the
 most taken off pay at 20% is **S$1,600**. Tax is not deducted.
 
@@ -156,8 +156,8 @@ working start at 21, not years in the current job.
 GP then splits liquid assets:
 
 ```
-cash         = round(assets × 0.45)
-investments  = round(assets × 0.55)
+cash         = round(assets × 0.15)
+investments  = round(assets × 0.85)
 ```
 
 ### 3.5 Property and mortgage (GP, not FM)
@@ -211,10 +211,10 @@ amounts. That is the calculator.
 ### 4.1 What predict passes in
 
 ```text
-topN: 5
+top_n: 4  (ignored by select_unified_top)
 policyOwner: dateOfBirth, gender, occupation, dependents, country, city,
              isSmoker (session or PLU), ageOfRetirement
-finance:     monthlyIncome, monthlyExpense, liquidAssetValue (cash + investments)
+finance:     monthlyIncome, monthlyExpense, liquidAssetValue, currency
 peopleLikeYou: the PLU response (ownership, travel, sports, hospital/ward, liabilities)
 ```
 
@@ -270,18 +270,21 @@ the term is skipped.
 **Smoker:** smoker 3, non-smoker 1 (when those options exist).  
 **Existing cover:** boolean “already has this insurance?” — GP sends 0, so
 “False” weights apply.  
-**Income / expense / assets / liabilities:** the value is multiplied by
-**0.75** (a USD-ish scale from the original spreadsheet) then bucketed. A
-typical Singapore income therefore lands in the **lowest** income-need weight
-(0.0 above ~S$3,600/month). Dependants, occupation, and age still move the
-ranking.
+**Income / expense / assets / liabilities:** convert **local × FX → USD**, then
+apply `Need_profiler.json` `lt` bands. S$5,000 × 0.74 ≈ 3,700 USD → Income
+weight 2. 5,000 VND → weight 4. Dependants, occupation, and age still move
+the ranking.
 
 Lifestyle and sports only match if the string equals the spreadsheet options
 (`frugal` / `stress-free` / `only the best`; sports buckets). People Like You
 uses different words (`Comfortable`, `Running`), so those factors often add 0
 even when a PLU blob is present.
 
-### 4.4 Scale 0–10, rank, pick top 5 UNIFIED
+Money factors convert **local × FX → USD**, then use `Need_profiler.json` `lt` bands (not the old ×0.75 leftover). Example: S$5,000 × 0.74 ≈ 3,700 USD → Income option weight 2.
+
+**Known limitations.** PLU `Basic|Comfortable|Luxurious` and `Single|Double|Ward` do not match profiler Lifestyle/Ward options, so they score 0. Existing cover is hard-coded 0; a scoring-logic redesign may be required before policies and ownership move the rank.
+
+### 4.4 Scale 0–10, rank, pick four UNIFIED
 
 1. Sort all twelve by raw score, high to low.
 2. Optional `preferredNeeds` (GP does not send this): boost matching keys.
@@ -294,8 +297,9 @@ even when a PLU blob is present.
    If every raw score is equal, scaled = 5.0.
 4. Annotate ranking 1…12 and a coarse priority: scaled ≤5 low, ≤7 medium,
    else high.
-5. Walk the ranked list. Collect **unique UNIFIED types** until `topN` (5).
-   Unmapped labels (hospital, travel, …) are skipped for this set.
+5. `select_unified_top` returns **two protection + N_RET + one other growth**
+   (`top_n` is ignored). If they own a home, N_PRP replaces N_SAV in the
+   second growth slot.
 6. Those types get `enabled = true`; other UNIFIED rows are **off**.
    `weightageScore` is the scaled score of the first matching rank.
 
@@ -317,8 +321,9 @@ toggle goals later; that does not re-call the profiler.
 
 ### 4.6 If the profiler is down
 
-GP does not fail the whole predict. It enables `N_INC` and `N_RET`, plus
-`N_EDU` when `dependents > 0`, all with `needAmount = 0`, and adds a note.
+GP does not fail the whole predict. It enables `{N_INC, N_CRI, N_RET, N_PRP}`
+when they own a home, else `{N_INC, N_CRI, N_RET, N_SAV}`. With dependents
+`{N_INC, N_CRI, N_RET, N_EDU}`. All with `needAmount = 0`, plus a note.
 
 ---
 
@@ -347,7 +352,7 @@ For each need, `existing` is the slider amount if already set; otherwise
 | Kind | Types | `existing` |
 |------|-------|------------|
 | Protection | `N_INC`, `N_CRI`, `N_TPD`, `N_HOS` | Sum of matching policy `sum` (Life / CI / TPD / Hospitalisation) |
-| Wealth | `N_RET`, `N_EDU`, `N_SAV`, `N_PRP` | `cash + investments` (private; not CPF) |
+| Wealth | `N_RET`, `N_EDU`, `N_SAV`, `N_PRP` | Customer tag from `investments` only, in that order. Cash is not allocated. Untagged is 0 |
 
 The assumed life policy from People Like You therefore reduces the **life**
 gap. It does not reduce critical-illness or TPD.
@@ -358,7 +363,7 @@ Lifestyle (share of **today’s expenses**): Frugal **75%**, Stress free
 **100%**, Only the best **125%** (default Stress free).
 `retIncomeMonthly` stored on the row is `round_to(expenseMonthly × rate, 50)`
 (not shown on the card). Retirement age defaults to **65**. Years in
-retirement `n = 85 − retAge`. Your Money blocks expense at 0.
+retirement `n = lifeExpectancy − retAge` (LE capped at 99; missing → 85). Your Money blocks expense at 0.
 
 Two annuity conventions, mirroring the workbook: retirement and life use an **ordinary** annuity `a(r, n)`, critical illness and disability an **annuity-due** `aDue(r, n) = (1 − vⁿ)/(1 − v)` with `v = 1/(1+r)`.
 

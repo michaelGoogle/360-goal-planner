@@ -153,7 +153,10 @@ def test_take_home_nets_capped_employee_cpf():
     assert employee_cpf_monthly(35000, 42, "Singapore Citizen") == 1600
     assert take_home_income(9500, 42, "Singapore Citizen") == 7900
     assert take_home_income(9500, 42, "Foreigner") == 9500
-    assert employee_cpf_rate(58, "Permanent Resident") == 0.15
+    assert employee_cpf_rate(58, "Permanent Resident") == 0.18
+    assert employee_cpf_rate(62, "Singapore Citizen") == 0.125
+    assert employee_cpf_rate(68, "Singapore Citizen") == 0.075
+    assert employee_cpf_rate(72, "Singapore Citizen") == 0.05
 
 
 def test_expenses_are_share_of_take_home_by_dependents():

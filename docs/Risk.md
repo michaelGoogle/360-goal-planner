@@ -5,7 +5,7 @@ the customer **declares comfort**, and how those two numbers cap **net expected
 returns** on the plan calculator.
 
 The product story stays in [Business-overview.md](Business-overview.md). Money
-formulas stay in [Calculations.md](Calculations.md). People Like You still
+formulas stay in [calculations/Calculations.md](calculations/Calculations.md). People Like You still
 predicts a lifestyle `risk_ability` word; **GP does not use it as displayed
 capacity** — see §8 and
 [People-like-you-and-needs.md](People-like-you-and-needs.md) §3.1.

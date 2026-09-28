@@ -31,34 +31,32 @@
         { "option": "only the best", "weight": 4.0 }
       ],
       "Income": [
-        { "option": "below 108 USD", "weight": 4.0 },
-        { "option": "between 108 and 243 USD", "weight": 3.0 },
-        { "option": "between 243 and 1,081 USD", "weight": 2.0 },
-        { "option": "between 1,081 and 2,703 USD", "weight": 1.0 },
-        { "option": "above 2,703 USD", "weight": 0.0 }
+        { "option": "below 1,000 USD", "weight": 4.0, "lt": 1000 },
+        { "option": "between 1,000 and 2,500 USD", "weight": 3.0, "lt": 2500 },
+        { "option": "between 2,500 and 5,000 USD", "weight": 2.0, "lt": 5000 },
+        { "option": "between 5,000 and 10,000 USD", "weight": 1.0, "lt": 10000 },
+        { "option": "above 10,000 USD", "weight": 0.0 }
       ],
       "Expense": [
-        { "option": "below 68 USD", "weight": 4.0 },
-        { "option": "between 68 and 135 USD", "weight": 3.0 },
-        { "option": "between 135 and 541 USD", "weight": 2.0 },
-        { "option": "between 541 and 1,351 USD", "weight": 1.0 },
-        { "option": "between 1,351 and 5,405 USD", "weight": 0.0 },
-        { "option": "between 5,405 and 27,027 USD", "weight": 0.0 },
-        { "option": "above 27,027 USD", "weight": 0.0 }
+        { "option": "below 600 USD", "weight": 4.0, "lt": 600 },
+        { "option": "between 600 and 1,500 USD", "weight": 3.0, "lt": 1500 },
+        { "option": "between 1,500 and 3,000 USD", "weight": 2.0, "lt": 3000 },
+        { "option": "between 3,000 and 6,000 USD", "weight": 1.0, "lt": 6000 },
+        { "option": "above 6,000 USD", "weight": 0.0 }
       ],
       "Assets": [
-        { "option": "below 541 USD", "weight": 4.0 },
-        { "option": "between 541 and 1,351 USD", "weight": 3.0 },
-        { "option": "between 1,351 and 5,405 USD", "weight": 2.0 },
-        { "option": "between 5,405 and 27,027 USD", "weight": 1.0 },
-        { "option": "above 27,027 USD", "weight": 0.0 }
+        { "option": "below 10,000 USD", "weight": 4.0, "lt": 10000 },
+        { "option": "between 10,000 and 50,000 USD", "weight": 3.0, "lt": 50000 },
+        { "option": "between 50,000 and 150,000 USD", "weight": 2.0, "lt": 150000 },
+        { "option": "between 150,000 and 500,000 USD", "weight": 1.0, "lt": 500000 },
+        { "option": "above 500,000 USD", "weight": 0.0 }
       ],
       "Liabilities": [
-        { "option": "below 270 USD", "weight": 4.0 },
-        { "option": "between 270 and 541 USD", "weight": 3.0 },
-        { "option": "between 541 and 1,351 USD", "weight": 2.0 },
-        { "option": "between 1,351 and 5,405 USD", "weight": 1.0 },
-        { "option": "above 5,405 USD", "weight": 0.0 }
+        { "option": "below 5,000 USD", "weight": 4.0, "lt": 5000 },
+        { "option": "between 5,000 and 25,000 USD", "weight": 3.0, "lt": 25000 },
+        { "option": "between 25,000 and 100,000 USD", "weight": 2.0, "lt": 100000 },
+        { "option": "between 100,000 and 250,000 USD", "weight": 1.0, "lt": 250000 },
+        { "option": "above 250,000 USD", "weight": 0.0 }
       ],
       "Existing Life Insurance": [
         { "option": "True", "weight": 1.0 },

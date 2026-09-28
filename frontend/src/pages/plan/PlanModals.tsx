@@ -1,13 +1,13 @@
 import { Switch } from '../../components/ui';
 import { Ico } from '../../lib/icons';
 import { clampEvent, hydrateStressEvents, STRESS_BY_ID, type GpEvent } from '../../lib/stressEvents';
+import { ParkedCoverage } from '../../components/GoalCard';
+import { sessionCurrency } from '../../lib/currency';
 import {
-  EXTRA_NEEDS,
   money,
   NEED_META,
   needGap,
   sessionAge,
-  type ExtraNeed,
   type GpSession,
   type NeedType,
 } from '../../lib/types';
@@ -24,7 +24,6 @@ export function PlanModals({
   session,
   onChange,
   onToggleNeed,
-  onToggleExtra,
   onToggleEvent,
   onEvents,
 }: {
@@ -34,7 +33,6 @@ export function PlanModals({
   session: GpSession;
   onChange: (p: Partial<GpSession>) => void;
   onToggleNeed: (t: NeedType) => void;
-  onToggleExtra: (k: ExtraNeed) => void;
   onToggleEvent: (id: string) => void;
   onEvents: (events: GpEvent[]) => void;
 }) {
@@ -81,19 +79,10 @@ export function PlanModals({
                   >
                     <Switch on={n.enabled} label={NEED_META[n.type].label} onClick={() => onToggleNeed(n.type)} />
                     <span style={{ flex: 1 }}>{NEED_META[n.type].label}</span>
-                    <span className="x-sm">{money(needGap(session, n))} short</span>
+                    <span className="x-sm">{money(needGap(session, n), sessionCurrency(session))} short</span>
                   </label>
                 ))}
-                {EXTRA_NEEDS.map(x => (
-                  <label key={x.k} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
-                    <Switch
-                      on={session.extraNeeds.includes(x.k)}
-                      label={x.label}
-                      onClick={() => onToggleExtra(x.k)}
-                    />
-                    <span>{x.label}</span>
-                  </label>
-                ))}
+                <ParkedCoverage parked={session.parkedNeeds} />
               </div>
             </div>
           ) : null}
@@ -171,6 +160,7 @@ function EventsList({
             startOpen={focusId === ev.id}
             onToggle={() => onToggleEvent(ev.id)}
             onPatch={p => patch(ev.id, p)}
+            currency={sessionCurrency(session)}
           />
         ))}
       </div>
@@ -194,6 +184,7 @@ function EventsList({
                 startOpen
                 onToggle={() => onToggleEvent(ev.id)}
                 onPatch={p => patch(ev.id, p)}
+                currency={sessionCurrency(session)}
               />
             ))}
             {off.length ? <div className="lp-div" /> : null}

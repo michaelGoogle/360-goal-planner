@@ -3,7 +3,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from src.app import api
 from src.cpf import expenses_from_gross
-from src.pipeline.goal_math import CI_COST, CI_YEARS, pv_annuity_due, real_return
+from src.pipeline.goal_math import CRI_COST, CRI_YEARS, pv_annuity_due, real_return
 from src.predict import _apply_plu, _assumed_life_policy, seed_property_value
 from src.session_rates import DEFAULTS
 
@@ -34,7 +34,7 @@ def _plu_ok(income=9000, expenses=5000, assets=100000, *, own=False):
 
 def test_predict_errors_when_people_like_you_down():
     client = TestClient(api)
-    with patch("src.app.run_people_like_you", side_effect=RuntimeError("down")):
+    with patch("src.orchestration.predict.run_people_like_you", side_effect=RuntimeError("down")):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "CEO"})
     assert r.status_code == 503
     assert "360-PeopleLikeU" in r.json()["detail"]
@@ -42,7 +42,7 @@ def test_predict_errors_when_people_like_you_down():
 
 def test_predict_runs_in_process_profiler_and_calculator():
     client = TestClient(api)
-    with patch("src.app.run_people_like_you", return_value=_plu_ok()):
+    with patch("src.orchestration.predict.run_people_like_you", return_value=_plu_ok()):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer"})
     assert r.status_code == 200
     session = r.json()["session"]
@@ -62,25 +62,27 @@ def test_predict_runs_in_process_profiler_and_calculator():
         if n["enabled"]:
             assert n["needAmount"] > 0
             if t == "N_CRI":
-                assert n["needAmount"] == round(pv_annuity_due(9000 * 12, real, CI_YEARS) + CI_COST)
+                assert n["needAmount"] == round(pv_annuity_due(9000 * 12, real, CRI_YEARS) + CRI_COST)
 
 
-def test_predict_property_owner_defaults_to_property_purchase_not_savings():
+def test_predict_leaves_home_purchase_to_the_customer_even_for_an_owner():
+    """V0-16 split home purchase from home protection. No profiler label scores N_PRP,
+    so owning a home no longer swaps the savings goal for a second property."""
     client = TestClient(api)
-    with patch("src.app.run_people_like_you", return_value=_plu_ok(own=True)):
+    with patch("src.orchestration.predict.run_people_like_you", return_value=_plu_ok(own=True)):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer", "dependents": 0})
     assert r.status_code == 200
     session = r.json()["session"]
     assert session["property"] > 0
     by_type = {n["type"]: n for n in session["needs"]}
     assert by_type["N_RET"]["enabled"] is True
-    assert by_type["N_PRP"]["enabled"] is True
-    assert by_type["N_SAV"]["enabled"] is False
+    assert by_type["N_PRP"]["enabled"] is False
+    assert by_type["N_SAV"]["enabled"] is True
 
 
 def test_predict_renter_defaults_to_savings_not_property_purchase():
     client = TestClient(api)
-    with patch("src.app.run_people_like_you", return_value=_plu_ok(own=False)):
+    with patch("src.orchestration.predict.run_people_like_you", return_value=_plu_ok(own=False)):
         r = client.post("/v1/predict", json={"age": 42, "occupation": "Engineer", "dependents": 0})
     assert r.status_code == 200
     session = r.json()["session"]

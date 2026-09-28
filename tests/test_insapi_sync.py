@@ -179,8 +179,8 @@ def test_predict_still_ok_when_insapi_down():
         "onboarding": {"data": {"peopleLikeYou": {"result": {}}}},
     }
     with (
-        patch("src.app.run_people_like_you", return_value=plu),
-        patch("src.app.schedule_insapi_sync"),
+        patch("src.orchestration.predict.run_people_like_you", return_value=plu),
+        patch("src.orchestration.predict.schedule_insapi_sync"),
     ):
         r = client.post(
             "/v1/predict",

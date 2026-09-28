@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { InfoTip } from './InfoTip';
 import { Ico } from '../lib/icons';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   NET_RETURN_TRACK_GRADIENT,
   netExpectedReturnColor,
@@ -31,7 +32,7 @@ export function SecHead({
         {sub ? <span>{sub}</span> : null}
       </span>
       {badge}
-      {onToggle ? <span className="cv">{Ico.chev}</span> : null}
+      {onToggle ? <span className="cv">{Ico.pencil}</span> : null}
     </>
   );
   if (onToggle) {
@@ -80,8 +81,24 @@ export function Tip({
   children: ReactNode;
 }) {
   const on = open === id;
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!on) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) onToggle(id);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onToggle(id);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [on, id, onToggle]);
   return (
-    <span className="x-tipw">
+    <span ref={wrapRef} className="x-tipw">
       <button
         className={`x-tipb ${edit ? 'ed' : ''} ${on ? 'on' : ''}`}
         type="button"
@@ -107,32 +124,78 @@ export function GroupTag({
   session,
   keys,
   verb,
+  showText,
 }: {
   session: GpSession;
   keys: string[];
   verb: string;
+  showText?: boolean;
 }) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
   const vals = keys.map(k => session.provenance[k]).filter(Boolean) as Prov[];
-  if (vals.includes('doc')) {
-    return (
-      <em className="x-gtag doc">
-        {Ico.check}Read from your documents
-      </em>
-    );
-  }
-  if (vals.includes('you')) {
-    return (
-      <em className="x-gtag you">
-        {Ico.check}Your own figures
-      </em>
-    );
-  }
+  const kind = vals.includes('doc') ? 'doc' : vals.includes('you') ? 'you' : '';
+  const icon = kind ? Ico.check : Ico.wand;
   const nm = firstName(session);
+  const text = kind === 'doc'
+    ? 'Read from your documents'
+    : kind === 'you'
+      ? 'Your own figures'
+      : `People like ${nm === 'you' ? 'you' : nm} ${verb}`;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  if (!isMobile || showText) {
+    return (
+      <em className={`x-gtag${kind ? ` ${kind}` : ''}`}>
+        {icon}
+        {text}
+      </em>
+    );
+  }
+
   return (
-    <em className="x-gtag">
-      {Ico.wand}
-      People like {nm === 'you' ? 'you' : nm} {verb}
-    </em>
+    <span
+      ref={wrapRef}
+      className={`x-gtag x-gtag-ico${kind ? ` ${kind}` : ''}${open ? ' on' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      aria-label={text}
+      onClick={e => {
+        e.stopPropagation();
+        e.preventDefault();
+        setOpen(v => !v);
+      }}
+      onKeyDown={e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.stopPropagation();
+        e.preventDefault();
+        setOpen(v => !v);
+      }}
+    >
+      {icon}
+      {open ? (
+        <span className="x-tip r" role="tooltip">
+          {text}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -184,6 +247,8 @@ export function EqPie({
 }: {
   rows: EqSlice[];
 }) {
+  const isMobile = useIsMobile();
+  if (isMobile) return null;
   const parts = rows.filter(r => Math.abs(r.v) > 0);
   const total = parts.reduce((s, r) => s + Math.abs(r.v), 0);
   const gap = parts.length > 1 ? 3.2 : 0;
@@ -217,9 +282,8 @@ export function EqPie({
               {r.op ? <em className="x-gop">{r.op}</em> : null}
               <span className={`x-gk ${r.c || ''}`}>
                 <i style={r.fill ? { background: r.fill } : undefined} />
-                <span className="l">
-                  {r.l} <b>({money(Math.abs(r.v))})</b>
-                </span>
+                <span className="l">{r.l}</span>
+                <b className="x-gamt">{money(Math.abs(r.v))}</b>
               </span>
             </span>
           ))}

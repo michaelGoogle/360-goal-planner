@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from src.pipeline.goal_math import (
-    CI_COST,
-    CI_YEARS,
-    compute_need_amounts,
-    life_support_years,
+    CRI_COST,
+    CRI_YEARS,
+    LIFE_EXPECTANCY,
+    LIFE_EXPECTANCY_MAX,
+    income_support_years,
+    monthly_loan_payment,
     pv_annuity,
     pv_annuity_due,
     real_return,
     remaining_gap,
+    session_life_expectancy,
 )
 from src.pipeline.need_calculator import calculate_gaps_for_onboarding
 from src.pipeline.need_profiler import apply_top_needs_to_onboarding, identify_needs
@@ -22,20 +25,21 @@ from src.session_rates import DEFAULTS
 REAL = real_return(DEFAULTS["investmentReturn"], DEFAULTS["inflationRate"])
 
 
-def test_goal_math_cri_is_five_times_annual_income():
-    amounts = compute_need_amounts(
-        date_of_birth="1985-06-15",
-        monthly_income=10000,
-        monthly_expense=6000,
-        age_of_retirement=65,
-    )
-    assert amounts["N_CRI"] == 5 * 10000 * 12
-    assert amounts["N_SAV"] == 10000 * 12
-    assert amounts["N_EDU"] == 3 * 10000 * 12
-    assert amounts["N_PRP"] == 5 * 10000 * 12
-    assert amounts["N_TPD"] == round(0.5 * amounts["N_INC"])
-    assert amounts["N_INC"] > 0
-    assert amounts["N_RET"] > 0
+def test_monthly_loan_payment_dsr_pair():
+    """Reported 10.27% at 0% interest vs ~14.3% at 3.5% over 20 years."""
+    principal = 246_480.0
+    income = 10_000.0
+    zero = monthly_loan_payment(principal, 0.0) / income * 100
+    priced = monthly_loan_payment(principal, 0.035) / income * 100
+    assert abs(zero - 10.27) < 0.01
+    assert abs(priced - 14.32) < 0.05
+
+
+def test_session_life_expectancy_caps_at_99():
+    assert session_life_expectancy({"lifeExpectancy": 110}) == LIFE_EXPECTANCY_MAX
+    assert session_life_expectancy({"lifeExpectancy": 86}) == 86
+    assert session_life_expectancy({}) == LIFE_EXPECTANCY
+    assert session_life_expectancy({"lifeExpectancy": 0}) == LIFE_EXPECTANCY
 
 
 def test_remaining_gap():
@@ -83,8 +87,9 @@ def test_top_needs_always_enable_retirement():
         {"unifiedType": "N_RET", "weightage_score": 1},
     ]
     assert select_unified_top(ranked) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
-    assert select_unified_top(ranked, has_property=True) == ["N_CRI", "N_INC", "N_RET", "N_PRP"]
+    assert select_unified_top(ranked, has_property=True) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
     assert select_unified_top(ranked, has_property=False) == ["N_CRI", "N_INC", "N_RET", "N_SAV"]
+    assert "N_PRP" not in select_unified_top(ranked, has_property=True)
     edu_ranked = [
         {"unifiedType": "N_CRI", "weightage_score": 9},
         {"unifiedType": "N_EDU", "weightage_score": 8.5},
@@ -124,9 +129,9 @@ def test_calculator_sav_keeps_customer_target_cri_recomputes():
     }
     calc = calculate_gaps_for_onboarding(data)
     assert calc["needs"]["N_SAV"]["needAmount"] == 99999
-    assert calc["needs"]["N_CRI"]["needAmount"] == round(pv_annuity_due(10000 * 12, REAL, CI_YEARS) + CI_COST)
+    assert calc["needs"]["N_CRI"]["needAmount"] == round(pv_annuity_due(10000 * 12, REAL, CRI_YEARS) + CRI_COST)
     # Life cover is now spend-based: PV of S$6,000/mo over the age-derived support years.
-    assert calc["needs"]["N_INC"]["needAmount"] == round(pv_annuity(6000 * 12, REAL, life_support_years(41)))
+    assert calc["needs"]["N_INC"]["needAmount"] == round(pv_annuity(6000 * 12, REAL, income_support_years(41)))
     assert "N_CRI" in calc["calculatedTypes"]
     assert "N_SAV" in calc["calculatedTypes"]
 
@@ -148,4 +153,4 @@ def test_run_profiler_then_calculator():
 
     calc = run_need_calculator(po, fin, prof["onboarding"]["data"]["needs"], only_empty=True)
     assert calc["success"] is True
-    assert calc["amounts"]["N_CRI"] == round(pv_annuity_due(10000 * 12, REAL, CI_YEARS) + CI_COST)
+    assert calc["amounts"]["N_CRI"] == round(pv_annuity_due(10000 * 12, REAL, CRI_YEARS) + CRI_COST)

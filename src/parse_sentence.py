@@ -30,6 +30,22 @@ _RES_ALIASES = {
     "foreign": "Foreigner",
     "expat": "Foreigner",
     "expatriate": "Foreigner",
+    "german": "Foreigner",
+    "american": "Foreigner",
+    "british": "Foreigner",
+    "french": "Foreigner",
+    "indian": "Foreigner",
+    "malaysian": "Foreigner",
+    "indonesian": "Foreigner",
+    "filipino": "Foreigner",
+    "thai": "Foreigner",
+    "vietnamese": "Foreigner",
+    "japanese": "Foreigner",
+    "korean": "Foreigner",
+    "australian": "Foreigner",
+    "canadian": "Foreigner",
+    "dutch": "Foreigner",
+    "irish": "Foreigner",
 }
 
 _OCC_ALIASES = {
@@ -107,10 +123,11 @@ Rules:
 - res must use the key "res" (not "residency"). Values:
   Singapore Citizen — Singaporean, SG citizen, citizen of Singapore, local,
   resident of Singapore, Singapore resident, living in Singapore, live in Singapore,
-  or "I'm a resident in/of Singapore". This is the default when they place themselves
-  in Singapore and do not say PR, EP, work pass, visa, expat, or foreigner.
+  "I am Singaporean", or "I'm a resident in/of Singapore". This is the default when they place themselves
+  in Singapore and do not say PR, EP, work pass, visa, expat, foreigner, or another nationality.
   Permanent Resident — PR, SPR, permanent resident, "pea are", "pre".
-  Foreigner — EP, work pass, visa, expat, not a resident.
+  Foreigner — EP, work pass, visa, expat, not a resident, or a nationality that is not Singaporean
+  (e.g. "I am German", "I'm American").
 - deps: people who depend on the speaker's income. Count children. Do NOT count a spouse
   or partner unless they are described as not working (housewife, homemaker, stay-at-home).
   Example: "two kids and one wife" → deps "2".
@@ -118,7 +135,8 @@ Rules:
   Expand CEO/CFO/CTO. Never use family words (kids, wife, husband) as occupation.
   Never use fillers, digits, "0", "oh", "yeah", or "solution" as occupation — use null.
 - name: a given name if they state one (including "I actually NAME" / "is NAME"), otherwise null.
-  Do not infer gender from the name.
+  If they give a name but not a sex, infer gender from the given name when it is clearly
+  male or female (Michael → Male, Mary → Female). Use null if the name is ambiguous.
 """
 
 

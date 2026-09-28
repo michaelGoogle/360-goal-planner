@@ -82,7 +82,7 @@ current screen. Scripts come from `POST /v1/explain`.
 How People Like You, Need Profiler, and Need Calculator are called and
 calculated is in [People-like-you-and-needs.md](People-like-you-and-needs.md).
 The rest of the formula trail (goal-card edits, suggested plan, budget) is in
-[Calculations.md](Calculations.md). What the same session sends to HappiU vs
+[calculations/Calculations.md](calculations/Calculations.md). What the same session sends to HappiU vs
 Scenario Visualizer is in [HU-and-SV-payloads.md](HU-and-SV-payloads.md).
 Risk capacity, tolerance, and the mapping to net expected returns are in
 [Risk.md](Risk.md). Product decisions and the build sequence are in

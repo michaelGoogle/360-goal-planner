@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { HappiUGauge } from '../components/HappiUGauge';
-import { GoalCard, NeedGroups } from '../components/GoalCard';
+import { GoalCard, NeedGroups, ParkedCoverage } from '../components/GoalCard';
 import { InfoTip } from '../components/InfoTip';
 import { Foot, GroupTag, NarrBtn } from '../components/ui';
 import { X_RATIO_WHY } from '../lib/catalog';
@@ -19,14 +19,12 @@ import {
   suitableRisk,
 } from '../lib/riskCapacity';
 import {
-  EXTRA_NEEDS,
   HAPPI_COL,
   firstName,
   happiBand,
   happiCaption,
   moneyK,
   NEED_META,
-  type ExtraNeed,
   type GpSession,
   type NeedType,
 } from '../lib/types';
@@ -39,7 +37,6 @@ export function Score({
   onBack,
   onPlan,
   onToggleNeed,
-  onToggleExtra,
   busy,
   narrKind,
   narrPaused,
@@ -54,7 +51,6 @@ export function Score({
   onBack: () => void;
   onPlan: (need?: NeedType) => void;
   onToggleNeed: (t: NeedType) => void;
-  onToggleExtra: (k: ExtraNeed) => void;
   busy: boolean;
   narrKind: ExplainKind | null;
   narrPaused?: boolean;
@@ -76,9 +72,9 @@ export function Score({
     investments: session.investments,
     property: session.property,
     mortgage: session.mortgage,
+    loanRate: session.loanRate,
   });
   const offNeeds = session.needs.filter(n => !n.enabled);
-  const offExtra = EXTRA_NEEDS.filter(x => !session.extraNeeds.includes(x.k));
   const okRatios = R.filter(r => r.ok).length;
   const badRatios = R.length - okRatios;
   const ratioTone = badRatios === 0 ? 'ok' : badRatios <= 3 ? 'warn' : 'no';
@@ -146,7 +142,7 @@ export function Score({
         Your HappiU, and the goals and needs people like {who} typically have
       </div>
 
-      <div className="x-card x-pad x-fade" style={{ padding: 30 }}>
+      <div className="x-card x-pad x-fade">
         <div className="x-score">
           <div className="x-score-viz">
             <p className="x-sm" style={{ textAlign: 'center', margin: '0 0 14px', maxWidth: '28ch' }}>
@@ -167,8 +163,8 @@ export function Score({
               </>
             )}
             <NarrBtn
-              ariaLabel="Explain your HappiU score"
-              label="Explain your HappiU score"
+              ariaLabel="Explain"
+              label="Explain"
               on={narrKind === 'score'}
               paused={narrPaused}
               onClick={() => onNarr('score')}
@@ -188,17 +184,17 @@ export function Score({
                     type="button"
                     onClick={() => openNeed(g.type)}
                   >
-                    <span>
-                      {NEED_META[g.type].label}: {g.gap > 0 ? `Shortfall ${moneyK(g.gap)}` : 'Fully funded'}
-                    </span>
+                    <span className="x-need-name">{NEED_META[g.type].label}</span>
+                    <span className="x-need-status">{g.gap > 0 ? 'Shortfall' : 'Fully funded'}</span>
+                    <span className="x-need-amt">{g.gap > 0 ? moneyK(g.gap) : ''}</span>
                     {Ico.pencil}
                   </button>
                 ))}
               </div>
             </div>
             <NarrBtn
-              ariaLabel="Explain your goals and needs"
-              label="Explain your goals and needs"
+              ariaLabel="Explain"
+              label="Explain"
               on={narrKind === 'needs'}
               paused={narrPaused}
               onClick={() => onNarr('needs')}
@@ -216,8 +212,8 @@ export function Score({
             onClick={() => setNeedsOpen(open => !open)}
           >
             <b>Where you should set the focus</b>
-            <GroupTag session={session} keys={[]} verb="have these goals" />
-            <span className="cv">{Ico.chev}</span>
+            <GroupTag session={session} keys={['needs']} verb="have these goals" />
+            <span className="cv">{Ico.pencil}</span>
           </button>
           {needsOpen ? (
             <>
@@ -225,19 +221,14 @@ export function Score({
                 session={session}
                 onChange={onChange}
                 onToggleNeed={onToggleNeed}
-                onToggleExtra={onToggleExtra}
               />
-              {offNeeds.length || offExtra.length ? (
+              <ParkedCoverage parked={session.parkedNeeds} />
+              {offNeeds.length ? (
                 <div className="x-add">
                   <span className="x-sm">Also worth looking at</span>
                   {offNeeds.map(n => (
                     <button key={n.type} className="x-btn sm" type="button" onClick={() => onToggleNeed(n.type)}>
                       + {NEED_META[n.type].label}
-                    </button>
-                  ))}
-                  {offExtra.map(x => (
-                    <button key={x.k} className="x-btn sm" type="button" onClick={() => onToggleExtra(x.k)}>
-                      + {x.label}
                     </button>
                   ))}
                 </div>
@@ -258,7 +249,7 @@ export function Score({
           >
             <b>How much market risk this plan should take</b>
             <span className={`x-chip ${suitable.chipClass}`}>{riskChip}</span>
-            <span className="cv">{Ico.chev}</span>
+            <span className="cv">{Ico.pencil}</span>
           </button>
           {riskOpen ? (
             <>
@@ -318,7 +309,7 @@ export function Score({
           >
             <b>Your financial health ratios</b>
             <span className={`x-chip ${ratioTone}`}>{ratioStatus}</span>
-            <span className="cv">{Ico.chev}</span>
+            <span className="cv">{Ico.pencil}</span>
           </button>
           {healthOpen ? (
             <>
@@ -386,7 +377,7 @@ export function Score({
         </button>
         <span className="sp" />
         <button className="x-btn p" type="button" onClick={() => onPlan()} disabled={busy}>
-          {busy ? 'Projecting…' : 'Build my plan →'}
+          {busy ? 'Projecting…' : 'Build my plan'}
         </button>
       </Foot>
     </>

@@ -1,3 +1,6 @@
+export const LOAN_TERM_YEARS = 20;
+export const DEFAULT_LOAN_RATE = 0.035;
+
 export interface Ratio {
   k: string;
   n: string;
@@ -9,6 +12,20 @@ export interface Ratio {
   bad: string;
 }
 
+/** Level monthly PMT. annualRate 0 → principal / (years × 12). */
+export function monthlyLoanPayment(
+  principal: number,
+  annualRate: number = DEFAULT_LOAN_RATE,
+  years: number = LOAN_TERM_YEARS,
+): number {
+  const p = Number(principal) || 0;
+  if (p <= 0) return 0;
+  const n = Math.max(1, (years || LOAN_TERM_YEARS) * 12);
+  const r = (Number(annualRate) || 0) / 12;
+  if (Math.abs(r) < 1e-12) return p / n;
+  return (p * r) / (1 - Math.pow(1 + r, -n));
+}
+
 export function moneyRatios(opts: {
   income: number;
   expense: number;
@@ -16,12 +33,13 @@ export function moneyRatios(opts: {
   investments: number;
   property: number;
   mortgage: number;
+  loanRate?: number;
 }): Ratio[] {
   const { income, expense, cash, investments, property, mortgage } = opts;
   const assets = cash + investments + property;
   const nw = assets - mortgage;
   const sav = income - expense;
-  const loanPayM = mortgage > 0 ? mortgage / 240 : 0;
+  const loanPayM = mortgage > 0 ? monthlyLoanPayment(mortgage, opts.loanRate ?? DEFAULT_LOAN_RATE) : 0;
   const d = (a: number, b: number) => (b ? a / b : 0);
   return [
     {

@@ -1,5 +1,6 @@
 from src.cpf import employee_cpf_monthly
 from src.hu_payload import build_happiu_payload
+from src.pipeline.goal_math import CRI_YEARS, LIFE_EXPECTANCY_MAX
 from src.sv_payload import build_sv_payload
 
 
@@ -53,19 +54,37 @@ def test_happiu_duration_shortens_when_retiring_later():
     assert primary["numYearsToRetirement"] == 28
 
 
-def test_happiu_payload_renames_hospitalisation_to_hu_code():
-    """GP calls the need N_HOS; HappiU only knows N_HSP."""
+def test_happiu_cri_extras_match_need_parameters():
+    session = _session()
+    session["needs"].append({"type": "N_CRI", "enabled": True, "needAmount": 250_000})
+    body = build_happiu_payload(session)
+    primary = next(iter(body["needCalculatorOutput"]["N_CRI"]["primaryOutput"].values()))[0]
+    assert primary["numYearsIncomeNeeded"] == CRI_YEARS
+    assert abs(primary["medicalCost"] - 200_000) < 1
+    assert "funeralExpense" not in primary
+
+
+def test_happiu_retirement_uses_capped_life_expectancy():
+    session = _session()
+    session["lifeExpectancy"] = 110
+    body = build_happiu_payload(session)
+    primary = next(iter(body["needCalculatorOutput"]["N_RET"]["primaryOutput"].values()))[0]
+    assert primary["durationOfRetirement"] == LIFE_EXPECTANCY_MAX - 65
+
+
+def test_happiu_payload_keeps_the_hospitalisation_code():
+    """HU accepts N_HOS; N_HSP remains an alias in the engine for one release."""
     session = _session()
     session["needs"].append({"type": "N_HOS", "enabled": True, "needAmount": 54_000, "existingSumAssured": 0})
     body = build_happiu_payload(session)
     types = {n["type"] for n in body["personalDetails"][0]["needs"]}
-    assert "N_HSP" in types
-    assert "N_HOS" not in types
-    assert "N_HOS" not in body["needCalculatorOutput"]
-    primary = next(iter(body["needCalculatorOutput"]["N_HSP"]["primaryOutput"].values()))[0]
-    assert primary["needId"] == "N_HSP"
+    assert "N_HOS" in types
+    assert "N_HSP" not in types
+    assert "N_HOS" in body["needCalculatorOutput"]
+    primary = next(iter(body["needCalculatorOutput"]["N_HOS"]["primaryOutput"].values()))[0]
+    assert primary["needId"] == "N_HOS"
     assert primary["medicalCost"] == 54_000
-    assert {b["goalType"] for b in body["solutionOptimizerOutput"]["segregatedBudget"]} >= {"N_HSP"}
+    assert {b["goalType"] for b in body["solutionOptimizerOutput"]["segregatedBudget"]} >= {"N_HOS"}
 
 
 def test_sv_payload_sends_every_enabled_goal():
@@ -99,7 +118,7 @@ def test_sv_payload_has_wealth_and_events():
     assert body["personalDetails"][0]["existingInsurance"]
     assert body["manualEvents"][0]["eventType"] == "CI"
     assert body["manualEvents"][0]["year"] == 2
-    assert body["manualEvents"][0]["config"]["oneTimeCost"] == 150000
+    assert abs(body["manualEvents"][0]["config"]["oneTimeCost"] - 200_000) < 1
     assert body["needCalculatorOutput"]
     ret = next(x for x in body["needCalculatorOutput"] if x["type"] == "N_RET")
     assert ret["result"]["durationOfRetirement"] == 20
@@ -308,9 +327,45 @@ def test_sv_payload_foreigner_uses_non_cpf_region():
     assert citizen["modelParameters"]["ignoreIlliquidAssets"] is False
 
 
+def test_sv_mortgage_instalment_clears_loan_in_term():
+    body = build_sv_payload(_session())
+    loan = body["personalDetails"][0]["liabilities"]["loans"][0]
+    remaining = float(loan["currentValue"])
+    for _ in range(loan["remainingYears"]):
+        remaining = remaining * (1 + loan["interestRate"]) - loan["installments"]
+    assert abs(remaining) < 50
+    assert loan["installments"] * loan["remainingYears"] > loan["currentValue"]
+
+
 def test_sv_payload_plans_off_skips_bvo_product():
     session = _session()
     session["planMth"] = {"N_RET": 400}
     session["plansOff"] = ["N_RET"]
     body = build_sv_payload(session)
     assert "benefitVisualizerOutput" not in body
+
+
+def test_happiu_omits_budget_when_plans_off():
+    session = _session()
+    session["plansOff"] = ["N_RET", "N_INC"]
+    hu = build_happiu_payload(session)
+    assert hu["solutionOptimizerOutput"]["segregatedBudget"] == []
+
+
+def test_happiu_zero_cover_sends_zero_benefit():
+    session = _session()
+    session["planSum"] = {"N_INC": 0}
+    session["planPrem"] = {"N_INC": 0}
+    hu = build_happiu_payload(session)
+    inc = next(b for b in hu["solutionOptimizerOutput"]["segregatedBudget"] if b["goalId"] == "N_INC")
+    assert inc["benefitAmount"] == 0
+    assert inc["budget"] == 0.0
+
+
+def test_happiu_duration_uses_life_expectancy():
+    session = _session()
+    session["lifeExpectancy"] = 86
+    hu = build_happiu_payload(session)
+    ret = hu["needCalculatorOutput"]["N_RET"]["primaryOutput"]
+    primary = next(iter(ret.values()))[0]
+    assert primary["durationOfRetirement"] == 21

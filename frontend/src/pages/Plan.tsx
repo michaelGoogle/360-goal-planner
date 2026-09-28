@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { CoachTour } from '../components/CoachTour';
 import { InfoTip } from '../components/InfoTip';
 import { PLOT_MARGIN } from '../components/Plot';
+import { RotateForCharts } from '../components/RotateForCharts';
 import { SvBusy } from '../components/SvBusy';
 import { SvChart } from '../components/SvChart';
 import { Foot, NarrBtn } from '../components/ui';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useOrientation } from '../hooks/useOrientation';
 import type { ChartMarker } from '../lib/chartMarkers';
 import type { ExplainKind } from '../lib/explain';
 import { Ico } from '../lib/icons';
@@ -18,7 +21,6 @@ import {
   moneyK,
   NEED_META,
   sessionAge,
-  type ExtraNeed,
   type GpEvent,
   type GpSession,
   type NeedType,
@@ -66,7 +68,7 @@ function suggestedPlanTourBody(who: string, items: PlanTourItem[]): string {
 }
 
 const CHART_VIEWS: { id: ChartView; label: string }[] = [
-  { id: 'wealth', label: 'Net Wealth' },
+  { id: 'wealth', label: 'Gross assets' },
   { id: 'cash', label: 'Cashflow' },
   { id: 'exp', label: 'Expense Funding' },
 ];
@@ -81,7 +83,6 @@ export function Plan({
   onChange,
   onBack,
   onToggleNeed,
-  onToggleExtra,
   onToggleEvent,
   onEvents,
   onMarkerMove,
@@ -107,7 +108,6 @@ export function Plan({
   onChange: (p: Partial<GpSession>) => void;
   onBack: () => void;
   onToggleNeed: (t: NeedType) => void;
-  onToggleExtra: (k: ExtraNeed) => void;
   onToggleEvent: (id: string) => void;
   onEvents: (events: GpEvent[]) => void;
   onMarkerMove: (marker: ChartMarker, newX: number) => void;
@@ -124,6 +124,10 @@ export function Plan({
   gtTtOn: boolean;
   onGtTtComplete: () => void;
 }) {
+  const isMobile = useIsMobile();
+  const orientation = useOrientation();
+  const mobilePortrait = isMobile && orientation === 'portrait';
+  const mobileLandscape = isMobile && orientation === 'landscape';
   const [view, setView] = useState<ChartView>('wealth');
   const [moreOpen, setMoreOpen] = useState(false);
   const [svOpen, setSvOpen] = useState(false);
@@ -143,7 +147,6 @@ export function Plan({
   const mixRef = useRef<HTMLDivElement>(null);
   const gapRef = useRef<HTMLButtonElement>(null);
   const end = session.endAge || 85;
-  const score = post ?? pre ?? 0;
   const panel = session.tip?.startsWith('panel-goals')
     ? 'goals'
     : session.tip?.startsWith('panel-events')
@@ -154,16 +157,17 @@ export function Plan({
   const focusId = session.tip?.includes(':') ? session.tip.split(':')[1] : null;
   const planNeed = panel === 'plans' && isNeedType(focusId) ? focusId : null;
   const plansOn = anyPlanOn(session);
+  const score = plansOn ? (post ?? pre ?? 0) : (pre ?? 0);
   const earmarked = svData ? pickEarmarked(svData, 'post') || pickEarmarked(svData, 'pre') : null;
   const copy = chartCopy(view, !!earmarked, plansOn);
-  const viewLabel = CHART_VIEWS.find(v => v.id === view)?.label ?? 'Net Wealth';
+  const viewLabel = CHART_VIEWS.find(v => v.id === view)?.label ?? 'Gross assets';
+  const otherViews = CHART_VIEWS.filter(v => v.id !== view);
   const leadText =
     view === 'cash'
       ? `Money in and out each year to age ${end}. Apply this plan to include its premiums and payouts, or turn it off to go without.`
       : view === 'exp'
         ? `What pays for spending each year to age ${end}. Apply this plan to see if the mix closes more of the gap, or turn it off to go without.`
         : `Compare the recommended plan (solid) with going without it (dotted). Stress-test a shock or drag a goal to see if the benefit still holds to age ${end}.`;
-  const otherViews = CHART_VIEWS.filter(v => v.id !== view);
   const who = firstName(session);
   const age = sessionAge(session) || 40;
   const hasRet = session.needs.some(n => n.type === 'N_RET' && n.enabled);
@@ -197,24 +201,32 @@ export function Plan({
     : 'All suggested items are funded — open a chip to change the mix.';
 
   useEffect(() => {
-    if (!moreOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [moreOpen]);
-
-  useEffect(() => {
     if (session.tip?.startsWith('panel-plans') && !gtTtOn) setPlanOpen(true);
   }, [session.tip, gtTtOn]);
 
   useEffect(() => {
     if (!gtTtOn) return;
     setView('wealth');
+    setMoreOpen(false);
     setPlanOpen(false);
     setPlanModal(null);
   }, [gtTtOn]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [moreOpen]);
 
   useEffect(() => {
     if (!svOpen) return;
@@ -253,17 +265,26 @@ export function Plan({
     return () => ac.abort();
   }, [svOpen, session, svPayload]);
 
+  const showChart = !mobilePortrait;
+  const showPlanBody = !mobileLandscape;
+
   return (
     <>
-      <div className="x-h1" style={{ whiteSpace: 'nowrap' }}>
-        See the benefit of this plan
-      </div>
-      <div className="x-lead" style={{ marginBottom: 20 }}>
-        {leadText}
-      </div>
+      {mobilePortrait ? <RotateForCharts /> : null}
+      {showPlanBody ? (
+        <>
+          <div className="x-h1" style={{ whiteSpace: 'nowrap' }}>
+            See the benefit of this plan
+          </div>
+          <div className="x-lead" style={{ marginBottom: 20 }}>
+            {leadText}
+          </div>
+        </>
+      ) : null}
 
+      {showChart ? (
       <div
-        className="x-card x-fade"
+        className="x-card x-fade x-svcard"
         style={{
           overflow: 'visible',
           ['--plot-ml' as string]: `${PLOT_MARGIN.l}px`,
@@ -271,12 +292,14 @@ export function Plan({
         }}
       >
         <div className="x-svhead">
-          <b className="x-svtitle">
-            <span>{copy.title}</span>
-            <InfoTip text={copy.info} />
-          </b>
-          {view === 'wealth' && plansOn ? null : (
-            <span className="x-svside">{plansOn ? 'With this plan' : 'Without this plan'}</span>
+          {mobileLandscape ? null : (
+            <>
+              <b className="x-svtitle">
+                <span>{copy.title}</span>
+                <InfoTip text={copy.info} />
+              </b>
+              {plansOn && view !== 'wealth' ? <span className="x-svside">With this plan</span> : null}
+            </>
           )}
           <span className="x-addbs">
             <button className="x-addb" type="button" onClick={() => onChange({ tip: 'panel-events' })}>
@@ -284,7 +307,7 @@ export function Plan({
             </button>
           </span>
           <span className="x-svhead-sp" />
-          <span className="chip on">{viewLabel}</span>
+          {mobileLandscape ? null : <span className="chip on">{viewLabel}</span>}
           <div className="x-svdd" ref={moreRef}>
             <button
               className="chip"
@@ -293,7 +316,7 @@ export function Plan({
               aria-haspopup="listbox"
               onClick={() => setMoreOpen(open => !open)}
             >
-              More…
+              + More chart
             </button>
             {moreOpen ? (
               <ul className="x-svdd-menu" role="listbox" aria-label="Chart view">
@@ -316,13 +339,15 @@ export function Plan({
           </div>
           {busy ? <SvBusy compact /> : null}
           <div className="x-svhead-end">
-            <NarrBtn label="Explain this chart" on={narrKind === 'chart'} paused={narrPaused} onClick={() => onNarr('chart', { chartView: view })} />
-            <button
-              className="x-svdbg"
-              type="button"
-              aria-label="Show Scenario Visualizer payload"
-              onClick={() => setSvOpen(true)}
-            />
+            <NarrBtn label="Explain" on={narrKind === 'chart'} paused={narrPaused} onClick={() => onNarr('chart', { chartView: view })} />
+            {mobileLandscape ? null : (
+              <button
+                className="x-svdbg"
+                type="button"
+                aria-label="Show Scenario Visualizer payload"
+                onClick={() => setSvOpen(true)}
+              />
+            )}
           </div>
         </div>
         <div ref={chartRef} className="x-svplot-wrap" aria-busy={busy}>
@@ -352,6 +377,7 @@ export function Plan({
         ) : null}
         </div>
       </div>
+      ) : null}
 
       {svOpen ? (
         <div className="x-modal" role="dialog" aria-modal="true" aria-label="Scenario Visualizer payload">
@@ -407,6 +433,7 @@ export function Plan({
         </div>
       ) : null}
 
+      {showPlanBody ? (
       <SuggestedPlan
         session={session}
         score={score}
@@ -417,7 +444,6 @@ export function Plan({
         planModal={planModal}
         setPlanModal={setPlanModal}
         onChange={onChange}
-        onToggleExtra={onToggleExtra}
         narrKind={narrKind}
         narrPaused={narrPaused}
         onNarr={onNarr}
@@ -425,6 +451,7 @@ export function Plan({
         gapRef={gapRef}
         gapType={focus?.type ?? null}
       />
+      ) : null}
 
       <PlanModals
         panel={panel}
@@ -433,12 +460,11 @@ export function Plan({
         session={session}
         onChange={onChange}
         onToggleNeed={onToggleNeed}
-        onToggleExtra={onToggleExtra}
         onToggleEvent={onToggleEvent}
         onEvents={onEvents}
       />
 
-      {reportOpen ? (
+      {showPlanBody && reportOpen ? (
         <PlanReport
           session={session}
           pre={pre}
@@ -450,7 +476,7 @@ export function Plan({
         />
       ) : null}
 
-      {shareOpen ? (
+      {showPlanBody && shareOpen ? (
         <ReportNotify
           session={session}
           pre={pre}
@@ -471,15 +497,20 @@ export function Plan({
         />
       ) : null}
 
+      {showPlanBody ? (
       <CoachTour
-        enabled={gtTtOn && chartReady && !planOpen && !reportOpen && !shareOpen}
+        enabled={gtTtOn && (mobilePortrait || chartReady) && !planOpen && !reportOpen && !shareOpen}
         onComplete={onGtTtComplete}
         steps={[
-          {
-            title: 'Projected assets',
-            body: chartTip,
-            anchorRef: chartRef,
-          },
+          ...(mobilePortrait
+            ? []
+            : [
+                {
+                  title: 'Projected assets',
+                  body: chartTip,
+                  anchorRef: chartRef,
+                },
+              ]),
           {
             title: 'Suggested plan',
             body: mixTip,
@@ -492,7 +523,9 @@ export function Plan({
           },
         ]}
       />
+      ) : null}
 
+      {showPlanBody ? (
       <Foot>
         <button className="x-btn g" type="button" onClick={onBack}>
           ← Back
@@ -505,6 +538,7 @@ export function Plan({
           {Ico.share}Share report
         </button>
       </Foot>
+      ) : null}
     </>
   );
 }

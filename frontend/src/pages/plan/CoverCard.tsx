@@ -34,7 +34,12 @@ import {
   returnFromInvestRet,
 } from '../../lib/assumptions';
 import { netReturnCeiling, netReturnCeilingNote } from '../../lib/riskCapacity';
+import { sessionCurrency } from '../../lib/currency';
 import { money, NEED_META, type GpSession, type NeedType } from '../../lib/types';
+
+function $(session: GpSession, n: number) {
+  return money(n, sessionCurrency(session));
+}
 
 const SLIDER_TIPS = {
   sum: 'The lump this cover would pay if the insured event happens. Raise it to close more of the gap; lower it to cut the premium.',
@@ -50,11 +55,11 @@ function PlanAffordWarn({ session }: { session: GpSession }) {
   const a = planAfford(session);
   const bits: string[] = [];
   if (a.monthlyOver > 0) {
-    bits.push(`This plan is ${money(a.monthlyOver)}/mo over your free monthly budget.`);
+    bits.push(`This plan is ${$(session, a.monthlyOver)}/mo over your free monthly budget.`);
   }
   if (a.lumpOver > 0) {
     bits.push(
-      `Lump sums are ${money(a.lumpOver)} over your investments. Cash & Savings is not used for this check.`,
+      `Lump sums are ${$(session, a.lumpOver)} over your investments. Cash & Savings is not used for this check.`,
     );
   }
   if (!bits.length) return null;
@@ -151,6 +156,7 @@ export function NeedShortfallBar({
   lo = 'Projected savings',
   hi = 'Amount needed',
   planLabel = 'Private retirement plan contribution',
+  currency = 'SGD',
 }: {
   have: number;
   extra: number;
@@ -158,6 +164,7 @@ export function NeedShortfallBar({
   lo?: string;
   hi?: string;
   planLabel?: string;
+  currency?: string;
 }) {
   const havePct = req ? Math.max(0, Math.min(100, (have / req) * 100)) : 100;
   const planPct = req ? Math.max(0, Math.min(100 - havePct, (extra / req) * 100)) : 0;
@@ -176,16 +183,16 @@ export function NeedShortfallBar({
         {planPct > 0 ? <i className="plan" style={{ width: `${planPct}%` }} /> : null}
       </div>
       <div className="gc-v">
-        <span>{money(have)}</span>
-        <b>{money(req)}</b>
+        <span>{money(have, currency)}</span>
+        <b>{money(req, currency)}</b>
       </div>
       <div className="gc-row gc-sf gc-plan">
         <span>{planLabel}</span>
-        <b>{money(extra)}</b>
+        <b>{money(extra, currency)}</b>
       </div>
       <div className={`gc-row gc-rem ${short || over ? 'no' : 'ok'}`}>
         <span>{short ? 'Shortfall' : 'Status'}</span>
-        <b>{short ? money(remain) : over ? `Overfunded ${money(-remain)}` : 'Fully funded'}</b>
+        <b>{short ? money(remain, currency) : over ? `Overfunded ${money(-remain, currency)}` : 'Fully funded'}</b>
       </div>
     </div>
   );
@@ -199,6 +206,7 @@ export function CoverCard({
   prem,
   onToggle,
   onEdit,
+  currency = 'SGD',
 }: {
   type: NeedType;
   title: string;
@@ -207,6 +215,7 @@ export function CoverCard({
   prem: number;
   onToggle: () => void;
   onEdit: () => void;
+  currency?: string;
 }) {
   return (
     <div className={`gc ${on ? 'on' : ''}`}>
@@ -224,11 +233,11 @@ export function CoverCard({
         <div className="gc-b">
           <div className="gc-row">
             <span>Sum assured</span>
-            <b>{money(sum)}</b>
+            <b>{money(sum, currency)}</b>
           </div>
           <div className="gc-row gc-sf">
             <span>Annual premium</span>
-            <b>{money(prem)}</b>
+            <b>{money(prem, currency)}</b>
           </div>
         </div>
       ) : null}
@@ -252,6 +261,7 @@ export function ProtectPlanCard({
   const title = PLAN_FOR_NEED[type];
   const meta = NEED_META[type];
   const on = planIncluded(session, type);
+  const ccy = sessionCurrency(session);
   const n = session.needs.find(x => x.type === type);
   if (!n) return null;
   const caps = coverSliderCaps(session, type);
@@ -289,7 +299,7 @@ export function ProtectPlanCard({
           aria-expanded={open}
           onClick={onToggleOpen}
         >
-          {Ico.chev}
+          {Ico.pencil}
         </button>
         <Switch on={on} label={title} onClick={() => onChange(togglePlanPatch(session, type))} />
       </div>
@@ -298,7 +308,7 @@ export function ProtectPlanCard({
           <AmountSlider
             label="Sum assured"
             tip={SLIDER_TIPS.sum}
-            display={money(sum)}
+            display={money(sum, ccy)}
             min={0}
             max={caps.sum}
             step={1000}
@@ -308,7 +318,7 @@ export function ProtectPlanCard({
           <AmountSlider
             label="Annual premium"
             tip={SLIDER_TIPS.prem}
-            display={money(prem)}
+            display={money(prem, ccy)}
             min={0}
             max={caps.prem}
             step={10}
@@ -325,6 +335,7 @@ export function ProtectPlanCard({
         lo={meta.lo}
         hi={meta.hi}
         planLabel={`${title} contribution`}
+        currency={ccy}
       />
     </div>
   );
@@ -345,6 +356,7 @@ export function GrowthPlanCard({
 }) {
   const title = PLAN_FOR_NEED[type];
   const on = planIncluded(session, type);
+  const ccy = sessionCurrency(session);
   const n = session.needs.find(x => x.type === type);
   if (!n) return null;
   const caps = planSliderCaps(session, type);
@@ -381,7 +393,7 @@ export function GrowthPlanCard({
           aria-expanded={open}
           onClick={onToggleOpen}
         >
-          {Ico.chev}
+          {Ico.pencil}
         </button>
         <Switch on={on} label={title} onClick={() => onChange(togglePlanPatch(session, type))} />
       </div>
@@ -390,7 +402,7 @@ export function GrowthPlanCard({
           <AmountSlider
             label="Lump sum to invest"
             tip={SLIDER_TIPS.lump}
-            display={money(lump)}
+            display={money(lump, ccy)}
             min={0}
             max={caps.lump}
             step={1000}
@@ -400,7 +412,7 @@ export function GrowthPlanCard({
           <AmountSlider
             label="Monthly contribution"
             tip={SLIDER_TIPS.mth}
-            display={money(mth)}
+            display={money(mth, ccy)}
             min={0}
             max={caps.monthly}
             step={50}
@@ -438,6 +450,7 @@ export function GrowthPlanCard({
         extra={extra}
         req={req}
         planLabel={`${title} contribution`}
+        currency={ccy}
       />
     </div>
   );
@@ -455,6 +468,7 @@ export function AddPlanPanel({
   onToggle: () => void;
 }) {
   const meta = NEED_META[type];
+  const ccy = sessionCurrency(session);
   const n = session.needs.find(x => x.type === type);
   if (!n) return <p className="x-sm">No matching shortfall to close.</p>;
   const have = needCardHave(session, n);
@@ -482,39 +496,39 @@ export function AddPlanPanel({
           <i style={{ width: `${pct}%` }} />
         </div>
         <div className="gc-v">
-          <span>{money(have)}</span>
-          <b>{money(req)}</b>
+          <span>{money(have, ccy)}</span>
+          <b>{money(req, ccy)}</b>
         </div>
         {wealth ? (
           <>
             <div className={`gc-row gc-sf ${gap > 0 ? 'no' : 'ok'}`}>
               <span>{gap > 0 ? 'Shortfall' : 'Status'}</span>
-              <b>{gap > 0 ? money(gap) : 'Fully funded'}</b>
+              <b>{gap > 0 ? money(gap, ccy) : 'Fully funded'}</b>
             </div>
             <div className="gc-row gc-sf ok">
               <span>This plan · monthly contribution</span>
-              <b>{money(planMonthly(session, type))}</b>
+              <b>{money(planMonthly(session, type), ccy)}</b>
             </div>
           </>
         ) : (
           <>
             <div className="gc-row gc-sf gc-plan">
               <span>{title} contribution</span>
-              <b>{money(on ? sum : 0)}</b>
+              <b>{money(on ? sum : 0, ccy)}</b>
             </div>
             <div className={`gc-row gc-rem ${gap - (on ? sum : 0) > 0 ? 'no' : 'ok'}`}>
               <span>{gap - (on ? sum : 0) > 0 ? 'Shortfall' : 'Status'}</span>
               <b>
                 {gap - (on ? sum : 0) > 0
-                  ? money(gap - (on ? sum : 0))
+                  ? money(gap - (on ? sum : 0), ccy)
                   : gap - (on ? sum : 0) < 0
-                    ? `Overfunded ${money((on ? sum : 0) - gap)}`
+                    ? `Overfunded ${money((on ? sum : 0) - gap, ccy)}`
                     : 'Fully funded'}
               </b>
             </div>
             <div className="gc-row">
               <span>Annual premium</span>
-              <b>{money(prem)}</b>
+              <b>{money(prem, ccy)}</b>
             </div>
           </>
         )}

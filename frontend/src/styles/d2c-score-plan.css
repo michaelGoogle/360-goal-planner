@@ -25,7 +25,7 @@
 .x-needsh:hover b{color:var(--acc)}
 .x-needsh:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:10px}
 .x-needsh b{font-size:16.5px;font-weight:750;letter-spacing:-.3px;flex:0 1 auto;min-width:0}
-.x-needsh .cv{display:flex;color:var(--ink2);flex:0 0 auto;margin-left:auto;transition:transform .2s}
+.x-needsh .cv{display:flex;color:var(--acc);flex:0 0 auto;margin-left:auto}
 .x-needsh .x-chip{flex:0 1 auto;pointer-events:none}
 .x-needsh-t{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;align-items:center;
  gap:12px;flex:1 1 auto;min-width:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
@@ -39,9 +39,8 @@
  flex:0 0 auto;font-size:13px;font-weight:650;color:var(--ink2);white-space:nowrap;letter-spacing:-.1px}
 .x-needsh.x-prod-head .tgl{flex:0 0 auto;margin-left:0}
 .x-needsh.x-prod-head .cv{appearance:none;background:none;border:0;padding:4px;margin-left:0;cursor:pointer;
- color:var(--ink2)}
+ color:var(--acc)}
 .x-needsh.x-prod-head .cv:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:8px}
-.x-needs.open .x-needsh .cv{transform:rotate(180deg)}
 .x-needs:not(.open){padding-bottom:20px}
 .x-needs:not(.open) .x-needsh{margin-bottom:0}
 .x-needs .x-gaps{margin:0}
@@ -258,11 +257,13 @@
 
 .x-narr-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
 .x-narr-row .x-play{margin-left:auto;flex:0 0 auto}
-.x-svhead{display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;
+.x-svhead{position:relative;z-index:30;display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;
  padding:14px 18px 10px;border-bottom:1px solid var(--ln)}
 .x-svhead .h2{margin:0}
 .x-svhead .x-play{margin-left:0;flex:0 0 auto;padding:8px 14px;font-size:13px}
 .x-svhead-sp{flex:1 1 auto;min-width:8px}
+.x-svtabs{display:flex;gap:6px;flex:0 1 auto;min-width:0}
+.x-svtabs .chip{white-space:nowrap}
 .x-svhead-end{display:flex;flex-direction:row;align-items:center;gap:8px;flex:0 0 auto;margin-left:auto}
 .x-svdbg{flex:0 0 auto;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:10px;
  background:#F6F9FF;color:transparent;box-shadow:none;cursor:pointer}
@@ -271,7 +272,7 @@
 .x-svpayload{margin:0;padding:14px 16px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
  background:#0F1724;color:#E8EEF7;border-radius:12px;overflow:auto;max-height:62vh;
  white-space:pre-wrap;word-break:break-word}
-.x-svdd{position:relative;flex:0 0 auto}
+.x-svdd{position:relative;flex:0 0 auto;z-index:31}
 .x-svdd-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;margin:0;padding:6px;
  list-style:none;min-width:11.5rem;background:#fff;border:1px solid var(--ln);border-radius:12px;
  box-shadow:0 10px 28px -12px rgba(12,20,36,.35)}
@@ -384,7 +385,7 @@
 .x-tip{position:absolute;top:calc(100% + 9px);left:-14px;z-index:90;width:330px;
  background:#fff;border:1px solid var(--ln);border-radius:16px;padding:16px 18px 15px;
  box-shadow:0 26px 54px -22px rgba(12,20,36,.42),0 2px 6px rgba(12,20,36,.06);
- font-weight:400;text-align:left;cursor:default}
+ font-weight:400;text-align:left;cursor:default;max-height:min(70vh,28rem);overflow:auto}
 .x-tip.w{width:390px}
 .x-tip.r{left:auto;right:-14px}
 .x-tip:before{content:"";position:absolute;top:-7px;left:20px;width:12px;height:12px;

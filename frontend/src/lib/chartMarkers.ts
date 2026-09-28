@@ -1,4 +1,4 @@
-import { NEED_ICONS, NEED_META, sessionAge, type GpSession, type NeedType } from './types';
+import { MAX_RETIREMENT_AGE, NEED_ICONS, NEED_META, sessionAge, type GpSession, type NeedType } from './types';
 import { hydrateStressEvents, STRESS_BY_ID } from './stressEvents';
 
 export type ChartMarkerKind = 'need' | 'event' | 'warning';
@@ -165,12 +165,15 @@ export function applyMarkerMoveToSession(session: GpSession, marker: ChartMarker
 
   if (marker.kind === 'need') {
     if (marker.id === 'N_RET' || marker.id === 'retirement') {
+      const retAge = Math.min(MAX_RETIREMENT_AGE, Math.max(startAge, Math.round(newX)));
+      const retYear = startYear + (retAge - startAge);
       return {
         ...session,
-        ageOfRetirement: age,
+        ageOfRetirement: retAge,
         needs: session.needs.map(n =>
-          n.type === 'N_RET' ? { ...n, retAge: age, targetYear: calendarYear, fundsNeededYear: calendarYear } : n,
+          n.type === 'N_RET' ? { ...n, retAge, targetYear: retYear, fundsNeededYear: retYear } : n,
         ),
+        provenance: { ...session.provenance, needs: 'you' },
       };
     }
     if (marker.id === 'N_SAV' || marker.id === 'N_PRP' || marker.id === 'N_EDU') {
@@ -179,6 +182,7 @@ export function applyMarkerMoveToSession(session: GpSession, marker: ChartMarker
         needs: session.needs.map(n =>
           n.type === marker.id ? { ...n, targetYear: calendarYear, fundsNeededYear: calendarYear } : n,
         ),
+        provenance: { ...session.provenance, needs: 'you' },
       };
     }
     return session;

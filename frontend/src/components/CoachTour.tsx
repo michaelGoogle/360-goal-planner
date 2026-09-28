@@ -18,6 +18,8 @@ export type CoachStep = {
   title: string;
   body: string;
   anchorRef: RefObject<HTMLElement | null>;
+  /** Spotlight a control in the sticky header, above the page dim. */
+  aboveHeader?: boolean;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -72,6 +74,14 @@ export function CoachTour({
     setHole({ visibility: 'hidden' });
     setTip({ visibility: 'hidden' });
     setIndex(next);
+  };
+
+  const back = () => {
+    const cur = indexRef.current;
+    if (cur === null || cur <= 0) return;
+    setHole({ visibility: 'hidden' });
+    setTip({ visibility: 'hidden' });
+    setIndex(cur - 1);
   };
 
   useLayoutEffect(() => {
@@ -138,7 +148,7 @@ export function CoachTour({
     };
 
     const rect = anchor.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight - 24 || rect.top < 72) {
+    if (!step.aboveHeader && (rect.bottom > window.innerHeight - 24 || rect.top < 72)) {
       anchor.scrollIntoView({ block: 'center', inline: 'nearest' });
     }
     placeTip();
@@ -173,7 +183,7 @@ export function CoachTour({
   const last = index === steps.length - 1;
 
   return createPortal(
-    <div className="x-coach" onClick={advance} role="presentation">
+    <div className={`x-coach${step.aboveHeader ? ' top' : ''}`} onClick={advance} role="presentation">
       <div className="x-coach-spot" style={hole} />
       <div
         ref={tipRef}
@@ -200,6 +210,9 @@ export function CoachTour({
             {index + 1} of {steps.length}
           </span>
           <span className="sp" />
+          <button className="x-btn sm" type="button" onClick={back} disabled={index === 0}>
+            ← Back
+          </button>
           <button className="x-btn p sm" type="button" onClick={advance}>
             {last ? 'Got it' : 'Next'}
           </button>

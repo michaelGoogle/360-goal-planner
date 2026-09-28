@@ -1,0 +1,790 @@
+{
+  "version": "v24",
+  "model": "V0-24",
+  "createdAt": "2026-09-25",
+  "createdBy": "scripts/build_parameters.py",
+  "note": "Generated from the V0-24 workbook export. Do not hand edit.",
+  "parameters": {
+    "CASH_SAVINGS_SHARE": {
+      "value": 0.15,
+      "unit": "% of assets",
+      "currency": "",
+      "level": "admin",
+      "label": "CASH_SAVINGS_SHARE",
+      "codeSource": "predict.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "CRI_COST": {
+      "value": 156325.47,
+      "unit": "one-off",
+      "currency": "USD",
+      "level": "admin",
+      "label": "CRI_COST (USD)",
+      "codeSource": "goal_math.py CI_COST (SGD)",
+      "changedIn": "V0-15 USD; V0-21 also sent to HappiU"
+    },
+    "CRI_YEARS": {
+      "value": 3,
+      "unit": "years",
+      "currency": "",
+      "level": "admin",
+      "label": "CRI_YEARS",
+      "codeSource": "goal_math.py CI_YEARS",
+      "changedIn": "V0-16 renamed"
+    },
+    "EDU_COST": {
+      "value": 58622.05,
+      "unit": "one-off",
+      "currency": "USD",
+      "level": "admin",
+      "label": "EDU_COST (USD)",
+      "codeSource": "goal_math.py EDU_TOTAL_COST (SGD)",
+      "changedIn": "V0-15 USD; V0-16 renamed"
+    },
+    "EDU_TARGET_AGE": {
+      "value": 50,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "EDU_TARGET_AGE (N_EDU default target: children leave home at 20, born at 30)",
+      "codeSource": "needEdit.ts (was +10 years)",
+      "changedIn": "V0-24",
+      "min": 18,
+      "max": 80
+    },
+    "FREE_BUDGET_SHARE": {
+      "value": 0.5,
+      "unit": "% of surplus",
+      "currency": "",
+      "level": "admin",
+      "label": "FREE_BUDGET_SHARE",
+      "codeSource": "planProducts.ts",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "HOS_MONTHS": {
+      "value": 6,
+      "unit": "months of income",
+      "currency": "",
+      "level": "admin",
+      "label": "HOS_MONTHS",
+      "codeSource": "goal_math.py HOSP_MONTHS",
+      "changedIn": "V0-16 renamed"
+    },
+    "INC_SUPPORT_MAX": {
+      "value": 25,
+      "unit": "years",
+      "currency": "",
+      "level": "admin",
+      "label": "INC_SUPPORT_MAX",
+      "codeSource": "goal_math.py LIFE_SUPPORT_MAX_YEARS",
+      "changedIn": "V0-16 renamed"
+    },
+    "INC_SUPPORT_MIN": {
+      "value": 10,
+      "unit": "years",
+      "currency": "",
+      "level": "admin",
+      "label": "INC_SUPPORT_MIN",
+      "codeSource": "goal_math.py LIFE_SUPPORT_MIN_YEARS",
+      "changedIn": "V0-16 renamed"
+    },
+    "INC_SUPPORT_PIVOT_AGE": {
+      "value": 50,
+      "unit": "age",
+      "currency": "",
+      "level": "admin",
+      "label": "INC_SUPPORT_PIVOT_AGE",
+      "codeSource": "goal_math.py LIFE_SUPPORT_PIVOT_AGE",
+      "changedIn": "V0-16 renamed"
+    },
+    "INVESTMENTS_SHARE": {
+      "value": 0.85,
+      "unit": "% of assets",
+      "currency": "",
+      "level": "admin",
+      "label": "INVESTMENTS_SHARE",
+      "codeSource": "predict.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "LON_AGE": {
+      "value": 99,
+      "unit": "age",
+      "currency": "",
+      "level": "admin",
+      "label": "LON_AGE (life expectancy cap and R_LON)",
+      "codeSource": "goal_math.py LIFE_EXPECTANCY_MAX",
+      "changedIn": "V0-21: also the LE cap and the SV path end"
+    },
+    "LTC_COST": {
+      "value": 129000,
+      "unit": "per year",
+      "currency": "USD",
+      "level": "admin",
+      "label": "LTC_COST (USD / year, N_LTC nursing home)",
+      "codeSource": "— (new)",
+      "changedIn": "V0-19"
+    },
+    "LTC_START_AGE": {
+      "value": 80,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "LTC_START_AGE (N_LTC default; front-end input)",
+      "codeSource": "— (new, front-end input)",
+      "changedIn": "V0-19",
+      "min": 60,
+      "max": 100
+    },
+    "MIN_EXPENSE_MONTHLY": {
+      "value": 100,
+      "unit": "per month",
+      "currency": "USD",
+      "level": "admin",
+      "label": "MIN_EXPENSE_MONTHLY (USD)",
+      "codeSource": "frontend MIN_EXPENSE_MONTHLY (SGD 100)",
+      "changedIn": "V0-21: USD 100 (was S$100)"
+    },
+    "PAC_COST": {
+      "value": 62530.19,
+      "unit": "one-off",
+      "currency": "USD",
+      "level": "admin",
+      "label": "PAC_COST (USD = S$80,000 at the calibration rate)",
+      "codeSource": "— (new)",
+      "changedIn": "V0-16, agreed V0-18"
+    },
+    "PAC_YEARS": {
+      "value": 1,
+      "unit": "years",
+      "currency": "",
+      "level": "admin",
+      "label": "PAC_YEARS",
+      "codeSource": "— (new)",
+      "changedIn": "V0-16, agreed V0-18"
+    },
+    "PPP_BASE_COUNTRY": {
+      "value": "Singapore",
+      "unit": "country",
+      "currency": "",
+      "level": "admin",
+      "label": "PPP_BASE_COUNTRY (price level = 1)",
+      "codeSource": "— (new)",
+      "changedIn": "V0-22"
+    },
+    "PROPERTY_LTV": {
+      "value": 0.55,
+      "unit": "% of property",
+      "currency": "",
+      "level": "admin",
+      "label": "PROPERTY_LTV",
+      "codeSource": "predict.py PROPERTY_LTV",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "PRP_INCOME_MULT": {
+      "value": 5,
+      "unit": "× annual income",
+      "currency": "",
+      "level": "admin",
+      "label": "PRP_INCOME_MULT",
+      "codeSource": "need_calculator.py",
+      "changedIn": "V0-16 renamed"
+    },
+    "PRP_TARGET_AGE": {
+      "value": 33,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "PRP_TARGET_AGE (N_PRP default target: 3 years after marriage at 30)",
+      "codeSource": "needEdit.ts (was +10 years)",
+      "changedIn": "V0-24",
+      "min": 18,
+      "max": 80
+    },
+    "RET_LIFESTYLE_FRUGAL": {
+      "value": 0.75,
+      "unit": "× today's spend",
+      "currency": "",
+      "level": "admin",
+      "label": "RET_LIFESTYLE_FRUGAL",
+      "codeSource": "goal_math.py LIFESTYLE_RATES",
+      "changedIn": "V0-16 renamed"
+    },
+    "RET_LIFESTYLE_ONLYTHEBEST": {
+      "value": 1.25,
+      "unit": "× today's spend",
+      "currency": "",
+      "level": "admin",
+      "label": "RET_LIFESTYLE_ONLYTHEBEST",
+      "codeSource": "goal_math.py LIFESTYLE_RATES",
+      "changedIn": "V0-16 renamed"
+    },
+    "RET_LIFESTYLE_STRESSFREE": {
+      "value": 1,
+      "unit": "× today's spend",
+      "currency": "",
+      "level": "admin",
+      "label": "RET_LIFESTYLE_STRESSFREE",
+      "codeSource": "goal_math.py LIFESTYLE_RATES",
+      "changedIn": "V0-16 renamed"
+    },
+    "R_BAB_SIZE": {
+      "value": 27356.96,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_BAB_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_BAB_WHEN": {
+      "value": 3,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_BAB_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_CRI_SIZE": {
+      "value": 156325.47,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_CRI_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_CRI_WHEN": {
+      "value": 55,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_CRI_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_DEA_SIZE": {
+      "value": 15632.55,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_DEA_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_DEA_WHEN": {
+      "value": 60,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_DEA_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_HOS_SIZE": {
+      "value": 93795.28,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_HOS_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_HOS_WHEN": {
+      "value": 50,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_HOS_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_LTC_SIZE": {
+      "value": 129000,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_LTC_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_LTC_WHEN": {
+      "value": 80,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_LTC_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_PAC_SIZE": {
+      "value": 62530.19,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_PAC_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_PAC_WHEN": {
+      "value": 45,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_PAC_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_TPD_SIZE": {
+      "value": 156325.47,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_TPD_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_TPD_WHEN": {
+      "value": 50,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_TPD_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_WED_SIZE": {
+      "value": 46897.64,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_WED_SIZE",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "R_WED_WHEN": {
+      "value": 5,
+      "unit": "",
+      "currency": "",
+      "level": "admin",
+      "label": "R_WED_WHEN",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "SAV_INCOME_MULT": {
+      "value": 1,
+      "unit": "× annual income",
+      "currency": "",
+      "level": "admin",
+      "label": "SAV_INCOME_MULT",
+      "codeSource": "need_calculator.py",
+      "changedIn": "V0-16 renamed"
+    },
+    "SAV_TARGET_AGE": {
+      "value": 40,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "SAV_TARGET_AGE (N_SAV default target: next car / investment)",
+      "codeSource": "needEdit.ts (was +10 years)",
+      "changedIn": "V0-24",
+      "min": 18,
+      "max": 80
+    },
+    "TPD_COST": {
+      "value": 156325.47,
+      "unit": "one-off",
+      "currency": "USD",
+      "level": "admin",
+      "label": "TPD_COST (USD)",
+      "codeSource": "goal_math.py TPD_COST (SGD)",
+      "changedIn": "V0-15 USD; V0-21 also sent to HappiU"
+    },
+    "TPD_YEARS": {
+      "value": 5,
+      "unit": "years",
+      "currency": "",
+      "level": "admin",
+      "label": "TPD_YEARS",
+      "codeSource": "goal_math.py TPD_YEARS",
+      "changedIn": ""
+    },
+    "ageOfRetirement": {
+      "value": 65,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "ageOfRetirement",
+      "codeSource": "goal_math.py RETIREMENT_AGE",
+      "changedIn": "",
+      "min": 40,
+      "max": 80
+    },
+    "annualBudget": {
+      "value": 1172.44,
+      "unit": "per year",
+      "currency": "USD",
+      "level": "admin",
+      "label": "annualBudget (USD)",
+      "codeSource": "hu_payload.py (SGD 1,500)",
+      "changedIn": "V0-15"
+    },
+    "assetReturn": {
+      "value": 0.03,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "assetReturn",
+      "codeSource": "session_rates.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.2
+    },
+    "assetsSaveShare": {
+      "value": 0.5,
+      "unit": "% of surplus",
+      "currency": "",
+      "level": "admin",
+      "label": "assetsSaveShare",
+      "codeSource": "people_like_you.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "benefitRound": {
+      "value": 39081.37,
+      "unit": "step",
+      "currency": "USD",
+      "level": "admin",
+      "label": "benefitRound (USD, before nice step)",
+      "codeSource": "hu_payload.py (SGD 50,000)",
+      "changedIn": "V0-15"
+    },
+    "coverPremRoundStep": {
+      "value": 7.82,
+      "unit": "step",
+      "currency": "USD",
+      "level": "admin",
+      "label": "coverPremRoundStep (USD, before nice step)",
+      "codeSource": "planProducts.ts (SGD 10)",
+      "changedIn": "V0-15"
+    },
+    "coverSliderPremFloor": {
+      "value": 156.33,
+      "unit": "per year",
+      "currency": "USD",
+      "level": "admin",
+      "label": "coverSliderPremFloor (USD)",
+      "codeSource": "planProducts.ts (SGD 200)",
+      "changedIn": "V0-15"
+    },
+    "currentYear": {
+      "value": 2026,
+      "unit": "year",
+      "currency": "",
+      "level": "admin",
+      "label": "currentYear",
+      "codeSource": "",
+      "changedIn": ""
+    },
+    "endAge": {
+      "value": 85,
+      "unit": "age",
+      "currency": "",
+      "level": "admin",
+      "label": "endAge (chart horizon default)",
+      "codeSource": "sv_payload.py endAge",
+      "changedIn": "V0-21: = default; chart uses the session LE"
+    },
+    "fxMode": {
+      "value": "B",
+      "unit": "A / B",
+      "currency": "",
+      "level": "admin",
+      "label": "fxMode (A = market rate; B = market rate × price level)",
+      "codeSource": "",
+      "changedIn": "V0-15; V0-22 B"
+    },
+    "gfr": {
+      "value": 0.05,
+      "unit": "%",
+      "currency": "",
+      "level": "admin",
+      "label": "gfr",
+      "codeSource": "hu_payload.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "huNumSims": {
+      "value": 200,
+      "unit": "count",
+      "currency": "",
+      "level": "admin",
+      "label": "huNumSims",
+      "codeSource": "hu_payload.py",
+      "changedIn": "",
+      "min": 1,
+      "max": 100000
+    },
+    "incomeGrowthRate": {
+      "value": 0.028,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "incomeGrowthRate",
+      "codeSource": "session_rates.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.15
+    },
+    "inflationRate": {
+      "value": 0.023,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "inflationRate",
+      "codeSource": "session_rates.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.15
+    },
+    "interestRate": {
+      "value": 0.012,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "interestRate",
+      "codeSource": "session_rates.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.15
+    },
+    "investmentReturn": {
+      "value": 0.042,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "investmentReturn",
+      "codeSource": "session_rates.py / riskCapacity.ts",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.2
+    },
+    "liabilityRatio": {
+      "value": 0.7,
+      "unit": "× assets",
+      "currency": "",
+      "level": "admin",
+      "label": "liabilityRatio (PLU only; not the mortgage)",
+      "codeSource": "people_like_you.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 2.0
+    },
+    "lifeExpectancyDefault": {
+      "value": 85,
+      "unit": "age",
+      "currency": "",
+      "level": "customer",
+      "label": "lifeExpectancyDefault",
+      "codeSource": "goal_math.py LIFE_EXPECTANCY",
+      "changedIn": "V0-21: the one default; GP sends it to HappiU and SV",
+      "min": 60,
+      "max": 110
+    },
+    "lifePremiumRate": {
+      "value": 0.0031,
+      "unit": "% of sum",
+      "currency": "",
+      "level": "admin",
+      "label": "lifePremiumRate",
+      "codeSource": "predict.py _assumed_life_policy",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.1
+    },
+    "lifeRoundUnit": {
+      "value": 78162.73,
+      "unit": "step",
+      "currency": "USD",
+      "level": "admin",
+      "label": "lifeRoundUnit (USD, before nice step)",
+      "codeSource": "predict.py (SGD 100,000)",
+      "changedIn": "V0-15"
+    },
+    "loanRate": {
+      "value": 0.035,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "customer",
+      "label": "loanRate",
+      "codeSource": "session_rates.py",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.2
+    },
+    "lumpRoundStep": {
+      "value": 781.63,
+      "unit": "step",
+      "currency": "USD",
+      "level": "admin",
+      "label": "lumpRoundStep (USD, before nice step)",
+      "codeSource": "planProducts.ts (SGD 1,000)",
+      "changedIn": "V0-15"
+    },
+    "monthlyRoundStep": {
+      "value": 39.08,
+      "unit": "step",
+      "currency": "USD",
+      "level": "admin",
+      "label": "monthlyRoundStep (USD, before nice step)",
+      "codeSource": "planProducts.ts (SGD 50)",
+      "changedIn": "V0-15"
+    },
+    "placeholderNeedBudget": {
+      "value": 156.33,
+      "unit": "per year",
+      "currency": "USD",
+      "level": "admin",
+      "label": "placeholderNeedBudget (USD)",
+      "codeSource": "hu_payload.py (SGD 200)",
+      "changedIn": "V0-15"
+    },
+    "priceLevelOn": {
+      "value": 1,
+      "unit": "TRUE / FALSE",
+      "currency": "",
+      "level": "admin",
+      "label": "priceLevelOn (option B)",
+      "codeSource": "",
+      "changedIn": "V0-15; V0-22 switched on"
+    },
+    "propertyHigh": {
+      "value": 664383.24,
+      "unit": "value",
+      "currency": "USD",
+      "level": "admin",
+      "label": "propertyHigh (USD)",
+      "codeSource": "predict.py seed_property_value (SGD)",
+      "changedIn": "V0-15"
+    },
+    "propertyIncomeHigh": {
+      "value": 15632.55,
+      "unit": "per month",
+      "currency": "USD",
+      "level": "admin",
+      "label": "propertyIncomeHigh (USD / month)",
+      "codeSource": "predict.py (SGD)",
+      "changedIn": "V0-15"
+    },
+    "propertyIncomeLow": {
+      "value": 7816.27,
+      "unit": "per month",
+      "currency": "USD",
+      "level": "admin",
+      "label": "propertyIncomeLow (USD / month)",
+      "codeSource": "predict.py (SGD)",
+      "changedIn": "V0-15"
+    },
+    "propertyLow": {
+      "value": 273569.57,
+      "unit": "value",
+      "currency": "USD",
+      "level": "admin",
+      "label": "propertyLow (USD)",
+      "codeSource": "predict.py seed_property_value (SGD)",
+      "changedIn": "V0-15"
+    },
+    "propertyMid": {
+      "value": 508057.77,
+      "unit": "value",
+      "currency": "USD",
+      "level": "admin",
+      "label": "propertyMid (USD)",
+      "codeSource": "predict.py seed_property_value (SGD)",
+      "changedIn": "V0-15"
+    },
+    "protectionPremiumRate": {
+      "value": 0.00078,
+      "unit": "% of sum",
+      "currency": "",
+      "level": "admin",
+      "label": "protectionPremiumRate",
+      "codeSource": "planProducts.ts coverPremiumFor",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.1
+    },
+    "realReturn": {
+      "value": 0.0185728250244381,
+      "unit": "% p.a.",
+      "currency": "",
+      "level": "admin",
+      "label": "realReturn (derived)",
+      "codeSource": "goal_math.real_return",
+      "changedIn": "",
+      "min": -0.5,
+      "max": 0.5
+    },
+    "spendShareBase": {
+      "value": 0.675,
+      "unit": "% of take-home",
+      "currency": "",
+      "level": "admin",
+      "label": "spendShareBase",
+      "codeSource": "src/cpf.py spend_share",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "spendShareCap": {
+      "value": 0.9,
+      "unit": "% of take-home",
+      "currency": "",
+      "level": "admin",
+      "label": "spendShareCap",
+      "codeSource": "src/cpf.py spend_share",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "spendSharePerDependant": {
+      "value": 0.05,
+      "unit": "pp per dependant",
+      "currency": "",
+      "level": "admin",
+      "label": "spendSharePerDependant",
+      "codeSource": "src/cpf.py spend_share",
+      "changedIn": "",
+      "min": 0.0,
+      "max": 0.5
+    },
+    "systemCurrency": {
+      "value": "USD",
+      "unit": "code",
+      "currency": "",
+      "level": "admin",
+      "label": "systemCurrency",
+      "codeSource": "",
+      "changedIn": "V0-15"
+    },
+    "workStartAge": {
+      "value": 21,
+      "unit": "age",
+      "currency": "",
+      "level": "admin",
+      "label": "workStartAge",
+      "codeSource": "people_like_you.py",
+      "changedIn": ""
+    }
+  }
+}

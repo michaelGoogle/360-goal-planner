@@ -242,7 +242,7 @@ export function MarkerRail({
   return (
     <div
       ref={railRef}
-      className="relative h-11 bg-white border-b border-[#e8e8e8] select-none"
+      className="x-markrail relative h-11 shrink-0 bg-white border-b border-[#e8e8e8] select-none"
       style={{ paddingLeft: PLOT_MARGIN.l, paddingRight: PLOT_MARGIN.r }}
     >
       <div className="relative h-full w-full">

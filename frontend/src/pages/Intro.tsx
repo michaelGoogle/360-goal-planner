@@ -1,5 +1,6 @@
 import { HappiUGauge } from '../components/HappiUGauge';
 import { NarrBtn } from '../components/ui';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export function Intro({
   narrOn,
@@ -12,6 +13,7 @@ export function Intro({
   onNarr: () => void;
   onStart: () => void;
 }) {
+  const isMobile = useIsMobile();
   return (
     <>
       <div className="x-band">
@@ -25,15 +27,29 @@ export function Intro({
             <br />
             for the life you want
           </div>
-          <div className="x-lead">
-            Tell us a little about yourself. FinPlan360 predicts where you stand today from people like you — unless you
-            type the figures or add a statement. It then sizes the goals that actually matter — income if you could not
-            work, retirement, family — and shows how far what you already have goes.
-          </div>
-          <div className="x-lead">
-            You leave with a coverage score, the gaps behind it, and a year-by-year picture of your wealth you can
-            test.
-          </div>
+          {isMobile ? (
+            <>
+              <div className="x-lead">
+                Tell us a little about yourself. We’ll size the goals that matter — income if you could not work,
+                retirement, family — and show how far what you already have goes.
+              </div>
+              <div className="x-lead">
+                You leave with a coverage score, the gaps, and a year-by-year picture of your wealth.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="x-lead">
+                Tell us a little about yourself. FinPlan360 predicts where you stand today from people like you — unless you
+                type the figures or add a statement. It then sizes the goals that actually matter — income if you could not
+                work, retirement, family — and shows how far what you already have goes.
+              </div>
+              <div className="x-lead">
+                You leave with a coverage score, the gaps behind it, and a year-by-year picture of your wealth you can
+                test.
+              </div>
+            </>
+          )}
           <div className="x-hero-cta">
             <div className="x-hero-act">
               <button className="x-cta" type="button" onClick={onStart}>
@@ -44,9 +60,10 @@ export function Intro({
                 <span className="x-hero-wow-rest">No sign up. No mobile number.</span>
               </div>
             </div>
-            <NarrBtn label="Hear what you get" on={narrOn} paused={narrPaused} onClick={onNarr} />
+            <NarrBtn label="Explain" on={narrOn} paused={narrPaused} onClick={onNarr} />
           </div>
         </div>
+        {isMobile ? null : (
         <div className="x-hero-visual">
           <div className="x-dev">
             <div className="x-phone">
@@ -66,6 +83,7 @@ export function Intro({
             </div>
           </div>
         </div>
+        )}
       </div>
     </>
   );

@@ -6,12 +6,11 @@ import { AboutYou } from './pages/AboutYou';
 import { Money } from './pages/Money';
 import { Score } from './pages/Score';
 import { Plan } from './pages/Plan';
-import { hydrateStressEvents, type GpEvent } from './lib/stressEvents';
+import { defaultStressEvents, hydrateStressEvents, stressEventsFromParameters, type GpEvent } from './lib/stressEvents';
 import {
   EMPTY_SESSION,
   NEED_TYPES,
   isNeedType,
-  type ExtraNeed,
   type GpSession,
   type NeedRow,
   type NeedType,
@@ -19,16 +18,29 @@ import {
 } from './lib/types';
 import { loadAuthSession } from './lib/auth';
 import { postJson, sessionPayload, type NeedsResponse, type PredictResponse, type ProjectResponse, type ScoreResponse } from './lib/api';
-import { ASSUME_DEFAULTS, assumeChangedCount, investRetFromReturn } from './lib/assumptions';
-import { clampAllWealthToCaps, productFlags } from './lib/planProducts';
+import { sessionCountry } from './lib/currency';
+import { assumeChangedCount, investRetFromReturn } from './lib/assumptions';
+import {
+  ASSUME_CONFIG_FALLBACK,
+  ASSUME_FALLBACK as ASSUME_DEFAULTS,
+  ASSUME_KEYS,
+  assumeConfigFrom,
+  assumeDefaults,
+  fetchAssumptionSchema,
+  fetchParameters,
+  fetchSessionDefaults,
+  type AssumeConfig,
+} from './lib/config';
+import { clampAllWealthToCaps, productFlags, refreshUntouchedCover } from './lib/planProducts';
 import { buildExplainContext, type ExplainKind, type ExplainResponse } from './lib/explain';
 import { applyMarkerMoveToSession, type ChartMarker } from './lib/chartMarkers';
-import { applyDocs, seedProducts } from './lib/local';
+import { applyDocs, seedProductsFromApi } from './lib/local';
 import { riskSessionPatch } from './lib/riskCapacity';
 import { isSvData, type ChartView, type SvData } from './lib/sv';
 import { pauseSpeak, resumeSpeak, speak, stopSpeak } from './lib/speech';
-import { capEnabledNeeds, MIN_EXPENSE_MONTHLY, toggleNeedEnabled } from './lib/needEdit';
+import { capEnabledNeeds, minExpenseMonthly, needsProvenanceYou, toggleNeedEnabled } from './lib/needEdit';
 import { readGtTt, writeGtTt } from './lib/gtTt';
+import { useIsMobile } from './hooks/useIsMobile';
 
 const PLU_UNAVAILABLE =
   '360-PeopleLikeU(r) is not available, so we cannot predict your financial future.';
@@ -60,15 +72,15 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
       enabled: n.type === 'N_RET' ? true : prev ? prev.enabled : (n.enabled ?? false),
       retAge: n.retAge ?? prev?.retAge,
       targetYear: n.targetYear ?? prev?.targetYear,
+      ltcStartAge: n.ltcStartAge ?? prev?.ltcStartAge,
     };
   });
   const seen = new Set(mapped.map(n => n.type));
   const property = skip.property ? s.property : Number(p.property ?? s.property);
   const needs = capEnabledNeeds(
     mapped.concat(NEED_TYPES.filter(t => !seen.has(t)).map(t => skeletonNeed(t, s.needs.find(n => n.type === t)))),
-    { hasProperty: property > 0 },
   );
-  return {
+  const next: GpSession = {
     ...s,
     incomeMonthly: skip.income ? s.incomeMonthly : Number(p.incomeMonthly ?? s.incomeMonthly),
     expenseMonthly: skip.expense ? s.expenseMonthly : Number(p.expenseMonthly ?? s.expenseMonthly),
@@ -81,7 +93,18 @@ function applyPredict(s: GpSession, p: PredictResponse['session']): GpSession {
     ageOfRetirement: Number(p.ageOfRetirement ?? s.ageOfRetirement),
     source: p.source ?? s.source,
     note: p.note ?? s.note,
+    parkedNeeds: Array.isArray(p.parkedNeeds) ? p.parkedNeeds : s.parkedNeeds,
+    fx: p.fx ?? s.fx,
+    country: p.country ?? s.country,
+    currency: p.currency ?? s.currency,
+    ltcStartAge: p.ltcStartAge ?? s.ltcStartAge,
   };
+  const le = Number(p.lifeExpectancy);
+  if (Number.isFinite(le) && le >= 70 && le <= 120) {
+    next.lifeExpectancy = le;
+    next.endAge = le;
+  }
+  return next;
 }
 
 function mergePartial(s: GpSession, p: Partial<GpSession>): GpSession {
@@ -92,6 +115,10 @@ function mergePartial(s: GpSession, p: Partial<GpSession>): GpSession {
     ...(p.planSum ? { planSum: { ...s.planSum, ...p.planSum } } : {}),
     ...(p.planMth ? { planMth: { ...s.planMth, ...p.planMth } } : {}),
     ...(p.planLump ? { planLump: { ...s.planLump, ...p.planLump } } : {}),
+    ...(p.planSumTouched ? { planSumTouched: { ...s.planSumTouched, ...p.planSumTouched } } : {}),
+    ...(p.planPremTouched ? { planPremTouched: { ...s.planPremTouched, ...p.planPremTouched } } : {}),
+    ...(p.planMthTouched ? { planMthTouched: { ...s.planMthTouched, ...p.planMthTouched } } : {}),
+    ...(p.planLumpTouched ? { planLumpTouched: { ...s.planLumpTouched, ...p.planLumpTouched } } : {}),
   };
 }
 
@@ -126,6 +153,20 @@ function needsInputChanged(p: Partial<GpSession>): boolean {
   return NEED_INPUT_KEYS.some(k => k in p);
 }
 
+const SCORE_REFRESH_KEYS: (keyof GpSession)[] = [
+  'interestRate',
+  'loanRate',
+  'assetReturn',
+  'incomeGrowthRate',
+  'cash',
+  'investments',
+  'property',
+];
+
+function scoreInputChanged(p: Partial<GpSession>): boolean {
+  return SCORE_REFRESH_KEYS.some(k => k in p);
+}
+
 function mergeNeedsFromApi(s: GpSession, incoming: NeedRow[], ageOfRetirement?: number): GpSession {
   const byType = new Map(incoming.filter(n => isNeedType(n.type)).map(n => [n.type, n]));
   const needs = s.needs.map(local => {
@@ -148,6 +189,7 @@ function mergeNeedsFromApi(s: GpSession, incoming: NeedRow[], ageOfRetirement?: 
 function resetPredictedMoney(s: GpSession): GpSession {
   const provenance = { ...s.provenance };
   for (const k of MONEY_PROV) delete provenance[k];
+  delete provenance.needs;
   return {
     ...s,
     incomeMonthly: 0,
@@ -168,6 +210,8 @@ function resetPredictedMoney(s: GpSession): GpSession {
     planLump: {},
     planSum: {},
     planPrem: {},
+    planSumTouched: {},
+    planPremTouched: {},
     investmentReturnTouched: false,
   };
 }
@@ -191,6 +235,7 @@ export default function App() {
   const [tourSeen, setTourSeen] = useState<Partial<Record<'about' | 'money' | 'score' | 'plan', boolean>>>({});
   const [reportOpen, setReportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [assumeConfig, setAssumeConfig] = useState<AssumeConfig>(ASSUME_CONFIG_FALLBACK);
   const token = loadAuthSession()?.access_token ?? null;
   const projectTimer = useRef<number | null>(null);
   const scoreTimer = useRef<number | null>(null);
@@ -203,7 +248,17 @@ export default function App() {
     sessionRef.current = session;
   }, [session]);
 
+  const stopVoice = () => {
+    narrAbort.current?.abort();
+    narrAbort.current = null;
+    stopSpeak();
+    setMiraOn(false);
+    setNarrKind(null);
+    setNarrPaused(false);
+  };
+
   const patch = (p: Partial<GpSession>) => {
+    if (p.explain === false) stopVoice();
     setSession(s => {
       const next = withRisk(s, p);
       if (needsInputChanged(p)) scheduleNeeds(next);
@@ -236,7 +291,9 @@ export default function App() {
 
   const applyNeedsResponse = useCallback(
     (s: GpSession, res: NeedsResponse): GpSession => {
-      const next = mergeNeedsFromApi(s, res.session.needs || [], res.session.ageOfRetirement);
+      const merged = mergeNeedsFromApi(s, res.session.needs || [], res.session.ageOfRetirement);
+      const cover = refreshUntouchedCover(merged);
+      const next = { ...merged, ...cover };
       setSession(next);
       sessionRef.current = next;
       return next;
@@ -292,7 +349,7 @@ export default function App() {
     setSession(s => {
       const next = withRisk(s, p);
       if (needsInputChanged(p)) scheduleNeeds(next);
-      else if (next.riskProfile !== s.riskProfile) scheduleScore(next);
+      else if (next.riskProfile !== s.riskProfile || scoreInputChanged(p)) scheduleScore(next);
       return next;
     });
   };
@@ -309,6 +366,7 @@ export default function App() {
   };
 
   const go = (r: Route) => {
+    stopVoice();
     const idx = ['d2cIntro', 'd2cAbout', 'd2cMoney', 'd2cScore', 'd2cPlan'].indexOf(r);
     setSession(s => ({ ...s, maxStep: Math.max(s.maxStep, idx) }));
     setRoute(r);
@@ -316,6 +374,9 @@ export default function App() {
       setReportOpen(false);
       setShareOpen(false);
     }
+    const main = document.getElementById('main');
+    if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
   };
 
   const estimate = async () => {
@@ -326,7 +387,24 @@ export default function App() {
     setSession(current);
     try {
       const res = await postJson<PredictResponse>('/v1/predict', sessionPayload(current), token);
-      setSession(s => withRisk(applyDocs(applyPredict(s, res.session))));
+      let next = withRisk(applyDocs(applyPredict(current, res.session)));
+      try {
+        const params = await fetchParameters(next.parametersVersion);
+        const values = Object.fromEntries(
+          Object.entries(params.parameters).map(([k, p]) => [k, Number(p.value)]),
+        );
+        if (next.fx && !next.events.some(e => e.on)) {
+          const age = typeof next.age === 'number' ? next.age : 40;
+          next = {
+            ...next,
+            events: defaultStressEvents(stressEventsFromParameters(values, next.fx.usdPerLocal, age)),
+          };
+        }
+      } catch {
+        /* catalog defaults stay */
+      }
+      setSession(next);
+      sessionRef.current = next;
       go('d2cMoney');
     } catch (err) {
       setPredictError(err instanceof Error && err.message ? err.message : PLU_UNAVAILABLE);
@@ -340,8 +418,9 @@ export default function App() {
     setScoreError(null);
     let current = withRisk(sessionRef.current);
     try {
-      if ((current.expenseMonthly || 0) < MIN_EXPENSE_MONTHLY) {
-        current = { ...current, expenseMonthly: MIN_EXPENSE_MONTHLY };
+      const spendFloor = minExpenseMonthly(current);
+      if ((current.expenseMonthly || 0) < spendFloor) {
+        current = { ...current, expenseMonthly: spendFloor };
       }
       if (current.needs.length) {
         const needsRes = await postJson<NeedsResponse>('/v1/needs', sessionPayload(current), token);
@@ -374,7 +453,14 @@ export default function App() {
         setPre(scored.preHappiU);
         setPost(scored.postHappiU);
       } catch (err) {
-        setProjectError(err instanceof Error ? err.message : 'The projection could not be run.');
+        const msg = err instanceof Error ? err.message : 'The projection could not be run.';
+        const friendly =
+          /retirement|retAge|ret.?age/i.test(msg) && /70|max|above|invalid/i.test(msg)
+            ? 'Retirement age cannot be above 70.'
+            : /^\s*[{\[]/.test(msg)
+              ? 'The projection could not be run.'
+              : msg;
+        setProjectError(friendly);
       } finally {
         setBusy(false);
       }
@@ -392,7 +478,7 @@ export default function App() {
     } catch {
       /* keep last need amounts */
     }
-    const seeded = { ...synced, ...seedProducts(synced) };
+    const seeded = { ...synced, ...(await seedProductsFromApi(synced, token)) };
     const next = need ? { ...seeded, tip: `panel-plans:${need}` } : seeded;
     setSession(next);
     sessionRef.current = next;
@@ -403,17 +489,16 @@ export default function App() {
   const toggleNeed = (t: NeedType) => {
     setSession(s => {
       const needs = toggleNeedEnabled(s.needs, t);
-      const next = { ...s, needs, ...productFlags({ ...s, needs }) };
+      const changed = needs.some((n, i) => n.enabled !== s.needs[i]?.enabled);
+      const next = {
+        ...s,
+        needs,
+        ...productFlags({ ...s, needs }),
+        ...(changed ? { provenance: needsProvenanceYou(s) } : {}),
+      };
       if (route === 'd2cPlan') scheduleProject(next);
       return next;
     });
-  };
-
-  const toggleExtra = (k: ExtraNeed) => {
-    setSession(s => ({
-      ...s,
-      extraNeeds: s.extraNeeds.includes(k) ? s.extraNeeds.filter(x => x !== k) : [...s.extraNeeds, k],
-    }));
   };
 
   const toggleEvent = (id: string) => {
@@ -443,16 +528,24 @@ export default function App() {
       const caps = marked.investmentReturn != null ? clampAllWealthToCaps(next) : {};
       const out = { ...next, ...caps };
       if (needsInputChanged(marked)) scheduleNeeds(out);
+      else if (scoreInputChanged(marked) && route === 'd2cScore') scheduleScore(out);
       if (route === 'd2cPlan') scheduleProject(out);
       return out;
     });
   };
 
-  const resetAssume = () => setAssume({ ...ASSUME_DEFAULTS });
+  const resetAssume = () => setAssume(assumeDefaults(assumeConfig));
 
   const moveMarker = (marker: ChartMarker, newX: number) => {
     setSession(s => {
       const next = applyMarkerMoveToSession(s, marker, newX);
+      if (
+        (marker.id === 'N_RET' || marker.id === 'retirement') &&
+        Math.round(newX) > (next.ageOfRetirement || 0) &&
+        next.ageOfRetirement === 70
+      ) {
+        showToast('Retirement age is capped at 70.');
+      }
       if (marker.kind === 'need') scheduleNeeds(next);
       scheduleProject(next);
       return next;
@@ -470,15 +563,6 @@ export default function App() {
       void runProject(s);
     }, 500);
   }
-
-  const stopVoice = () => {
-    narrAbort.current?.abort();
-    narrAbort.current = null;
-    stopSpeak();
-    setMiraOn(false);
-    setNarrKind(null);
-    setNarrPaused(false);
-  };
 
   const narrate = (kind: ExplainKind, extras?: { chartView?: ChartView }) => {
     const same = narrKind === kind || (kind === 'mira' && miraOn);
@@ -541,6 +625,43 @@ export default function App() {
       });
   };
 
+  // The published rates and their bounds. Until this lands the modal shows the
+  // built-in fallback, which is the same set the V0-24 workbook was calibrated on.
+  // Any rate still sitting at that fallback adopts the published value, so an admin
+  // who publishes a new version changes the session without the customer doing
+  // anything; a rate the customer has already moved is left alone.
+  useEffect(() => {
+    let live = true;
+    fetchAssumptionSchema()
+      .then(schema => {
+        if (!live) return;
+        const config = assumeConfigFrom(schema);
+        setAssumeConfig(config);
+        const published = assumeDefaults(config);
+        setSession(s => {
+          const next: Partial<GpSession> = { parametersVersion: schema.version };
+          for (const k of ASSUME_KEYS) {
+            if (s[k] === ASSUME_DEFAULTS[k] && s[k] !== published[k]) next[k] = published[k];
+          }
+          return { ...s, ...next };
+        });
+        const age = typeof sessionRef.current.age === 'number' ? sessionRef.current.age : 40;
+        return fetchSessionDefaults(age, sessionCountry(sessionRef.current)).then(defaults => {
+          if (!live) return;
+          setSession(s => ({
+            ...s,
+            ltcStartAge: s.ltcStartAge ?? defaults.ltcStartAge,
+            goalTargetYears: s.goalTargetYears ?? defaults.targetYear,
+            ageOfRetirement: s.ageOfRetirement === 65 ? defaults.ageOfRetirement : s.ageOfRetirement,
+          }));
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       if (projectTimer.current) window.clearTimeout(projectTimer.current);
@@ -553,8 +674,9 @@ export default function App() {
     };
   }, []);
 
-  const nAssume = assumeChangedCount(session);
-  const assumeOpen = session.tip?.startsWith('panel-assume') ?? false;
+  const isMobile = useIsMobile();
+  const nAssume = assumeChangedCount(session, assumeConfig);
+  const assumeOpen = !isMobile && (session.tip?.startsWith('panel-assume') ?? false);
 
   return (
     <Shell
@@ -573,9 +695,9 @@ export default function App() {
         if (next) setTourSeen({});
       }}
       onShare={undefined}
-      nAssume={nAssume}
+      nAssume={isMobile ? undefined : nAssume}
       assumeOn={assumeOpen}
-      onAssume={() => patch({ tip: assumeOpen ? null : 'panel-assume' })}
+      onAssume={isMobile ? undefined : () => patch({ tip: assumeOpen ? null : 'panel-assume' })}
       session={session}
       pre={pre}
       post={post}
@@ -593,6 +715,7 @@ export default function App() {
           <AssumeModal
             session={session}
             nAssume={nAssume}
+            assumeConfig={assumeConfig}
             onClose={() => patch({ tip: null })}
             onAssume={setAssume}
             onAssumeReset={resetAssume}
@@ -646,7 +769,6 @@ export default function App() {
           onBack={() => go('d2cMoney')}
           onPlan={need => void openPlan(need)}
           onToggleNeed={toggleNeed}
-          onToggleExtra={toggleExtra}
           busy={busy}
           narrKind={narrKind}
           narrPaused={narrPaused}
@@ -666,7 +788,6 @@ export default function App() {
           onChange={patch}
           onBack={() => go('d2cScore')}
           onToggleNeed={toggleNeed}
-          onToggleExtra={toggleExtra}
           onToggleEvent={toggleEvent}
           onEvents={setEvents}
           onMarkerMove={moveMarker}

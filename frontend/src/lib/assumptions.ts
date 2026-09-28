@@ -1,13 +1,11 @@
-/** Signed-off workbook defaults from the HTML ASSUME_DEF / Singapore Appendix 4. */
-export const ASSUME_DEFAULTS = {
-  inflationRate: 0.023,
-  interestRate: 0.012,
-  incomeGrowthRate: 0.028,
-  investmentReturn: 0.042,
-  assetReturn: 0.03,
-} as const;
-
-export type AssumeKey = keyof typeof ASSUME_DEFAULTS;
+/**
+ * Assumption box copy and the net-return slider colour ramp.
+ *
+ * The rate values and their bounds moved to the config service in WP2; see
+ * lib/config.ts. `ASSUME_DEFAULTS` is the fallback used before the first fetch.
+ */
+export { ASSUME_FALLBACK as ASSUME_DEFAULTS, ASSUME_KEYS } from './config';
+export type { AssumeConfig, AssumeKey } from './config';
 
 /** Plan net-expected-return slider, in percent. After product costs — not headline fund return. */
 export const NET_RETURN_PCT_MIN = 2.2;
@@ -53,11 +51,7 @@ export function pctAn(v: number): string {
   return `${(v * 100).toFixed(2).replace(/\.?0+$/, '')}% p.a.`;
 }
 
-export function assumeChangedCount(s: Record<AssumeKey, number>): number {
-  return (Object.keys(ASSUME_DEFAULTS) as AssumeKey[]).reduce((n, k) => {
-    return n + (Math.round(s[k] * 1000) !== Math.round(ASSUME_DEFAULTS[k] * 1000) ? 1 : 0);
-  }, 0);
-}
+export { assumeChangedCount } from './config';
 
 /** Plan net-expected-return slider is percent (4.2); session investmentReturn is a fraction (0.042). */
 export function investRetFromReturn(investmentReturn: number): number {

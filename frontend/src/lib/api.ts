@@ -1,7 +1,8 @@
-import { parseSentence, type ParsedSentence } from './parse';
+import { sessionCountry, sessionCurrency } from './currency';
+import type { ParsedSentence } from './parse';
 import { hydrateStressEvents } from './stressEvents';
 import type { SvData } from './sv';
-import type { GpSession, NeedRow } from './types';
+import { takeHomeMonthly, type GpSession, type NeedRow } from './types';
 
 function plannerUnreachable(message: string): boolean {
   return /^(HTTP 502|HTTP 504)\b/.test(message) || message === 'HTTP 503' || /failed to fetch|networkerror|load failed/i.test(message);
@@ -48,6 +49,13 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   return throwIfNotOk(res, await readJson<T>(res));
 }
 
+export async function putJson<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(path, { method: 'PUT', headers, body: JSON.stringify(body) });
+  return throwIfNotOk(res, await readJson<T>(res));
+}
+
 export interface ParseSentenceResponse {
   success: boolean;
   source: string;
@@ -59,24 +67,124 @@ export async function parseAboutYou(
   signal?: AbortSignal,
   opts?: { regexFallback?: boolean },
 ): Promise<{ fields: ParsedSentence; ai: boolean; llmError?: string }> {
+  const fallback = async () => (await import('./parse')).parseSentence(text);
   try {
     const data = await postJson<ParseSentenceResponse>('/v1/parse-sentence', { text }, null, signal);
     if (data.source === 'llm') return { fields: data.fields || {}, ai: true };
     if (data.source === 'unavailable') {
-      const fields = opts?.regexFallback === false ? {} : parseSentence(text);
+      const fields = opts?.regexFallback === false ? {} : await fallback();
       return { fields, ai: false, llmError: 'AI is not configured on this server (ANTHROPIC_API_KEY).' };
     }
   } catch (err) {
     if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) throw err;
     const llmError = llmCatchMessage(err);
     if (opts?.regexFallback === false) return { fields: {}, ai: false, llmError };
-    const fields = parseSentence(text);
+    const fields = await fallback();
     if (Object.keys(fields).length && plannerUnreachable(err instanceof Error ? err.message : '')) {
       return { fields, ai: false };
     }
     return { fields, ai: false, llmError };
   }
-  return { fields: parseSentence(text), ai: false };
+  return { fields: await fallback(), ai: false };
+}
+
+export interface PlanNeedResult {
+  type: string;
+  suggested: boolean;
+  included: boolean;
+  planSum: number;
+  planPrem: number;
+  planMth: number;
+  planLump: number;
+  capMth: number;
+  fv: number;
+  remain: number;
+}
+
+export interface PlanResponse {
+  needs: PlanNeedResult[];
+  investMth: number;
+  investLump: number;
+  protPremYear: number;
+  currency: string;
+}
+
+export interface BudgetResponse {
+  available: number;
+  free: number;
+  monthly: number;
+  monthlyOver: number;
+  lumps: number;
+  lumpOver: number;
+  currency: string;
+}
+
+export interface FxLock {
+  currency: string;
+  country: string;
+  usdPerLocal: number;
+  priceLevel: number;
+  asOf: string;
+  source: string;
+}
+
+export async function postPlan(session: GpSession, token?: string | null): Promise<PlanResponse> {
+  return postJson<PlanResponse>(
+    '/v1/plan',
+    {
+      age: typeof session.age === 'number' ? session.age : 40,
+      gender: session.gender || 'Male',
+      smoker: !!session.isSmoker,
+      country: sessionCountry(session),
+      currency: sessionCurrency(session),
+      takeHomeMonthly: takeHomeMonthly(session),
+      expenseMonthly: session.expenseMonthly || 0,
+      ageOfRetirement: session.ageOfRetirement || 65,
+      inflationRate: session.inflationRate,
+      investmentReturn: session.investmentReturn,
+      plansOff: session.plansOff || [],
+      parametersVersion: session.parametersVersion || '',
+      needs: (session.needs || []).map(n => ({
+        type: n.type,
+        enabled: !!n.enabled,
+        needAmount: n.needAmount || 0,
+        have: n.have || 0,
+        gap: n.gap ?? Math.max(0, (n.needAmount || 0) - (n.have || 0)),
+        horizonYears: n.contributeYears,
+        touchedSum: !!session.planSumTouched?.[n.type],
+        touchedMth: !!session.planMthTouched?.[n.type],
+        touchedLump: !!session.planLumpTouched?.[n.type],
+        planSum: session.planSum?.[n.type],
+        planMth: session.planMth?.[n.type],
+        planLump: session.planLump?.[n.type],
+      })),
+    },
+    token,
+  );
+}
+
+export async function postBudget(session: GpSession, token?: string | null): Promise<BudgetResponse> {
+  const includedPremiumsYear = (session.needs || [])
+    .filter(n => n.enabled && !(session.plansOff || []).includes(n.type))
+    .reduce((sum, n) => sum + (session.planPrem?.[n.type] || 0), 0);
+  return postJson<BudgetResponse>(
+    '/v1/budget',
+    {
+      takeHomeMonthly: takeHomeMonthly(session),
+      expenseMonthly: session.expenseMonthly || 0,
+      investments: session.investments || 0,
+      includedPremiumsYear,
+      investMth: session.investMth || 0,
+      investLump: session.investLump || 0,
+      currency: sessionCurrency(session),
+      parametersVersion: session.parametersVersion || '',
+    },
+    token,
+  );
+}
+
+export async function lockFx(currency: string, country: string): Promise<FxLock> {
+  return postJson<FxLock>('/v1/fx/lock', { currency, country });
 }
 
 export function sessionPayload(s: GpSession) {
@@ -84,6 +192,9 @@ export function sessionPayload(s: GpSession) {
     name: s.name,
     age: typeof s.age === 'number' ? s.age : 40,
     gender: s.gender,
+    country: sessionCountry(s),
+    currency: sessionCurrency(s),
+    fx: s.fx,
     residency: s.residency,
     nationality: s.nationality,
     occupation: s.occupation,
@@ -116,9 +227,12 @@ export function sessionPayload(s: GpSession) {
     insapiPlanId: s.insapiPlanId || '',
     inflationRate: s.inflationRate,
     interestRate: s.interestRate,
+    loanRate: s.loanRate,
     incomeGrowthRate: s.incomeGrowthRate,
     investmentReturn: s.investmentReturn,
     assetReturn: s.assetReturn,
+    parametersVersion: s.parametersVersion || '',
+    lifeExpectancy: s.lifeExpectancy ?? undefined,
   };
 }
 

@@ -9,9 +9,12 @@ Customer (React UI)
 GP BFF  (FastAPI)
         ├── POST /v1/parse-sentence  → OpenAI (About You fields)
         ├── POST /v1/explain         → OpenAI + src/prompts/*.md
-        ├── POST /v1/predict         → People Like You / Need Profiler / Need Calculator
+        ├── POST /v1/predict         → FX lock → social security → People Like You
+        │                            → Need Profiler → Need Calculator
         │                            (in-process; 503 if People Like You cannot run)
         ├── POST /v1/needs           → Need Calculator (same evaluate_session)
+        ├── POST /v1/plan            → suggested plan (was frontend maths)
+        ├── POST /v1/budget          → affordability vs the included plan
         ├── POST /v1/score           → HU POST /v1/happi-u
         └── POST /v1/project         → SV POST /api/v2/scenario-visualizer
 ```
@@ -34,7 +37,7 @@ only the JSON context the UI already displayed.
 | Path | Role |
 |------|------|
 | [`src/app.py`](../src/app.py) | FastAPI factory, CORS, routes, static UI mount |
-| [`src/predict.py`](../src/predict.py) | People Like You / profiler / calculator session mapping |
+| [`src/predict.py`](../src/predict.py) | Session mapping; FX lock and service clients |
 | [`src/upstream.py`](../src/upstream.py) | FM / HU / SV HTTP helpers and timeouts |
 | [`src/openai_client.py`](../src/openai_client.py) | Shared OpenAI chat helper |
 | [`src/hu_payload.py`](../src/hu_payload.py) | Session → HappiU `POST /v1/happi-u` body ([payload map](HU-and-SV-payloads.md)) |
@@ -47,21 +50,79 @@ only the JSON context the UI already displayed.
 
 ## Request lifecycle
 
+### Journey sequence
+
+Which button calls which component. What each component reads and writes is in
+[calculations/Calculations.md](calculations/Calculations.md). People Like You, Need Profiler,
+Need Calculator, Plan and Budget run inside the BFF. HappiU and Scenario Visualizer
+are upstream.
+
+```mermaid
+sequenceDiagram
+    actor Customer
+    participant UI as UI
+    participant BFF as GP BFF
+    participant HU as HappiU
+    participant SV as Scenario Visualizer
+
+    Customer->>UI: Predict my finance
+    UI->>BFF: POST /v1/predict
+    Note over BFF: People Like You, then Need Profiler, then Need Calculator
+    BFF-->>UI: money attributes and needs
+
+    Note over Customer,UI: Customer may edit income, expenses, savings, investments, policies
+
+    Customer->>UI: Understand my goals and needs
+    UI->>BFF: POST /v1/needs
+    Note over BFF: Need Calculator on those money attributes
+    BFF-->>UI: needAmount, have, gap
+    UI->>BFF: POST /v1/score
+    BFF->>HU: POST /v1/happi-u
+    HU-->>BFF: preHappiU, postHappiU
+    BFF-->>UI: score before a plan exists
+
+    Customer->>UI: Build my plan
+    UI->>BFF: POST /v1/needs
+    BFF-->>UI: refreshed needs
+    UI->>BFF: POST /v1/plan
+    BFF-->>UI: planSum, planPrem, planMth, planLump
+    UI->>BFF: POST /v1/budget
+    BFF-->>UI: available, free, over
+    UI->>BFF: POST /v1/project
+    BFF->>SV: POST /api/v2/scenario-visualizer
+    SV-->>BFF: wealth path
+    BFF-->>UI: chart
+    UI->>BFF: POST /v1/score
+    Note over BFF,HU: Same score call, plan attributes set
+    BFF->>HU: POST /v1/happi-u
+    HU-->>BFF: preHappiU, postHappiU
+    BFF-->>UI: score with the plan
+```
+
+**Understand my goals and needs** is the step that runs Need Calculator and
+then HappiU. While the customer is still on Your money, an edit of those
+figures can also call `POST /v1/needs` after a short delay. That call updates
+the stored amounts and stays on the page.
+
+`POST /v1/plan` seeds sums, premiums and contributions. `POST /v1/budget`
+compares half the surplus to that included plan. Neither call changes the
+session sent to Scenario Visualizer or to the second HappiU call.
+
 ### Predict (`POST /v1/predict`)
 
 1. Normalize session (synthesize `dateOfBirth` from age if missing).
-2. Run **People Like You** in-process (`src/pipeline/run.py`).
-3. On success, map finance + optional assumed life cover (mortgage rounded to
-   S$100k, or 5× annual income when there is at least one dependant).
-4. On People Like You failure, return **503** (no occupation-band fallback).
-5. Need Profiler (`topN=5`, including the PLU lifestyle blob) then Need
-   Calculator (`evaluate_session`), also in-process.
-6. Return `{ success, session, notes }`. Notes list which steps were skipped.
+2. Lock FX (`FxLock` on the session) unless the client already sent one.
+3. Run **People Like You** in-process (service, not the old occupation-band fallback).
+4. On People Like You failure, return **503**.
+5. Need Profiler (11 Dictionary labels; N_PRP / N_LTC never auto-picked) then
+   Need Calculator (`evaluate_session`), also in-process.
+6. Return `{ success, session, notes }` including `parkedNeeds` and `fx`.
+   Notes list which steps were skipped.
 
 Goal-card and money edits call **`POST /v1/needs`**, the same calculator.
 How People Like You, Need Profiler, and Need Calculator work is in
 [People-like-you-and-needs.md](People-like-you-and-needs.md). Suggested plan
-and budget stay in [Calculations.md](Calculations.md).
+and budget stay in [calculations/Calculations.md](calculations/Calculations.md).
 
 ### Score / project
 

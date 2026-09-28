@@ -1,6 +1,7 @@
 import {
   NEED_META,
   POLICY_FOR_NEED,
+  MAX_RETIREMENT_AGE,
   availableBudget,
   sessionAge,
   type GpSession,
@@ -16,7 +17,7 @@ function byNeedWeight(a: NeedRow, b: NeedRow): number {
   return (b.gap || 0) - (a.gap || 0) || (b.needAmount || 0) - (a.needAmount || 0);
 }
 
-export function capEnabledNeeds(needs: NeedRow[], opts?: { hasProperty?: boolean }): NeedRow[] {
+export function capEnabledNeeds(needs: NeedRow[]): NeedRow[] {
   const withMand = needs.map(n => (n.type === 'N_RET' ? { ...n, enabled: true } : n));
   const pick = (group: 'p' | 'w', must: NeedType[]) => {
     const pool = withMand.filter(n => NEED_META[n.type].group === group).sort(byNeedWeight);
@@ -29,15 +30,7 @@ export function capEnabledNeeds(needs: NeedRow[], opts?: { hasProperty?: boolean
     }
     return keep.slice(0, GROUP_N);
   };
-  const picked = [...pick('p', []), ...pick('w', ['N_RET'])];
-  const hasProperty = opts?.hasProperty;
-  const keep = new Set<NeedType>(
-    picked.map(t => {
-      if (hasProperty === true && t === 'N_SAV' && !picked.includes('N_PRP')) return 'N_PRP';
-      if (hasProperty === false && t === 'N_PRP' && !picked.includes('N_SAV')) return 'N_SAV';
-      return t;
-    }),
-  );
+  const keep = new Set<NeedType>([...pick('p', []), ...pick('w', ['N_RET'])]);
   return withMand.map(n => ({ ...n, enabled: keep.has(n.type) }));
 }
 
@@ -50,6 +43,7 @@ export function toggleNeedEnabled(needs: NeedRow[], type: NeedType): NeedRow[] {
   });
 }
 
+/** Retirement lifestyle rates. Mirror goal_math.RET_LIFESTYLE_FRUGAL / _STRESSFREE / _ONLYTHEBEST. */
 export const LIFESTYLE: { v: number; label: string; rate: number }[] = [
   { v: 1, label: 'Frugal', rate: 0.75 },
   { v: 2, label: 'Stress free', rate: 1 },
@@ -70,6 +64,7 @@ export interface NeedEdit {
   amountRequired: number;
   monthlyContribution: number;
   contributeYears: number;
+  ltcStartAge: number;
 }
 
 export function fv(pv: number, rate: number, periods: number): number {
@@ -93,32 +88,32 @@ export function nowYear(): number {
   return new Date().getFullYear();
 }
 
-/** Years of support behind the life cover need. Mirrors goal_math.life_support_years. */
-export function lifeSupportYears(age: number): number {
+/** Years of income support behind the income need. Mirrors goal_math.income_support_years. */
+export function incomeSupportYears(age: number): number {
   return Math.min(Math.max(10, 50 - (age || 0)), 25);
 }
 
 /** Read stored editor fields. Amounts / have / gap come from POST /v1/needs. */
 export function fillNeedEdit(s: GpSession, n: NeedRow): NeedEdit {
-  const retAge = n.retAge || s.ageOfRetirement || 65;
+  const rawRet = n.retAge || s.ageOfRetirement || 65;
+  const retAge = Math.min(MAX_RETIREMENT_AGE, Math.max(sessionAge(s) || 18, rawRet));
   const lifestyle = n.lifestyle === 1 || n.lifestyle === 3 ? n.lifestyle : 2;
   const y = nowYear();
-  const targetYear = n.targetYear || n.fundsNeededYear || y + 10;
+  const targetYear = n.targetYear || n.fundsNeededYear || s.goalTargetYears?.[n.type] || y + 10;
   const yearsTo = Math.max(1, targetYear - y);
   const stored = n.existing ?? n.existingInvestment ?? n.existingSumAssured ?? 0;
   const surplus = Math.max(0, availableBudget(s));
   const inc = s.incomeMonthly || 0;
-  const liq = (s.cash || 0) + (s.investments || 0);
   const existingCap =
     NEED_META[n.type].group === 'p'
       ? moneyMax(n.needAmount || 0, 500000)
-      : moneyMax(liq, n.type === 'N_RET' ? 500000 : 200000);
+      : investmentRoom(s, n.type);
   return {
     retAge,
     lifestyle,
     retIncomeMonthly: n.retIncomeMonthly ?? 0,
     incomeReplaceMonthly: Math.min(n.incomeReplaceMonthly ?? inc, moneyMax(inc, 20000)),
-    dependYears: n.dependYears ?? lifeSupportYears(sessionAge(s) ?? 40),
+    dependYears: n.dependYears ?? incomeSupportYears(sessionAge(s) ?? 40),
     dependants: Math.min(6, n.dependants ?? s.dependents ?? 0),
     liabilities: Math.min(n.liabilities ?? s.mortgage ?? 0, moneyMax(s.mortgage || 0, 200000)),
     bequest: Math.max(0, n.bequest ?? 0),
@@ -130,6 +125,7 @@ export function fillNeedEdit(s: GpSession, n: NeedRow): NeedEdit {
         : n.needAmount || 0,
     monthlyContribution: Math.min(n.monthlyContribution ?? 0, moneyMax(Math.max(surplus, 2000), 5000)),
     contributeYears: n.contributeYears ?? yearsTo,
+    ltcStartAge: n.ltcStartAge ?? s.ltcStartAge ?? 80,
   };
 }
 
@@ -140,6 +136,10 @@ export function needCardHave(_s: GpSession, n: NeedRow): number {
 export function needCardGap(_s: GpSession, n: NeedRow): number {
   if (n.gap != null) return Math.max(0, n.gap);
   return Math.max(0, (n.needAmount || 0) - (n.have || 0));
+}
+
+export function needsProvenanceYou(s: GpSession): GpSession['provenance'] {
+  return { ...s.provenance, needs: 'you' };
 }
 
 /** Write slider inputs onto the need row. Does not compute amount / have / gap. */
@@ -159,7 +159,11 @@ export function patchNeedInputs(
   const extra: Partial<GpSession> = {
     needs: s.needs.map(x => (x.type === type ? next : x)),
   };
-  if (type === 'N_RET' && next.retAge) extra.ageOfRetirement = next.retAge;
+  if (type === 'N_RET' && next.retAge) {
+    next.retAge = Math.min(MAX_RETIREMENT_AGE, next.retAge);
+    extra.ageOfRetirement = next.retAge;
+    extra.needs = s.needs.map(x => (x.type === type ? next : x));
+  }
 
   const want = POLICY_FOR_NEED[type];
   if (want && p.existing != null) {
@@ -170,13 +174,36 @@ export function patchNeedInputs(
         ? [{ type: want, insurer: prev?.insurer || 'Existing insurer', sum: p.existing, premium: prev?.premium || 0 }, ...rest]
         : rest;
   }
+  if (Object.keys(p).length) extra.provenance = needsProvenanceYou(s);
   return extra;
 }
 
 /** Dollar slider ceiling. Stops a drag-to-end from raising max again (value × 1.6 feedback). */
 export const MONEY_SLIDER_CAP = 10_000_000;
 
-export const MIN_EXPENSE_MONTHLY = 100;
+/** Spend floor in system currency (USD). Convert with ``minExpenseMonthly``. */
+export const MIN_EXPENSE_MONTHLY_USD = 100;
+
+/** USD 100 as a monthly spend floor in the session's locked currency (2 dp, same as PLU). */
+export function minExpenseMonthly(session?: { fx?: { usdPerLocal?: number } | null } | null): number {
+  const rate = session?.fx?.usdPerLocal;
+  if (rate == null || !(rate > 0)) return MIN_EXPENSE_MONTHLY_USD;
+  return Math.round((MIN_EXPENSE_MONTHLY_USD / rate) * 100) / 100;
+}
+
+const WEALTH_TAG_ORDER: NeedType[] = ['N_RET', 'N_EDU', 'N_SAV', 'N_PRP'];
+
+/** Investments still free for this need. Earlier wealth tags consume the pot first. Cash is not in the pot. */
+export function investmentRoom(s: GpSession, type: NeedType): number {
+  const pot = s.investments || 0;
+  let used = 0;
+  for (const t of WEALTH_TAG_ORDER) {
+    if (t === type) break;
+    const row = s.needs.find(n => n.type === t);
+    used += row?.existing ?? row?.existingInvestment ?? 0;
+  }
+  return Math.max(0, pot - used);
+}
 
 export function moneyMax(base: number, floor: number): number {
   const stretched = Math.ceil((Math.max(base, 0) * 1.6) / 1000) * 1000;

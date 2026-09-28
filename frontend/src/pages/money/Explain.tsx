@@ -21,7 +21,7 @@ export function Explain({ session, onChange }: { session: GpSession; onChange: (
       on: true,
       e: 'Sets the market and currency for the estimate',
     },
-    { k: 'deps', v: session.dependents + ' dependant' + (session.dependents === 1 ? '' : 's'), on: false, e: 'Shapes cover and family goals' },
+    { k: 'deps', v: session.dependents + ' dependant' + (session.dependents === 1 ? '' : 's'), on: true, e: 'Shapes cover, family goals, and spending — each extra dependant adds 5 percentage points of take-home, capped at 90%' },
     { k: 'gender', v: session.gender || 'Not set', on: false, e: 'Shapes retirement, not this estimate' },
   ];
   return (

@@ -5,16 +5,15 @@ import { GroupTag, NarrBtn, Switch } from '../../components/ui';
 import type { ExplainKind } from '../../lib/explain';
 import { Ico } from '../../lib/icons';
 import { PLAN_FOR_NEED, allPlansOn, planAfford, planRemain, suggestedInGroup, suggestedNeeds, toggleAllPlansPatch } from '../../lib/planProducts';
+import { ParkedCoverage } from '../../components/GoalCard';
+import { rateAsOfLabel, sessionCurrency } from '../../lib/currency';
 import {
-  EXTRA_NEED_ICONS,
-  EXTRA_NEEDS,
   HAPPI_COL,
   happiBand,
   happiCaption,
   NEED_META,
   money,
   moneyK,
-  type ExtraNeed,
   type GpSession,
   type NeedType,
 } from '../../lib/types';
@@ -41,25 +40,27 @@ function PlanAffordPanel({ session }: { session: GpSession }) {
   const a = planAfford(session);
   const monthlyOver = a.monthlyOver > 0;
   const lumpOver = a.lumpOver > 0;
+  const ccy = sessionCurrency(session);
   return (
     <>
+      <p className="x-sm">{rateAsOfLabel(session.fx, ccy)}</p>
       <div className="x-prod-fitg x-prod-bud">
-        <FitRow label="Monthly available budget" value={money(a.available)} kind="hi" />
-        <FitRow label={`Recommended free budget (${a.freePct}%)`} value={money(a.free)} />
-        <FitRow label="Protection premiums" value={`${money(a.premMth)}/mo`} />
-        <FitRow label="Monthly contributions" value={`${money(a.contribMth)}/mo`} />
+        <FitRow label="Monthly available budget" value={money(a.available, ccy)} kind="hi" />
+        <FitRow label={`Recommended free budget (${a.freePct}%)`} value={money(a.free, ccy)} />
+        <FitRow label="Protection premiums" value={`${money(a.premMth, ccy)}/mo`} />
+        <FitRow label="Monthly contributions" value={`${money(a.contribMth, ccy)}/mo`} />
         <FitRow
           label={monthlyOver ? 'Over free budget' : 'Within free budget'}
-          value={monthlyOver ? money(a.monthlyOver) : 'Fits'}
+          value={monthlyOver ? money(a.monthlyOver, ccy) : 'Fits'}
           kind={monthlyOver ? 'no' : 'ok'}
         />
       </div>
       <div className="x-prod-fitg x-prod-sav">
-        <FitRow label="Investments" value={money(a.investments ?? a.savings)} kind="hi" />
-        <FitRow label="Plan lump sums" value={money(a.lumps)} />
+        <FitRow label="Investments" value={money(a.investments ?? a.savings, ccy)} kind="hi" />
+        <FitRow label="Plan lump sums" value={money(a.lumps, ccy)} />
         <FitRow
           label={lumpOver ? 'Over investments' : 'Within investments'}
-          value={lumpOver ? money(a.lumpOver) : 'Fits'}
+          value={lumpOver ? money(a.lumpOver, ccy) : 'Fits'}
           kind={lumpOver ? 'no' : 'ok'}
         />
       </div>
@@ -77,7 +78,6 @@ export function SuggestedPlan({
   planModal,
   setPlanModal,
   onChange,
-  onToggleExtra,
   narrKind,
   narrPaused,
   onNarr,
@@ -94,7 +94,6 @@ export function SuggestedPlan({
   planModal: NeedType | null;
   setPlanModal: Dispatch<SetStateAction<NeedType | null>>;
   onChange: (p: Partial<GpSession>) => void;
-  onToggleExtra: (k: ExtraNeed) => void;
   narrKind: string | null;
   narrPaused?: boolean;
   onNarr: (kind: ExplainKind) => void;
@@ -137,20 +136,6 @@ export function SuggestedPlan({
   const col = (group: 'p' | 'w') => {
     const meta = NEED_GROUPS[group];
     const rows = suggestedInGroup(session, group);
-    const extras =
-      group === 'p'
-        ? EXTRA_NEEDS.filter(x => session.extraNeeds.includes(x.k)).map(x => (
-            <div key={x.k} className="gc on">
-              <div className="gc-h">
-                <span className="gc-ic" style={{ borderColor: x.color }}>
-                  <span className="need-ico">{EXTRA_NEED_ICONS[x.k]}</span>
-                </span>
-                <b>{x.label}</b>
-                <Switch on label={x.label} onClick={() => onToggleExtra(x.k)} />
-              </div>
-            </div>
-          ))
-        : [];
     return (
       <div className="x-prodg">
         <div className="x-prodh">
@@ -161,8 +146,10 @@ export function SuggestedPlan({
           {rows.map(n => (
             <div key={n.type}>{planCard(n.type, editProd === n.type, () => toggleEdit(n.type))}</div>
           ))}
-          {extras}
-          {!rows.length && !extras.length ? <p className="x-sm">No shortfall to close in this group.</p> : null}
+          {group === 'p' ? <ParkedCoverage parked={session.parkedNeeds} /> : null}
+          {!rows.length && !(group === 'p' && session.parkedNeeds?.length) ? (
+            <p className="x-sm">No shortfall to close in this group.</p>
+          ) : null}
         </div>
       </div>
     );
@@ -182,7 +169,7 @@ export function SuggestedPlan({
         </button>
         {planOpen ? (
           <NarrBtn
-            label="Explain plan's benefits"
+            label="Explain"
             on={narrKind === 'prod'}
             paused={narrPaused}
             onClick={() => onNarr('prod')}
@@ -205,7 +192,7 @@ export function SuggestedPlan({
           aria-label={planOpen ? 'Collapse suggested plan' : 'Expand suggested plan'}
           onClick={() => setPlanOpen(open => !open)}
         >
-          {Ico.chev}
+          {Ico.pencil}
         </button>
       </div>
       {planOpen ? (
@@ -237,7 +224,7 @@ export function SuggestedPlan({
                   <div key={n.type} className={`x-chip ${short ? 'no' : 'ok'}`}>
                     <button className="x-chip-lab" type="button" onClick={() => setPlanOpen(true)}>
                       {short ? (
-                        `${title} Shortfall: ${moneyK(remain)}`
+                        `${title} Shortfall: ${moneyK(remain, sessionCurrency(session))}`
                       ) : (
                         <>
                           {title} {Ico.check}
@@ -261,7 +248,7 @@ export function SuggestedPlan({
             )}
           </div>
           <NarrBtn
-            label="Explain plan's benefits"
+            label="Explain"
             on={narrKind === 'prod'}
             paused={narrPaused}
             onClick={() => onNarr('prod')}
